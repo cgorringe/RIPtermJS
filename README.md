@@ -34,6 +34,12 @@ Visit my [demo page](http://carl.gorringe.org/pub/code/javascript/RIPtermJS/).
 [![](img/badge_demo.png)](http://carl.gorringe.org/pub/code/javascript/RIPtermJS/)
 
 
+![](img/screen1.png)
+![](img/screen2.png) <br>
+![](img/screen3.png)
+![](img/screen4.png) <br>
+
+
 ## License
 
 Copyright (c) 2018 Carl Gorringe. All rights reserved.
