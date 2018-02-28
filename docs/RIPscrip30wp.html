@@ -1,0 +1,1977 @@
+<!DOCTYPE HTML PUBLIC "-//SQ//DTD HTML 2.0 HoTMetaL + extensions//EN">
+<html><head>
+<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
+
+
+<!-- base href="http://www.telegrafix.com/asr/whitepap.htm" -->
+
+<title>RIPscrip 3.0 - Technical White Paper</title> 
+</head><body text="#000000" bgcolor="#ffffff">
+<p><br>
+</p>
+<center><table width="600" border="0"><tbody><tr><td colstart="1" align="CENTER"><font size="6"><b>RIP<i>scrip </i>3.0&#8482; Technical White Paper</b></font></td></tr><tr><td colstart="1"></td></tr><tr><td colstart="1" align="CENTER"><b>Copyright
+© 1992-1997  TeleGrafix Communications, Inc.</b><br><b>All Rights
+Reserved</b></td></tr><tr><td colstart="1" align="CENTER"></td></tr><tr><td colstart="1" align="CENTER"><b>Document Date: 12/06/96</b><br><b>Written by:
+ Jeff Reeder</b></td></tr><tr><td colstart="1"></td></tr><tr><td colstart="1" align="CENTER"><b>A technical summary of the Remote Imaging
+Protocol Scripting</b><br><b>Language, covering overall scope, architecture
+and future goals.</b></td></tr></tbody></table></center>
+<p>
+</p>
+<table><tbody><tr><td colstart="1" width="220"></td><td colstart="2" width="50"></td><td colstart="3"><hr><dl>
+<dt><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#INTRO"><b>1. Introduction</b></a></dt>
+<dd><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#Scope">1.1 Scope of Use</a></dd>
+<dd><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#Widespread">1.2 Widespread Standard in the Online Industry</a></dd>
+<dd><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#Open">1.3 Open Standards vs. Closed-End Proprietary Interfaces</a></dd>
+<dd><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#Platforms">1.4 Available Platforms</a></dd></dl>
+<dl>
+<dt><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#Applications"><b>2. Applications  of RIP<i>scrip</i></b></a></dt>
+<dd><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#Services">2.1 General Online Services</a></dd>
+<dd><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#Media">2.2 Media Presentation Services</a></dd>
+<dd><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#Publication">2.3 Publication Services</a></dd>
+<dd><dl><dt><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#Internet">2.4 Internet Applications</a></dt>
+<dd><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#ISP"><i>2.4.1 Internet Service Providers	</i></a></dd>
+<dd><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#RIPWEB"><i>2.4.2 World-Wide Web Services - RIPweb	</i></a></dd>
+<dd><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#PLUGIN"><i>2.4.3 WWW Browser Plug-Ins - The RIPscrip Browser
+</i></a></dd></dl></dd></dl>
+<dl>
+<dt><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#Overview"><b>3. Overview of the Technology</b></a></dt>
+<dd><dl><dt><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#What">3.1 What RIPscrip Is and Is Not	</a></dt>
+<dd><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#WhatItIs"><i>3.1.1 What It Is - A Graphical  Presentation
+Environment	</i></a></dd>
+<dd><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#WhatItIsnt"><i>3.1.2 What It Is Not - A Graphical User
+Interface	</i></a></dd></dl><dl>
+<dt><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#Nature">3.2 Text Nature of the Language</a></dt>
+<dd><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#Numeric"><i>3.2.1 Numeric Encoding	</i></a></dd>
+<dd><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#Structure"><i>3.2.2 Structure of the Protocol	</i></a></dd>
+<dd><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#CommandLevels"><i>3.2.3 Command Levels	</i></a></dd>
+<dd><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#CommandParameters"><i>3.2.4 Command Parameters	</i></a></dd>
+<dd><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#CommandStructure"><i>3.2.5 Command Structure Philosophy	</i></a></dd></dl><dl>
+<dt>
+<a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#DesignGoals">3.3 Design Goals</a></dt>
+<dd><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#ResIndep"><i>3.3.1 Resolution Independence - The World
+Coordinate System	</i></a></dd>
+<dd><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#ColorIndep"><i>3.3.2 Color-Palette Independence	</i></a></dd></dl><dl>
+<dt><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#BroadRange">3.4 Broad Range of Graphical Primitives</a></dt>
+<dd><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#FontSystems"><i>3.4.1 Font Systems	</i></a></dd>
+<dd><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#VectorGraphics"><i>3.4.2 Vector Graphics Primitives	</i></a></dd>
+<dd><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#ColorPalettes"><i>3.4.3 Color Palettes	</i></a></dd>
+<dd><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#FillPatterns"><i>3.4.4 Fill Patterns	</i></a></dd>
+<dd><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#LineStyles"><i>3.4.5 Line Dash-Styles	</i></a></dd>
+<dd><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#RasterOps"><i>3.4.6 Raster-Operators	</i></a></dd></dl><dl>
+<dt><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#UserInterfaceObjs">3.5 User-Interface Objects</a></dt>
+<dd><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#MouseFields"><i>3.5.1 Mouse Fields	</i></a></dd>
+<dd><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#Buttons"><i>3.5.2 Buttons	</i></a></dd>
+<dd><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#QueryExpressions"><i>3.5.3 Query Expressions	</i></a></dd></dl><dl>
+<dt><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#GfxAndTTY">3.6 Integrated Graphical and TTY Interfaces</a></dt>
+<dd><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#Viewports"><i>3.6.1 Viewports	</i></a></dd>
+<dd><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#TextWindows"><i>3.6.2 Text Windows	</i></a></dd></dl><dl>
+<dt><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#SupportedImages">3.7 Supported Image Formats</a></dt>
+<dd><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#BMPImages"><i>3.7.1 BMP	</i></a></dd>
+<dd><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#JPEGImages"><i>3.7.2 JPEG	</i></a></dd>
+<dd><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#GIFImages"><i>3.7.3 GIF	</i></a></dd>
+<dd><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#PNGImages"><i>3.7.4 PNG	</i></a></dd></dl><dl>
+<dt><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#DataTables">3.8 Data Tables	</a></dt>
+<dd><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#SwitchingTables"><i>3.8.1 Switching Data Tables - Context
+Swapping	</i></a></dd>
+<dd><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#ProtectedTables"><i>3.8.2 Protected Data Tables	</i></a></dd></dl><dl>
+<dt><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#DataBackupSystem">3.9 Data Backup System</a></dt>
+<dd><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#BaseSaveArea"><i>3.9.1 Base Data Save Area	</i></a></dd>
+<dd><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#DataSlots"><i>3.9.2 Data Save Slots	</i></a></dd>
+<dd><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#DataStack"><i>3.9.3 Stack Save Area	</i></a></dd></dl><dl>
+<dt><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#HostLanguage">3.10 Host Command Language</a></dt>
+<dd><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#ControlChars"><i>3.10.1 Control Characters	</i></a></dd>
+<dd><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#Picklists"><i>3.10.2 Pop-Up Picklists	</i></a></dd>
+<dd><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#LocalPlayback"><i>3.10.3 Local File Playback Directives	</i></a></dd>
+<dd><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#Templates"><i>3.10.4 Template Directives	</i></a></dd>
+<dd><dl><dt><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#TextVariables"><i>3.10.5 Text Variables	</i></a></dt>
+<dd><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#UserVars"><i>3.10.5.1 User-Defined Text Variables</i></a></dd>
+<dd><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#PreDefinedVars"><i>3.10.5.2 Pre-Defined Text Variables</i></a></dd></dl></dd></dl><dl>
+<dt><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#PuttingItAll">3.11 Putting It All Together</a></dt></dl></dd></dl>
+<dl>
+<dt><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#GoalsOfRip"><b>4. Future Goals of RIP<i>scrip</i></b></a></dt>
+<dd><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#InternationalLang">
+4.1 International Language Support	</a></dd>
+<dd><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#MotionVideo">4.2 Full-Motion Video	</a></dd>
+<dd><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#CompressedAudo">4.3 Compressed, Streaming Audio</a></dd>
+<dd>
+<a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#IntegratedGui">4.4 Integrated GUI Environment	</a></dd>
+<dd><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#FormsAndTables">4.5 Forms and Tables	</a></dd>
+<dd><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#DocInterface">4.6 Document Oriented Interface</a></dd>
+<dd><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#HyperText">4.7 Hyper-Text Markup Language (HTML)	</a></dd></dl>
+<dl>
+<dt><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/whitepap.htm#Conclusion"><b>5. Conclusion</b></a></dt></dl>
+</td></tr>
+</tbody></table>
+<p>
+</p>
+<hr size="3">
+<p>
+</p>
+<h1><a name="INTRO">Introduction</a></h1>
+<p>
+In today's ever-changing world of online technology, power, flexibility and
+non-obsolescence are the key issues in the success of a technology.  Using a
+technology that can't meet the needs of a changing world will only result in
+dead-ends, development problems, lost customers, and hence, lost revenues. 
+Since a successful online service is important to both the end-user and the
+service provider alike, the correct choice into the presentation technology for
+a service is critical.</p>
+<p>
+</p>
+<p>
+RIP<i>scrip</i> graphics were designed for just such a purpose.  It is fast,
+flexible, and powerful enough to meet your needs today, and in the years to
+come.  Designed with the philosophy that "faster is better", RIP<i>scrip</i>
+graphics do not require that you have a very high-speed online connection like
+some other graphical technologies do.  RIP<i>scrip</i> was designed to work
+over low-speed modems and network connections where performance is critical.  A
+slow presentation will only bore your customers, and they will look for other
+services which provide them with the desired information in a more rapid manner!
+ Let's face it, customers are looking for immediate gratification.</p>
+<p>
+</p>
+<p>
+The other requirement for a presentation technology is quality.  You could have
+a very fast presentation, but if the quality of the presentation is poor, your
+customers won't be impressed enough with your service to continue using it.</p>
+<p>
+</p>
+<p>
+What you need is a presentation technology that provides both speed and quality.
+ RIP<i>scrip</i> graphics offers you both of these capabilities, and much more.</p>
+<p>
+</p>
+<h2><a name="Scope">Scope of Use</a></h2>
+<p>
+This technical summary is primarily directed toward engineers and developers of
+online services.  Sections 1 and 2 of this document are more marketing-oriented
+than technical, and are considered more informational.  For the developer
+interested in the technical aspects of RIP<i>scrip</i>, sections 3 and 4 will
+provide more detailed information on the architecture of the language in
+general.</p>
+<p>
+</p>
+<p>
+This document is not intended to be a complete technical definition of the RIP<i>scrip</i>
+language.  The complete reference for the RIP<i>scrip</i> is contained in the "Remote
+Imaging Protocol Scripting Language 3.0 Language Reference" document
+available from TeleGrafix Communications, Inc.  The information contained herein
+is for general information and for the understanding of the overall structure
+and design paradigms of RIP<i>scrip</i>.</p>
+<p>
+</p>
+<h2><a name="Widespread">Widespread Standard in the Online Industry</a></h2>
+<p>
+Another important aspect of choosing the right technology is market acceptance. 
+Unlike some other technologies which have existed for only a few months, RIP<i>scrip</i>
+has been used throughout the computer bulletin board industry for nearly four
+years.  This means that it has undergone a large volume of customer experience -
+fine tuning the technology to suit the needs of small services and large.  </p>
+<p>
+</p>
+<p>
+There are literally hundreds of third-party products available which are
+designed with RIP<i>scrip</i> graphics built-in.  Products ranging from file
+library systems, message readers, games, to high-end newspaper publishing
+environments are available for purchase.</p>
+<p>
+</p>
+<p>
+With RIP<i>scrip</i> graphics, you won't suffer from a lack of products, or
+tools.  With an ever-increasing list of supporting vendors, the technology grows
+to benefit everybody.</p>
+<p>
+</p>
+<p>
+</p>
+<h2><a name="Open">Open Standards vs. Closed-End Proprietary Interfaces</a></h2>
+<p>
+No matter what graphical presentation technology you choose for your online
+service, the issue of open standards vs. proprietary interfaces will come up. 
+Over the last couple of years, several proprietary graphical user interface
+systems for online services have emerged.  With these types of technologies,
+your customers have to use separate software packages to access different online
+services.  This is very much like having to have different kinds of television
+sets to watch different TV stations.</p>
+<p>
+</p>
+<p>
+With RIP<i>scrip</i> graphics, you are working with an "industry-standard"
+technology, supported by a wide variety of software packages.  This has the
+added advantage that your customers will be able to use the same dial-up
+communications software package to access many different online services, giving
+value added to the software that they purchase.  Nothing is worse than
+purchasing a software package that you can only use in a very limited
+environment.  Usability and versatility are the key points here.  What you get
+with RIP<i>scrip</i> graphics is wide-ranging compatibility with other online
+services.  Only RIP<i>scrip</i> graphics makes it possible to navigate
+seamlessly from one online service to another, maintaining a consistent
+graphical interface, without having to switch software packages.  You don't have
+that luxury with other proprietary user interfaces.</p>
+<p>
+</p>
+<h2><a name="Platforms">Available Platforms</a></h2>
+<p>
+Currently, RIP<i>scrip</i> graphics is supported in the vast majority of
+terminal software packages, and bulletin board products.  Here is a list of some
+of the existing companies with RIP<i>scrip</i> capabilities in their
+product(s):</p>
+<p>
+</p>
+<center><table border="0"><tbody><tr valign="TOP" align="CENTER"><td colstart="1" align="LEFT"><u><b>Terminals</b></u></td>
+<td colstart="2" align="LEFT"><u><b>Platform</b></u></td><td colstart="3" width="20"></td><td colstart="4" align="LEFT"><u><b>BBS
+Software</b></u></td></tr><tr><td colstart="1">
+RIP<i>term</i> Pro</td><td colstart="2">MS-DOS</td><td colstart="3"></td><td colstart="4">The MajorBBS/WorldGroup</td></tr><tr><td colstart="1">Qmodem Pro</td>
+<td colstart="2">MS-DOS</td><td colstart="3"></td><td colstart="4">Wildcat!</td></tr>
+<tr><td colstart="1">Qmodem Pro</td><td colstart="2">Windows</td><td colstart="3"></td><td colstart="4">TBBS</td></tr><tr><td colstart="1">SmartCom</td>
+<td colstart="2">Windows</td><td colstart="3"></td><td colstart="4">PC-Board</td></tr>
+<tr><td colstart="1">WinRamp</td><td colstart="2">Windows</td><td colstart="3"></td><td colstart="4">Synchronet</td></tr><tr><td colstart="1">Telix</td>
+<td colstart="2">Windows</td><td colstart="3"></td><td colstart="4">Searchlight
+BBS</td></tr><tr><td colstart="1">SoftTerm</td><td colstart="2">Windows</td><td colstart="3"></td><td colstart="4">Kitten BBS</td></tr><tr><td colstart="1">WinCom</td>
+<td colstart="2">Windows</td><td colstart="3"></td><td colstart="4">Spitfire
+BBS</td></tr><tr><td colstart="1">HyperTerm</td><td colstart="2">Windows</td><td colstart="3"></td><td colstart="4">TSX-BBS</td></tr><tr><td colstart="1">ProComm</td>
+<td colstart="2">Windows</td><td colstart="3"></td><td colstart="4">Remote
+Access</td></tr><tr><td colstart="1">HyperTerm</td><td colstart="2">OS/2 Warp</td>
+<td colstart="3"></td><td colstart="4">PowerBBS</td></tr><tr><td colstart="1">SoftTerm</td>
+<td colstart="2">OS/2 Warp</td><td colstart="3"></td><td colstart="4">Solaris
+BBS</td></tr><tr><td colstart="1">A.R.G.U.S.</td><td colstart="2">Macintosh</td><td colstart="3"></td><td colstart="4">Renegade BBS</td></tr><tr><td colstart="1">PowerConnect</td><td colstart="2">Macintosh</td><td colstart="3"></td>
+<td colstart="4">NovaLink Pro</td></tr><tr><td colstart="1">RIP-ST</td><td colstart="2">Atari-ST</td><td colstart="3"></td><td colstart="4">TurBoard</td></tr>
+<tr><td colstart="1">UserTerm</td><td colstart="2">Amiga	</td><td colstart="3"></td><td colstart="4">Osiris BBS</td></tr></tbody></table></center>
+<h1><a name="Applications">Applications of RIP<i>scrip</i></a></h1>
+<p>
+Since RIP<i>scrip </i>is a general-purpose graphical scripting language, it
+lends itself to many different applications in the online world.  In fact, there
+have been many customers who have used RIP<i>scrip</i> graphics for non-online
+oriented purposes (e.g., document distribution, graphical presentations, etc.).</p>
+<p>
+</p>
+<p>
+This section attempts to illustrate some of the uses of RIP<i>scrip</i> in
+today's high-tech online world.  This is by no means a complete listing of the
+applications of RIP<i>scrip</i> - it is only meant to give you an idea what it
+can be (and has been) used for.</p>
+<p>
+</p>
+<h2><a name="Services">General Online Services</a></h2>
+<p>
+One of the most common uses of RIP<i>scrip</i> is to make an existing online
+service graphical in nature.  ANSI interfaces to online services, however common
+in the past, are quickly becoming obsolete.  They are being replaced with
+elegant, high-quality graphical presentations of the online service.  This was
+not possible until the advent of online graphical presentation technologies like
+RIP<i>scrip</i>.  Currently, there are thousands of online services throughout
+the world that utilize RIP<i>scrip</i> graphics to provide their users with
+high-quality, rapid graphical interfaces to their online services.</p>
+<p>
+</p>
+<p>
+Experience has shown that making your online service graphical not only
+increases your users' acceptability of the service, but also has the beneficial
+side effect of attracting novice users to your service.  This is due in part to
+the fact that a graphical online service is considerably easier to use than the
+ANSI/VT-102 counterpart - simply click on what you want to do, and it happens. 
+With a graphical interface, cryptic commands, and text-based menus are a thing
+of the past.</p>
+<p>
+</p>
+<h2><a name="Media">Media Presentation Services</a></h2>
+<p>
+A rapidly growing industry in today's online world, are media presentation
+services.  Online services that present real estate information, catalogs of
+goods and services, dating systems, online multimedia databases, and even
+multi-user multimedia games are just the tip of the iceberg.  New media
+presentation services are emerging daily, and the imagination and diverse nature
+of new services is possible only due to the availability of graphical
+presentation technologies like RIP<i>scrip.</i></p>
+<p>
+</p>
+<p>
+This kind of an online service was simply not feasible under the ANSI text
+nature of older services.  For example, it is impossible to show the picture of
+a house in a real estate online service using a text-based menuing system.  What
+you need are photos, high-quality database screens and digitized sound to get
+the impact of your presentation across to your customers.</p>
+<p>
+</p>
+<h2><a name="Publication">Publication Services</a></h2>
+<p>
+Another area of the online industry which has undergone a rapid amount of growth
+is the emergence of printed media.  Newspaper and magazine publications are
+rapidly jumping on the Information Superhighway bandwagon in staggering numbers.
+ Only two years ago, there were less than a dozen publications that were
+maintaining any kind of online service for their printed material.  Today,
+hundreds of publications have online services presenting their content to the
+mass market.</p>
+<p>
+</p>
+<p>
+A large number of these publications have chosen RIP<i>scrip</i> as their
+presentation technology for the reasons mentioned earlier.  Companies like
+Hearst Media, The New York Times, and many others have adopted RIP<i>scrip</i>
+for their online services because of its speed, quality and wide-spread
+acceptance in the online community.</p>
+<p>
+</p>
+<h2><a name="Internet">Internet Applications</a></h2>
+<p>
+Over the last two years, the computer industry has watched as the long-standing
+Internet has exploded in growth.  Every month, record numbers of users are
+jumping onto the Information Superhighway, bringing more and more people
+together into one, giant online community.  This is an area of potentially
+unlimited applications for RIP<i>scrip</i> graphics technology.</p>
+<p>
+</p>
+<h3><a name="ISP">Internet Service Providers</a></h3>
+<p>
+With the increasing number of Telnet'able applications on the Internet,
+graphical presentations of information are becoming more and more important. 
+What is needed here though, is a standardized mechanism for the presentation of
+graphics over the Internet.  RIP<i>scrip</i>'s text-based architecture (see
+below) is perfectly suited to the nature of the Internet because everything is
+text, sent over the network.  Many Internet software developers have already
+designed RIP<i>scrip</i> graphical software packages for FTP, Email,
+Newsgroups, Gopher, Archie and even some Telnet systems.  This is only the
+beginning.</p>
+<p>
+</p>
+<h3><a name="RIPWEB">World-Wide Web Services - RIP<i>web</i></a></h3>
+<p>
+Nobody can deny that the World Wide Web has taken the industry by storm.  More
+and more information services are becoming available on the Web daily, and it
+doesn't look like it's going to slow down anytime soon.  The major problems with
+the Web though are how difficult it can be to use.  In the past, experience has
+shown time and time again that modem users constitute a very slim minority of
+the computer users in the world.  Granted, the percentage is increasing year by
+year, but the trend is still quite slow.  Couple this with the fact that modems
+aren't very standardized, with compatibility problems, hardware configuration
+problems and the like, getting online can be quite a daunting task even for the
+experienced computer user.  Beginning computer users simply don't know where to
+begin when it comes to getting online.  It is becoming easier for them to do so,
+but it's still not all that easy to get online.</p>
+<p>
+</p>
+<p>
+Now factor in World Wide Web access.  Not only does the user have to worry about
+getting his modem working, but he also has to get an Internet connection in the
+form of a SLIP or PPP connection to their Internet Service Provider. 
+Potentially frustrating issues about IP addresses, domain names, name servers
+and gateway addresses have caused many users to simply give up, leaving a sour
+taste in their mouth about the Internet.  What is needed is an easy way to get
+those users on the Web without the hassles of getting their Internet connection
+working.</p>
+<p>
+</p>
+<p>
+Enter RIP<i>web</i>.</p>
+<p>
+</p>
+<p>
+RIP<i>web</i> is a server-based technology that utilizes RIP<i>scrip</i>
+graphics to display information on the World Wide Web to the consumer, without
+the complex hassles of establishing SLIP or PPP accounts!  This means that your
+customers can browse the Web with the same RIP<i>scrip </i>compatible terminal
+software that they use to access other online services.</p>
+<p>
+</p>
+<p>
+RIP<i>web</i> accomplishes this by translating the HTML information used by the
+Web into RIP<i>scrip</i> graphics "on-the-fly" as the user browses
+the Web.  This eliminates the need for an actual Web Browser software package,
+and lets customers use the software they're already familiar with. 
+Additionally, this provides opportunities for Internet Service Providers to
+offer new services to their customers, with less technical complications, and
+even fewer customer service calls - keep in mind, RIP<i>web</i> is easier to
+use for the novice user, and consequently, there are fewer questions about how
+to get online.</p>
+<p>
+</p>
+<h3><a name="PLUGIN">WWW Browser Plug-Ins - The RIP<i>scrip</i> Browser</a></h3>
+<p>
+If that wasn't enough, RIP<i>scrip</i> graphics are now starting to show up in
+World Wide Web Browsers.  Add-in modules, or plug-ins as they're commonly being
+called are under development so that you can link RIP<i>scrip </i>graphics
+directly into your favorite Web Browser.</p>
+<p>
+</p>
+<p>
+TeleGrafix is even developing a native RIP<i>scrip</i> Web browser allowing you
+to utilize RIP<i>scrip</i> graphics directly on the Web without HTML!  Unlike
+current Web technology where doing basic graphics is difficult or nearly
+impossible, RIP<i>scrip</i> offers the ability to show state-of-the-art
+graphics on the Web using a standardized technology.  Additionally, RIP<i>scrip</i>
+is typically smaller than similar HTML documents; in some cases the size
+differences are staggering!  This benefits the Web, and to a greater extent, the
+Internet as a whole because content will be smaller, and can be delivered at a
+much faster rate than you could expect with HTML.  This could be the exact thing
+that the Internet needs to stop choking up the network, and allowing information
+to flow quickly through the system.</p>
+<p>
+</p>
+<p>
+As a side note, RIP<i>scrip</i> even allows your Web pages to include ANSI
+text.  No other browser or browser technology offers you that kind of
+integration of text and graphics.  This even allows for the possibility of
+integrated telnet login capabilities in your browser - with RIP<i>scrip</i>,
+you don't need to use an external telnet client to login to other services - RIP<i>scrip
+</i>allows you to integrate those services directly into your existing Web
+documents seamlessly.</p>
+<p>
+</p>
+<h1><a name="Overview">Overview of the Technology</a></h1>
+<p>
+RIP<i>scrip</i> is a very comprehensive scripting language.  It contains many
+hundreds of commands and features that give you the flexibility to do just about
+whatever your imagination would like.  The actual protocol definition is a
+document approximately 300 printed pages in length, covering every aspect of the
+language including its syntax and capabilities.</p>
+<p>
+</p>
+<p>
+Earlier versions of this language specification have been publicized widely, via
+freely distributable documents.  The current RIP<i>scrip</i> 3.0 protocol
+definition is in the final stages of finalization and will be published very
+shortly.</p>
+<p>
+</p>
+<h2><a name="What">What RIP<i>scrip </i>Is and Is Not</a></h2>
+<p>
+With all of this discussion about online services, graphical presentation
+technologies and graphical user interfaces, it would be useful to explain what
+RIP<i>scrip</i> is, and what it is not.  In the past, much confusion has
+existed about what the technology really is, and as such, a better explanation
+is needed.</p>
+<p>
+</p>
+<h3><a name="WhatItIs">What It Is - A Graphical  Presentation Environment</a></h3>
+<p>
+RIP<i>scrip</i> is a graphical presentation language.  It contains many
+commands and features for the display of fast, high-quality online graphics.  It
+allows you to mix graphics and text, from a variety of sources, into one
+integrated presentation medium (i.e., the computer screen).  You can mix vector
+graphics, bitmapped graphics, photos and text in a variety of fonts and colors
+on the screen to create just about any style of presentation you could imagine. 
+You can even integrate ANSI text into your presentation so that you can
+interface with older online applications.  With RIP<i>scrip</i>, you get the
+best of both worlds.</p>
+<p>
+</p>
+<h3><a name="WhatItIsnt">What It Is Not - A Graphical User Interface</a></h3>
+<p>
+RIP<i>scrip</i> is not a graphical user interface (GUI), per se.  Yes, it
+contains many of the necessary features to display a GUI, but it is not, in and
+of itself, a GUI.  You can display dialog boxes, menus and other window-like
+objects that are commonly available in existing GUI's, but you draw them!  </p>
+<p>
+</p>
+<p>
+For example, if you want to display a dialog box on the screen, RIP<i>scrip</i>
+provides you with the necessary tools to construct your own dialog box - showing
+clickable buttons, radio buttons, checkboxes, and other such controls.  In order
+to do this though, you have to draw what you want on the screen.  This is
+because RIP<i>scrip</i> is a graphical presentation language.  You have to
+present your users with exactly what you want to show them.  This gives you the
+flexibility to show them whatever you want, in whatever appearance you want. 
+Again, flexibility is the goal with RIP<i>scrip</i>.  </p>
+<p>
+</p>
+<p>
+RIP<i>scrip</i>'s fundamental design and philosophy is geared toward allowing
+you, the service provider, the ability to display information in any manner that
+you want.  This is simply not possible in most traditional GUI environments. 
+For example, Microsoft Windows applications typically look very similar, and are
+quite different than Macintosh applications.  Using RIP<i>scrip</i>, you can
+make your applications look like Windows, Macintosh, X-Windows, OS/2 Warp, or
+just about anything else you can imagine.  The choice is entirely yours!</p>
+<p>
+</p>
+<h2><a name="Nature">Text Nature of the Language</a></h2>
+<p>
+As previously described, RIP<i>scrip</i> is a text-based graphical language. 
+It is designed around a parameterized command structure, where each command in
+the language accepts zero or more parameters to alter the functionality of the
+command.  Each command is a set of tightly compacted sequence of character,
+numeric and text parameters.</p>
+<p>
+</p>
+<p>
+In order to make RIP<i>scrip</i> as fast as possible over slower network
+connections, some sacrifices naturally had to be made.  The first was that the
+language was not readable in normal English.  English representation of commands
+is too bulky for any kind of realistic encoding of graphics data.  Encoding the
+information in English or some other suitably readable language would have made
+the efficiency of the language terrible, and never would have gained any kind of
+industry support.  Again, it had to be fast, therefore readability had to be
+thrown out the window.</p>
+<p>
+</p>
+<p>
+The second aspect of the language is that it had to be transmittable over normal
+7-bit ASCII text connections.  This requires that the language be printable
+text.  Transmitting binary information over a modem connection requires special
+binary protocols and other special environments, which makes it all that much
+harder to implement on various software and hardware environments.  Since
+everything in the online world can transmit text, using a text-based encoding
+scheme makes sense, since it is supported by all systems.</p>
+<p>
+</p>
+<p>
+An additional level of efficiency could have been gained by making the protocol
+binary in nature, but it would have been at the sacrifice of significantly
+reduced compatibility with online environments, and that custom designed
+software would be required for just about every operating system and platform
+used in the online world.  For these reasons, binary encoding in RIP<i>scrip</i>
+was out of the question.</p>
+<p>
+</p>
+<h3><a name="Numeric">Numeric Encoding</a></h3>
+<p>
+Unlike many other script languages, RIP<i>scrip</i> doesn't use decimal values
+for its numbering system.  Decimal representations of numbers are too bulky for
+efficient transmission of information.  Since transmission efficiency is of
+paramount importance in the structure of the language, the encoding of numbers
+in as efficient a manner as possible became the most fundamental concept.</p>
+<p>
+</p>
+<p>
+RIP<i>scrip</i> uses two different numbering systems to encode its numeric
+values.  The first method, adopted in the 1.0 edition of RIP<i>scrip</i>,
+utilizes a base-36 encoding scheme.  In this system, numbers are stored as
+sequences of numeric digits '<b>0</b>' through '<b>9</b>', and capital letters
+'<b>A</b>' through '<b>Z</b>'.  Using this encoding scheme, a single character
+can store a much larger number than could normally be represented in decimal. 
+This system of numeric encoding has been called MegaNum in RIP<i>scrip</i>.</p>
+<p>
+</p>
+<p>
+The second method of numeric encoding was introduced in RIP<i>scrip</i> 2.0. 
+It has been called UltraNum, and is based around a base-64 encoding scheme. 
+Similar to MegaNums, UltraNums use the same 36 characters for the lower part of
+the encoding spectrum.  The next sequences of encoded values are the lowercase
+letters '<b>a</b>' through '<b>z</b>' and the symbols '<b>#</b>' and '<b>&amp;</b>'.
+ This provides for 64 separate values that can be encoded into a single byte of
+data.  This allows you to store even larger numbers in a smaller space than
+MegaNums permitted.</p>
+<p>
+</p>
+<p>Here is a table detailing the sizes of numbers that can be stored in various
+numbers of bytes, showing comparisons to decimal and hexadecimal encoding
+schemes:</p>
+<p>
+</p>
+<center><table border="0"><tbody><tr valign="TOP" align="CENTER"><td colstart="1" align="LEFT"><u><b>Total Digits</b></u>&nbsp;</td><td colstart="2" align="LEFT"><u><b>Decimal</b></u></td><td colstart="3" align="LEFT"><u><b>Hexa-Decimal</b></u>&nbsp;</td><td colstart="4" align="LEFT"><u><b>MegaNums</b></u>&nbsp;</td>
+<td colstart="5" align="LEFT"><u><b>UltraNums</b></u>&nbsp;</td></tr><tr><td colstart="1">1&nbsp;</td>
+<td colstart="2">9&nbsp;</td><td colstart="3">15&nbsp;</td><td colstart="4">35&nbsp;</td>
+<td colstart="5">63&nbsp;</td></tr><tr><td colstart="1">2&nbsp;</td><td colstart="2">99&nbsp;</td><td colstart="3">255&nbsp;</td><td colstart="4">1,295
+&nbsp;</td><td colstart="5">4,095 &nbsp;</td></tr><tr><td colstart="1">3&nbsp;</td>
+<td colstart="2">999&nbsp;</td><td colstart="3">4,095&nbsp;</td><td colstart="4">46,655&nbsp;</td><td colstart="5">262,143&nbsp;</td></tr><tr><td colstart="1">4&nbsp;</td><td colstart="2">9,999&nbsp;</td><td colstart="3">65,535&nbsp;</td>
+<td colstart="4">1,679,615&nbsp;</td><td colstart="5">16,777,215&nbsp;</td></tr><tr><td colstart="1">5&nbsp;</td><td colstart="2">99,999&nbsp;</td><td colstart="3">1,048,575&nbsp;</td><td colstart="4">60,466,175&nbsp;</td><td colstart="5">1,073,741,823&nbsp;</td></tr><tr><td colstart="1">6&nbsp;</td><td colstart="2">999,999&nbsp;</td><td colstart="3">16,777,215&nbsp;</td><td colstart="4">2,176,782,335&nbsp;</td><td colstart="5">68,719,476,735&nbsp;</td></tr></tbody></table></center>
+<p>
+</p>
+<p>
+In practice, using a higher-base numeric encoding scheme improves efficiency of
+transmission and provides for a higher-degree of expansion capability.  For
+example, since many numeric parameters in RIP<i>scrip</i> are two-bytes in
+length (see below), this gives a fundamental limit of 1295 in MegaNum, or 4095
+in UltraNums.  When working with graphical coordinates, a value in the range of
+0-640 is quite possible - typically it will be three digits in length, but if
+you can store that information in only two bytes of data, that gives you an
+overall savings of 50%.  In a transmitted data stream, this kind of efficiency
+becomes extremely important.</p>
+<p>
+</p>
+<h3><a name="Structure">Structure of the Protocol</a></h3>
+<p>
+RIP<i>scrip</i> is structured around a hierarchical, command-based
+architecture.  Each command is part of a tree-like substructure of command
+levels, and is assigned a particular command-character.  The command-level, and
+the command character uniquely identify the command as a particular RIP<i>scrip</i>
+command.</p>
+<p>
+</p>
+<p>
+RIP<i>scrip</i> commands can be intermixed with normal, TTY or ANSI text
+information so that you can mix and match graphics and text information inside
+of a single document.  To distinguish between RIP<i>scrip</i> commands, special
+RIP<i>scrip</i> introducer codes are necessary to indicate when a graphical
+command is about to start.  Normally, this introducer sequence is the ASCII text
+sequence "<b>!|</b>" (exclamation mark, followed by a vertical bar
+character) starting in column one of a line of text.  If this sequence doesn't
+appear at the beginning of a line of text, then the line is assumed to be raw,
+TTY/ANSI text and is displayed as such.</p>
+<p>
+</p>
+<p>
+There are other ways to introduce a RIP<i>scrip</i> sequence in the middle of a
+line, but the details of which go beyond the scope of this discussion.  Suffice
+to say that RIP<i>scrip</i> commands need not start at the beginning of a line
+of text, but are more often than not, used this way.</p>
+<p>
+</p>
+<p>
+Each RIP<i>scrip</i> command is separated by a command delimiter character
+sequence.  This sequence is the vertical bar character in ASCII, or the value
+124.  In this way, you can separate multiple RIP<i>scrip</i> commands on a
+single line of text following the RIP<i>scrip</i> introducer sequence.</p>
+<p>
+</p>
+<h3><a name="CommandLevels">Command Levels</a></h3>
+<p>
+RIP<i>scrip</i> is organized in a hierarchical system of commands.  Each
+command is part of a particular "level" of RIP<i>scrip</i>, where
+each level is a conceptual "type" of command.  Currently, there are
+ten separate levels of commands, each one of which can be further subdivided
+into deeper and deeper levels of commands.  This tree-like structure allows RIP<i>scrip</i>
+to utilize potentially billions of commands.</p>
+<p>
+</p>
+<p>
+Command levels are organized into ten basic levels, which are assigned
+command-level digits.  The lowest command level, level-0, has no command level
+digit associated with it.  It is designated for the most primitive commands in
+the RIP<i>scrip</i> language (e.g., line, rectangle, circle, font, color,
+etc.).  Each level of RIP<i>scrip</i>, may be divided into further sub-levels
+of commands in a tree-like arrangement, using more level digits to define the
+actual depth and position of the sequence.</p>
+<p>
+</p>
+<p>
+For example, the RIP<i>scrip</i> command for a simple line is "<b>!|L</b>".
+ This stands for level-0, command character "<b>L</b>".  A
+hypothetical command defined at level 3, sub-level 2 would be defined as "<b>!|32L</b>".
+ You may have commands up to maximum of 9 levels deep, where each command
+sub-level can accommodate up to 79 separate command characters.  This gives the
+RIP<i>scrip </i>language the capacity to utilize literally billions of
+commands.  This should give the language plenty of room for growth in the
+future.</p>
+<p>
+</p>
+<h3><a name="CommandParameters">Command Parameters</a></h3>
+<p>
+Command parameters always follow the command character.  There are two kinds of
+parameters in RIP<i>scrip</i> - the numeric parameter, and the text parameter. 
+If a text parameter is available for a particular RIP<i>scrip</i> command, it
+is always the very last parameter and has a maximum length of 1024 bytes.</p>
+<p>
+</p>
+<p>
+Numerical parameters on the other hand can be varied in their number, size and
+encoding methods.  Different RIP<i>scrip</i> commands allow for a different
+number of parameters to be specified.  In fact, some RIP<i>scrip</i> commands
+allow for a variable number of numeric parameters (e.g., polygons, headers,
+palettes, etc.).  Numeric parameters can also be encoded using different numeric
+encoding schemes (i.e., MegaNum or UltraNum) based on the requirements of a
+particular command, or a global protocol setting.</p>
+<p>
+</p>
+<p>
+An example of a basic RIP<i>scrip</i> command is the <b>RIP_LINE </b>command. 
+This command utilizes four separate parameters which define the two end-points
+of a line in (X,Y) coordinates.  The basic syntax of this command is:</p>
+<p>
+</p>
+<center><i>!|L x0:2<b> y0</b>:2<b> x1</b>:2<b> y1</b>:2</i></center>
+<p>
+</p>
+<p>
+Note that spaces are not permitted in this command, and are only provided for
+readability.  The sequence "<b>:2</b>" indicate that the parameter is
+two bytes long.  An example of a <b>RIP_LINE</b> command which draws a line
+from (5,4) to (130,99), encoded using MegaNums, would appear like this:</p>
+<p>
+</p>
+<center><b>
+!|L05043M2R</b></center>
+<p>
+</p>
+<p>
+Another example, showing both numeric and text parameters, would be the RIP<i>scrip</i>
+command that outputs the phrase "<b>Hello World</b>" at the location
+(35,71) on the screen.  This example, encoded in MegaNums would appear like
+this:</p>
+<p>
+</p>
+<center><b>
+!|@0Z1ZHello World</b></center>
+<p>
+</p>
+<h3><a name="CommandStructure">Command Structure Philosophy</a></h3>
+<p>
+The basic design goal of the command-level structure in RIP<i>scrip</i>, is for
+the possibility of third-party add-on products utilizing RIP<i>scrip</i>.  With
+a large command capacity, ranges of commands and command-levels can be
+authorized for use by developers in their own products, and those developers can
+add their own commands to the language as they see fit.  This philosophy has not
+yet been introduced to the developer community, but the capability is present
+should the need arise.</p>
+<p>
+</p>
+<p>
+This kind of a system might allow a particular developer to implement an entire
+suite of 3D graphics primitives in RIP<i>scrip</i>, included as part of a RIP<i>scrip</i>
+add-on module.  He can design graphics using his command-set, and customers
+using his add-on module with the basic RIP<i>scrip</i> engine, could view the
+3D graphics the way that they were intended to be viewed.  This has the
+potential to open up a vast third-party developer market for products and
+services.</p>
+<p>
+</p>
+<h2><a name="DesignGoals">Design Goals</a></h2>
+<p>
+RIP<i>scrip</i> 3.0 differs substantially from its earlier 1.0 version in a
+number of areas.  The older editions of RIP<i>scrip</i> were designed around a
+fixed environment of 16 color displays at a resolution of 640x350.  RIP<i>scrip</i>
+3.0 is not like that - it is designed around a hardware independent display
+environment, capable of being implemented on a broad variety of display
+environments and operating systems.</p>
+<p>
+</p>
+<p>
+To accomplish this task, the language became considerably more complex.  Not
+only did the number of basic commands in the language grow, but the structure
+and relationships between the commands grew as well.  What resulted is a
+highly-defined, broad-reaching graphics presentation technology that can be used
+in just about any display environment.</p>
+<p>
+</p>
+<p>
+The two fundamental precepts of RIP<i>scrip</i> 3.0 are the concepts of
+resolution independence, and also color independence.  These are the two areas
+where graphical environments vary greatly, and consequently, where the largest
+source of compatibility problems arises.  This is why so much time and effort
+was put into RIP<i>scrip</i> 3.0 in these areas, making sure that the language
+encompassed as many environments as possible.  This was to ensure its future
+growth and compatibility with new equipment and environments.</p>
+<p>
+</p>
+<h3><a name="ResIndep">Resolution Independence - The World Coordinate System</a></h3>
+<p>
+One of the most important improvements in RIP<i>scrip</i>, is the concept of a
+resolution independent drawing environment.  Without a resolution independent
+environment, a drawing on one computer monitor, might appear tiny when viewed on
+another monitor running at a higher resolution.  RIP<i>scrip</i> 3.0 overcomes
+this with the addition of a world coordinate system.</p>
+<p>
+</p>
+<p>
+The world coordinate system in RIP<i>scrip</i> can be considered a "virtual
+coordinate system", superimposed on the actual drawing surface of the
+monitor.  For example, consider that your monitor is running at 640x480
+resolution right now.  If you drew graphics at this resolution, then took that
+graphical information over to another computer running say, at 1280x1024, your
+image would only appear on the upper-left portion of the monitor.  With the
+diverse kinds of video hardware in the computer industry, resolution
+independence is critically important to preserving the look and feel of
+information from one computer environment to another.</p>
+<p>
+</p>
+<p>
+The world coordinate system adds a new coordinate system on-top of your video
+display, logically mapping physical pixels on the screen to new coordinates in
+the world coordinate system.  For example, if you were running at 640x480
+resolution, and your world coordinate system were defined to a size of
+6400x4800, then every pixel on your screen would correspond to 10 logical pixels
+wide and tall.  When working with a high-scale coordinate system like this,
+viewing graphics on another video device is simply a matter of "re-mapping"
+the logical coordinates in the world coordinate system, to the actual physical
+device pixel coordinates used by your computer monitor.  </p>
+<p>
+</p>
+<p>
+RIP<i>scrip</i> 3.0 allows you to define a world coordinate system to a maximum
+size of 32,767 by 32,767, giving you plenty of room to accommodate video
+hardware over the next several decades.</p>
+<p>
+</p>
+<h3><a name="ColorIndep">Color-Palette Independence</a></h3>
+<p>
+The second area of hardware independence is color palette independence.  This is
+an important issue, because the number of colors available on one video device
+can vary widely from those of another device.  It is not uncommon to have people
+in the same office using video displays running at 16 colors, while other people
+in the same office are using 256 color display modes.  With new video hardware,
+video devices supporting 32,767 colors, 65,636 colors, 16.7 million colors, and
+even higher are becoming affordable, and quite commonplace.  With this in mind,
+proper thought needed to be put into a color system for RIP<i>scrip</i> which
+accommodates the needs of yesterday's technology, and tomorrow's.</p>
+<p>
+</p>
+<p>
+RIP<i>scrip</i> handles color palette independence in two ways - it provides
+for an indexed color palette system, where you have a table of 256 colors all
+referred to by a particular index number.  The RIP<i>scrip</i> engine itself is
+in charge of mapping these individual color numbers to actual hardware colors
+available in the video device.  The developer has the ability to change these
+colors at will, forcing the RIP<i>scrip</i> engine to re-map the colors at the
+low-level, to the proper display colors.  Using color palette indexes allows for
+fast, efficient specification of color values with only a single number.  Color
+palettes can also be used to change all occurrences of a particular color on the
+screen to another actual color in the blink of an eye, allowing for color
+palette animation techniques commonly used in video games, and other special
+effects.</p>
+<p>
+</p>
+<p>
+The second area of color palette independence used in RIP<i>scrip</i>, is the
+concept of RGB encoding.  With RGB encoding, you can specify color values as a
+set of Red, Green and Blue values.  These values are combined by the RIP<i>scrip</i>
+display engine, and the closest available color in the video hardware is used to
+display the graphics.  In this mode, the RIP<i>scrip</i> system is entirely in
+charge of determining which color is the closest available color, and should be
+used for the requested RGB value.  Leaving RIP<i>scrip</i> in charge of mapping
+the colors, makes your graphics flexible and capable of being displayed on just
+about any kind of video hardware.</p>
+<p>
+</p>
+<h2><a name="BroadRange">Broad Range of Graphical Primitives</a></h2>
+<p>
+RIP<i>scrip</i> possesses a comprehensive set of built-in graphical primitive
+commands.  With them, you can visually display just about anything you can
+imagine.  With nearly 100 predefined commands, and over 150 separate "text
+variable" commands (see below), RIP<i>scrip</i> gives you a serious
+arsenal to design your online service.</p>
+<p>
+</p>
+<h3><a name="FontSystems">Font Systems</a></h3>
+<p>
+Probably one of the most important aspects of RIP<i>scrip</i> graphics, is the
+availability of a flexible font system.  RIP<i>scrip</i> actually gives you
+access to two different kinds of font systems!</p>
+<p>
+</p>
+<p>
+The original font system, based around a vector font technology, is called the
+System Font.  There are currently 11 separate fonts in this system of RIP<i>scrip</i>.
+ New fonts may not be added to this system, as it is an older font engine, with
+moderate appearance.  These fonts are however, very fast and are quite suitable
+for many environments.  These fonts are designed around line-based vectors,
+which when assembled together, create a complete font glyph, or character. 
+Microsoft Windows and many other GUI environments provided this kind of vector
+font technology in their early stages of development.  RIP<i>scrip</i> is no
+different in this regard.  The System Font engine of RIP<i>scrip</i> was part
+of the 1.x edition of RIP<i>scrip.</i></p>
+<p>
+</p>
+<p>
+With version 2.0 of RIP<i>scrip, </i>high-tech outline font technology was
+introduced as the second font engine in the graphical technology.  This outline
+font technology, similar to TrueType&#8482; or Adobe Postscript&#8482; style
+fonts, gives you the ability to place fonts on the screen in a variety of
+orientations, at any point size you want.  You have full control over bold,
+italic, underline and strikethrough attributes, and can even control the
+rotation and orientation of characters on even 90( increments.  Unlike the
+System Font engine of RIP<i>scrip</i>, the Outline Font engine (otherwise known
+as the extended font system), allows you to incorporate new fonts into RIP<i>scrip</i>
+to enhance your documents.</p>
+<p>
+</p>
+<h3><a name="VectorGraphics">Vector Graphics Primitives</a></h3>
+<p>
+RIP<i>scrip</i> offers the developer a wide variety of vector graphics
+primitives to achieve just about any kind of geometric drawings you could ever
+want.  Similar to many high-end drawing packages only available for many
+hundreds of dollars, RIP<i>scrip</i> gives you the same drawing flexibility as
+you would come to expect from a quality presentation graphics system.</p>
+<p>
+</p>
+<p>Of the many drawing primitives in RIP<i>scrip</i>, you'll find commands to
+perform the following drawing functions:</p>
+<p>
+</p>
+<center><table border="0"><tbody><tr valign="TOP" align="CENTER"><td colstart="1" align="LEFT"><u><b>Command</b></u>&nbsp;</td>
+<td colstart="2" align="LEFT"><u><b>Borders only</b></u>&nbsp;</td><td colstart="3" align="LEFT"><u><b>Filled-only</b></u>&nbsp;</td>
+<td colstart="4" align="LEFT"><u><b>Filled/Border</b></u>&nbsp;</td></tr><tr><td colstart="1">Lines&nbsp;</td><td colstart="2">Yes&nbsp;</td><td colstart="3">&nbsp;No</td>
+<td colstart="4">&nbsp;No</td></tr><tr><td colstart="1">Points and pixels&nbsp;</td>
+<td colstart="2">Yes&nbsp;</td><td colstart="3">&nbsp;No</td><td colstart="4">&nbsp;No</td></tr>
+<tr><td colstart="1">Graphical text&nbsp;</td><td colstart="2">Yes&nbsp;</td><td colstart="3">&nbsp;No</td><td colstart="4">&nbsp;No</td></tr><tr><td colstart="1">Bezier curves&nbsp;</td><td colstart="2">Yes&nbsp;</td><td colstart="3">&nbsp;No</td><td colstart="4">&nbsp;No</td></tr><tr><td colstart="1">Circular arcs&nbsp;</td><td colstart="2">Yes&nbsp;</td><td colstart="3">&nbsp;No</td><td colstart="4">&nbsp;No</td></tr><tr><td colstart="1">Oval arcs&nbsp;</td><td colstart="2">Yes&nbsp;</td><td colstart="3">&nbsp;No</td><td colstart="4">&nbsp;No</td></tr><tr><td colstart="1">Poly-lines&nbsp;</td><td colstart="2">Yes&nbsp;</td><td colstart="3">&nbsp;No</td><td colstart="4">&nbsp;No</td></tr><tr><td colstart="1">Circles&nbsp;</td><td colstart="2">Yes&nbsp;</td><td colstart="3">Yes&nbsp;</td>
+<td colstart="4">Yes&nbsp;</td></tr><tr><td colstart="1">Ovals&nbsp;</td><td colstart="2">Yes&nbsp;</td><td colstart="3">Yes&nbsp;</td><td colstart="4">Yes&nbsp;</td></tr>
+<tr><td colstart="1">Rectangles&nbsp;</td><td colstart="2">Yes&nbsp;</td><td colstart="3">Yes&nbsp;</td><td colstart="4">Yes&nbsp;</td></tr><tr><td colstart="1">Rounded rectangles&nbsp;</td><td colstart="2">Yes&nbsp;</td><td colstart="3">Yes&nbsp;</td><td colstart="4">Yes&nbsp;</td></tr><tr><td colstart="1">Poly-Bezier curves&nbsp;</td><td colstart="2">Yes&nbsp;</td><td colstart="3">Yes&nbsp;</td><td colstart="4">Yes&nbsp;</td></tr><tr><td colstart="1">Polygons&nbsp;</td><td colstart="2">Yes&nbsp;</td><td colstart="3">Yes&nbsp;</td><td colstart="4">Yes&nbsp;</td></tr><tr><td colstart="1">Circular pie slices&nbsp;</td><td colstart="2">&nbsp;No</td><td colstart="3">Yes&nbsp;</td><td colstart="4">Yes&nbsp;</td></tr><tr><td colstart="1">Oval pie slices&nbsp;</td><td colstart="2">&nbsp;No</td><td colstart="3">Yes&nbsp;</td><td colstart="4">Yes&nbsp;</td></tr></tbody></table></center>
+<p>
+</p>
+<h3><a name="ColorPalettes">Color Palettes</a></h3>
+<p>
+RIP<i>scrip</i> offers a number of commands to alter the existing color
+palette.  RIP<i>scrip</i> has two different methods of working with color
+information:  using indexed color palettes, or with direct hard-coded RGB
+values.  Using color palettes, allows you to quickly switch between one color
+set and another, giving you the ability to perform basic color palette animation
+techniques, or to change the color sets of a particular screen on-the-fly.  </p>
+<p>
+</p>
+<p>
+RGB encoding modes allow you to encode your graphical data in raw RGB values,
+making the RIP<i>scrip</i> engine do the hard part of locating the proper color
+that most closely resembles the desired color, and using that one to draw with.</p>
+<p>
+</p>
+<p>
+RIP<i>scrip</i> provides the best of both worlds when it comes to color.  You
+can use the flexibility of a color palette system, or the more robust, platform
+independent method of using RGB color values for your artwork.</p>
+<p>
+</p>
+<h3><a name="FillPatterns">Fill Patterns</a></h3>
+<p>
+RIP<i>scrip</i> provides a set of twelve predefined fill-patterns which you may
+use with filled-in objects like filled-rectangles, circles, or the like.  The
+basic standard patterns give you a place to start from, but it doesn't stop
+there.  You may define your own 8x8 fill patterns for use in your content.  The
+choice of pattern selection is entirely up to you, and you can even use two-tone
+colored patterns to provide dithering effects, or halftoning patterns for your
+information.  Using fill patterns gives your artwork "texture", and
+gives things a more appealing look.</p>
+<p>
+</p>
+<p>
+Of the available predefined patterns, you have numerous cross-hatch patterns,
+dotted patterns and others to work with.  If a pattern isn't in the predefined
+list, you can define your own.</p>
+<p>
+</p>
+<p>
+Fill patterns only apply to filled-in objects like circles, rectangles,
+polygons, and ovals, etc.  They do not apply for non-closed objects like lines,
+pixels, text or poly-lines.</p>
+<p>
+</p>
+<h3><a name="LineStyles">Line Dash-Styles</a></h3>
+<p>
+It doesn't stop there.  You also have both predefined and custom line dash
+styles to work with.  If you want to change the appearance of a line from a
+solid line, to a dotted line, you can.  There are five separately defined dash
+styles, ranging from a solid line, to dotted and dashed lines.  If that's not
+enough, you can define your own dash styles using a 16-pixel dash style
+definition.  This gives you the ability to define any kind of dash style you
+could want.  </p>
+<p>
+</p>
+<p>
+You also have control over the thickness of lines.  The thickness of lines
+governs the weight of a line, or how heavy it appears.  This allows you to
+define pencil-thin, or very fat lines.  Line thickness is used for any outline
+object (e.g., lines, ovals, circles, pie-slices, Bezier curves, polygons, etc.).</p>
+<p>
+</p>
+<p>
+Dash sequences may be used for any "straight-line" RIP<i>scrip</i>
+oriented commands.  This covers lines, poly-lines and polygons because they're
+all based on straight-line segments.  It also covers rectangles.  It does not
+cover circles, ovals, rounded rectangles or the Bezier-curve family of commands
+because these are based on curves.  These commands only utilize the thickness of
+lines.</p>
+<p>
+</p>
+<h3><a name="RasterOps">Raster-Operators</a></h3>
+<p>
+One final aspect of the graphics primitive area of RIP<i>scrip</i>, is the use
+of raster operators.  A raster operator, or raster-op, governs how a graphical
+object is drawn onto the screen.  Typically, the standard Raster-Op mode of COPY
+is used.  When COPY mode is used, graphics are drawn onto the screen "as-is",
+overwriting whatever graphics were underneath them.  Other raster-ops exist
+which permit you to change this drawing mode.  This lets you "merge" a
+graphical command with the information already on the screen.  For example, one
+of the raster-ops is OR mode.  This allows the RIP<i>scrip</i> engine to
+effectively merge the operation of drawing a circle, with the graphics already
+on the screen underneath the circle, giving a rather translucent effect.  There
+are five separate Raster-Ops available which provide a number of Boolean drawing
+modes (i.e., COPY, AND, OR, NOT, and XOR).</p>
+<p>
+</p>
+<h2><a name="UserInterfaceObjs">User-Interface Objects</a></h2>
+<p>
+Up until now, we've only been discussing the drawing, or presentation
+capabilities of RIP<i>scrip</i>.  RIP<i>scrip</i> offers much more than just
+simple drawing capabilities.  It has many built-in user-interface objects which
+can be used to control the sequence of events in an online environment.</p>
+<p>
+</p>
+<p>
+For example, on a traditional online service, you have a text menu that
+instructs the user what command to type to activate a particular operation. 
+Under RIP<i>scrip</i>, this scheme is still possible, but you probably wouldn't
+want to use it.  What would be better would be to display a menu with buttons on
+the screen that the user can click.  Clicking on one of the buttons will
+activate that function, causing the host system to perform the desired
+operation.  In this kind of environment, the user doesn't have to know what the
+command is in order to activate an option; all he has to know is that he clicks
+on a picture of an envelope to activate the Email option.  This is the essence
+of RIP<i>scrip</i> user-interface objects.</p>
+<p>
+</p>
+<p>
+There are three user-interface objects in RIP<i>scrip</i>:  the mouse field,
+the button and the query expression.  We will cover each of these separately.</p>
+<p>
+</p>
+<h3><a name="MouseFields">Mouse Fields</a></h3>
+<p>
+Mouse fields are the most generic of user-interface objects in RIP<i>scrip</i>.
+ They allow you to perform hyper-links from one area of an online service to
+another.  You can even perform a large number of operations that don't even
+affect the host system with mouse fields.  Suffice to say, that mouse fields are
+a versatile mechanism to perform numerous functions when the user clicks his
+mouse on the screen.</p>
+<p>
+</p>
+<p>
+A mouse field is an invisible rectangle that you can place on the screen.  When
+the user clicks the left mouse button inside this screen area, it activates a
+particular host command sequence defined for that mouse field.  </p>
+<p>
+</p>
+<p>
+For example, let's say that you have the image of a mailbox on the screen, and
+that your host system expects the user to type the letter "<b>E</b>"
+followed by a carriage return to enter the Email system.  You could make the
+mailbox image "clickable", forcing the user into the Email system by
+placing a mouse field over the mailbox.  Define the mouse field on top of the
+mail box (remember, a mouse field is invisible so it won't obstruct the image of
+the mailbox), and define a host command of "<b>E^M</b>" for that
+mouse field.  This transmits the character "<b>E</b>" to the host
+system, followed by a CTRL-M sequence (i.e., a carriage return).  When the user
+clicks on the mailbox, the user will be placed into Email on the host system.</p>
+<p>
+</p>
+<p>
+You can do many more things with mouse fields beyond this example.  You can
+assign hotkeys to mouse fields, change what happens to the screen when the user
+clicks on them, and even utilize the extensive host command language of RIP<i>scrip</i>
+from inside the host command of the mouse field (see below).</p>
+<p>
+</p>
+<h3><a name="Buttons">Buttons</a></h3>
+<p>
+Buttons are perhaps the most common user-interface object in RIP<i>scrip</i>. 
+They combine two distinctly different concepts into a more powerful command. 
+Specifically a button combines the concepts of a mouse field, with a visible
+image.  This not only creates a clickable object, but also gives it a specific
+image in one basic command.</p>
+<p>
+</p>
+<p>
+There are three types of button objects.  The first is the plain button.  A
+plain button is a button that uses built-in drawing effects in RIP<i>scrip</i>
+to display the button.  An example of a plain button might be a gray beveled
+button with the phrase "Email" embossed in dropshadowed text.</p>
+<p>
+</p>
+<p>
+The second, more flexible style of button is the bitmapped button, or icon
+button as it's commonly known.  This allows you to design a button to look like
+anything you want.  You use one, or possibly two pictures for the image of your
+button.  One picture is the image that is displayed for the button in its
+normal, un-selected state.  The optional second image is used to display the
+button when it is selected, or clicked.</p>
+<p>
+</p>
+<p>
+The third, and perhaps least frequently used style of buttons is called a
+snapshot button.  A snapshot button uses an image contained on the RIP<i>scrip</i>
+image snapshot to display the button.  A snapshot is a rectangular image "snapshot"
+of a piece of graphical information from the screen the can be used to "stamp"
+onto the screen in one or more locations to save graphical operations.  For
+example, you could take twenty or so RIP<i>scrip</i> commands to draw the image
+of a brick on the screen, take a snapshot of that brick, then paste the snapshot
+image on the screen to make a brick wall.  </p>
+<p>
+</p>
+<p>
+You have the ability to display bevels, chisels, recessed and sunken special
+effects on all types of buttons, giving them the appearance of being 3D. 
+TeleGrafix uses the special effects of buttons to achieve a "chiseled steel"
+appearance to its menus, but this is only one particular color scheme and it can
+be changed to achieve a wide variety of 3D special effects for button objects.</p>
+<p>
+</p>
+<p>
+Buttons utilize host commands in exactly the same manner as mouse fields do (see
+above).  You can even define hotkeys for a button, allowing the button to be
+selected when the user chooses a particular keystroke from the keyboard.</p>
+<p>
+</p>
+<p>
+Buttons may also have a descriptive text label associated with them.  Labels may
+be placed in a number of orientations around the button.  Labels can be visually
+centered in the middle of the button, displayed above or below it, or even on
+the right or left sides of the button.</p>
+<p>
+</p>
+<h3><a name="QueryExpressions">Query Expressions</a></h3>
+<p>
+A query expression is similar in concept to a mouse field or a button object,
+but only loosely.  A query expression is designed to instruct the RIP<i>scrip</i>
+client software to perform some operation at a particular moment in time.  In
+effect, it is similar to an alarm clock that triggers when a certain kind of
+event occurs.  Mouse fields and buttons trigger whenever the user clicks the
+mouse inside the rectangular area defined for the object.  Query expressions go
+beyond that - you can assign them to other kinds of objects like graphical
+viewports or text windows (see below), or even instruct the RIP<i>scrip</i>
+software to process them immediately.</p>
+<p>
+</p>
+<p>
+Immediate-mode query expressions are probably the most common.  When the RIP<i>scrip</i>
+software encounters an immediate-mode query expression, the host command portion
+of the command is immediately processed, executing every option defined in it
+right after the command is received from the host.  This acts like a mouse field
+that is clicked the very instant that it is received from the host system,
+except that the query expression doesn't remain defined - it is typically
+deleted immediately after it's executed.  In this manner, query expressions are
+temporary in nature, unlike mouse fields and buttons which can remain active on
+the screen for quite some time.</p>
+<p>
+</p>
+<p>
+Some query expressions can be defined as "resident" query expressions.
+ A resident query expression is a background operation that remains active until
+it's turned off, much like mouse fields.  For example, an Email editor might
+define a text window on the screen so that the user can enter text information. 
+You could define a resident query expression over that text window, that would
+report back to the host which (X,Y) location the user clicked on inside the text
+window if the user clicks his left mouse button in the text window.  This could
+easily be used to re-position the cursor to a new location, mark text for
+deletion, or a variety of other operations.</p>
+<p>
+</p>
+<p>
+There are also some new resident query expressions that allow certain events to
+occur if the mouse moves into our out of a mouse/button field.  This doesn't
+mean that the user actually clicks inside the mouse field - but rather, the
+query expression activates when the mouse moves over a mouse field.  These
+commands are frequently used to change the mouse cursor whenever the mouse moves
+over a particular region of the screen.</p>
+<p>
+</p>
+<h2><a name="GfxAndTTY">Integrated Graphical and TTY Interfaces</a></h2>
+<p>
+RIP<i>scrip</i> allows you to intermix graphical information with old-style TTY
+and ANSI information, giving you the best of both worlds.  This lets you add
+graphics to your online system in stages, link-out to another text-based online
+service from your graphical system, or simply display lists of text information
+to your users.  This is accomplished by mixing graphics inside graphical
+viewports, with text information shown in text windows.</p>
+<p>
+</p>
+<h3><a name="Viewports">Viewports</a></h3>
+<p>
+A graphical viewport, is a "window" inside which graphics may be
+drawn.  In nearly all circumstances, graphical information can only be drawn
+inside viewports.  Viewports are like a cookie-cutter window - anything that
+would extend beyond the boundary of the viewport will be clipped, or cut-off at
+the boundary.  Viewports, otherwise known as clipping rectangles, allow you to
+place graphics at particular locations on the screen, making it so that the
+graphics cannot extend beyond that designated area.</p>
+<p>
+</p>
+<p>
+RIP<i>scrip</i> even allows you to define multiple drawing "ports". 
+A drawing port is like a virtual canvas or video screen in that you can switch
+to it, and draw to it as you want.  You are allowed up to 36 separate drawing
+ports, each one may have its own unique viewport drawing sub-area.  Drawing
+ports may be on-screen video drawing ports, or offscreen memory drawing
+environments.  Offscreen drawing ports are frequently used to prepare some
+graphics data off the screen, then copy them to the screen when they're
+finished.  This gives the appearance of extremely fast drawing of graphics. 
+Other uses of offscreen drawing ports might be in game environments - load all
+of the icons or images used in a game board onto an offscreen drawing port, and
+copy them to the screen as needed.  This makes it so RIP<i>scrip</i> doesn't
+have to constantly access the hard disk every time a new image needs to be
+displayed.  In this situation, the image(s) are already loaded in memory.</p>
+<p>
+</p>
+<h3><a name="TextWindows">Text Windows</a></h3>
+<p>
+TTY and ANSI information will appear only in text windows.  A text window is
+much like a normal MS-DOS screen, where you see rows and columns of ASCII text
+information displayed.  In RIP<i>scrip</i>, all raw text data is displayed in a
+customizable text window object.  In this manner, you can place a text window
+anywhere on the screen that you want.  Subsequent TTY or ANSI text that is
+received by the software will be routed (i.e., displayed) to that text window. 
+</p>
+<p>
+</p>
+<p>
+For example, you might have a file library system on your online service.  When
+the user chooses the "Display files" option, the host system could
+open up a text window and display a listing of all of the available files in it.
+ You could still have buttons, display fields and graphical information visible
+outside the text window.  This would give the user the ability to view
+additional information and even perform many operations while the list of files
+is being displayed.</p>
+<p>
+</p>
+<p>
+You are allowed to have up to 36 separate text windows defined at any one moment
+in time.  Although you can have a large number of them defined simultaneously,
+only one of them may be active at any particular moment in time.  In order to
+display ANSI or TTY information to a text window that is not the current one,
+you would need to switch text windows to make the desired text window the
+current one.  Multiple text windows are typically used to implement multi-field
+database entry forms, where each field is a different text window.</p>
+<p>
+</p>
+<p>
+Note, text windows and graphical viewports may overlap.</p>
+<p>
+</p>
+<h2><a name="SupportedImages">Supported Image Formats</a></h2>
+<p>
+Not only does RIP<i>scrip</i> support a wide variety of vector graphics
+commands, but it also supports a number of bitmapped image formats for the
+display of various kinds of images.  Numerous options are available to control
+the appearance of images, like options to control aspect ratio, dithering,
+transparency and color palettes.  Currently, two actual bitmapped file formats
+are supported:  BMP and JPEG.</p>
+<p>
+</p>
+<h3><a name="BMPImages">BMP</a></h3>
+<p>
+The high-speed bitmapped file format supported by RIP<i>scrip</i> is the
+device-independent BMP format used commonly under Microsoft Windows.  RIP<i>scrip</i>
+fully supports the monochrome, 16 color, 256 color and the 24-bit uncompressed
+variations of the BMP  file format.  Other features of the bitmap display system
+are dithering, color palette manipulation, transparency and wallpapering.</p>
+<p>
+</p>
+<p>
+BMP files are uncompressed normally, and as such, are very fast to display.  RIP<i>scrip</i>
+does not support  compressed versions of BMP or OS/2-style BMP files that have a
+slightly different internal file format.  RIP<i>scrip</i> has the ability to
+stretch a BMP to any desired size on the screen.</p>
+<p>
+</p>
+<h3><a name="JPEGImages">JPEG</a></h3>
+<p>
+RIP<i>scrip</i> 2.0 introduced JPEG image format into the language to enhance
+the normal, uncompressed BMP file formats used for high-speed image display. 
+While JPEG images are slower to display, the significantly smaller file sizes
+justify the tradeoffs in performance.  JPEG images have an adjustable
+compression ratio that allows the artist to custom-tailor the compression versus
+quality issues for a given image by adjusting this compression factor.  </p>
+<p>
+</p>
+<p>
+JPEG compressed images obtain such a high-degree of compression because it is
+considered "lossey" compression.  Lossey compressed images suffer
+minor image degradation as a result of the compression process.  Under many
+situations, the loss in quality of the image is barely noticeable (if at all).</p>
+<p>
+</p>
+<p>
+All JPEG images are 24-bit in nature, and RIP<i>scrip</i> supports even the
+GrayPEG variations of JPEG that display gray images (i.e., black and white with
+gray-scales).</p>
+<p>
+</p>
+<h3><a name="GIFImages">GIF</a></h3>
+<p>
+Early on in the development of RIP<i>scrip</i> version 2.0, the Graphics
+Interchange Format (GIF) was incorporated into the design to supplement the
+compressed image format JPEG.  It was added because JPEG is a "lossey"
+compression, that loses some image quality for higher compression ratios.  GIF
+on the other hand, got lower compression ratios, but didn't lose any quality as
+a result of compression.  As a result, GIF images decode considerably faster
+than JPEG does.</p>
+<p>
+</p>
+<p>
+Unfortunately, due to outrageous licensing conditions for the compression
+algorithm LZW used with GIF formats, the technology had to be dropped from RIP<i>scrip</i>
+2.0.  This leaves only JPEG images available for compressed images.</p>
+<p>
+</p>
+<h3><a name="PNGImages">PNG</a></h3>
+<p>
+As a result of the licensing problems that arose in 1995 with GIF, a new file
+format was born known as Portable Network Graphics (PNG).  This format is not
+based on any patented compression technology and is designed to be freely
+distributable in all formats with no licensing restrictions of any kind.  In
+addition, it supports all of the same functions and features as did the older
+GIF format, and even has some extra capabilities built-in that make it a
+superior technology.</p>
+<p>
+</p>
+<p>
+Like GIF, PNG is a "loss-less"  image compression method where image
+quality doesn't suffer from compression like it does with JPEG.  What you get
+back after decompressing an image is exactly the same as the original image. 
+PNG decompression is as fast as GIF is, making it comparable in both performance
+and features.</p>
+<p>
+</p>
+<p>
+TeleGrafix is currently implementing PNG for its next release of the RIP<i>scrip
+</i>graphics technology.  Soon, you will have both JPEG and PNG compressed
+images.</p>
+<p>
+</p>
+<h2><a name="DataTables">Data Tables</a></h2>
+<p>
+</p>
+<p>A fundamental concept in RIP<i>scrip</i> 3.0 is the idea of data tables.  A
+data table is a list of data objects.  There are a eight different types of data
+tables in RIP<i>scrip</i>, each serving a unique purpose.  To the left, is a
+listing of the available data tables:</p>
+<p>
+</p>
+<center><table border="0"><tbody><tr valign="TOP" align="CENTER"><td colstart="1" align="LEFT"><u><b>Port Type</b></u>&nbsp;</td><td colstart="2" align="LEFT"><u><b>Entries</b></u>&nbsp;</td></tr><tr>
+<td colstart="1">Graphics style&nbsp;</td><td colstart="2">36&nbsp;</td></tr><tr><td colstart="1">Button style&nbsp;</td><td colstart="2">36&nbsp;</td></tr><tr><td colstart="1">Drawing port&nbsp;</td><td colstart="2">36&nbsp;</td></tr><tr><td colstart="1">Text window&nbsp;</td><td colstart="2">36&nbsp;</td></tr><tr><td colstart="1">Color palette&nbsp;</td><td colstart="2">36&nbsp;</td></tr><tr><td colstart="1">Environment&nbsp;</td><td colstart="2">36&nbsp;</td></tr><tr><td colstart="1">Mouse field&nbsp;</td><td colstart="2">128&nbsp;</td></tr><tr><td colstart="1">Graphics screen&nbsp;</td><td colstart="2">1&nbsp;</td></tr></tbody></table></center>
+<p>
+</p>
+<p>
+One such data table, the graphics style table, is for the storage of drawing
+attribute information.  Parts of a graphics style are the settings for current
+drawing color, fill pattern, font style, raster-op, line pattern and more.  In
+effect, it stores all of the graphical drawing attributes, or the "style"
+for graphics drawing in one central location.</p>
+<p>
+</p>
+<p>
+The mouse field and graphics screen data tables in the preceding list are
+special and require further discussion.  The mouse field data table is a
+collection of up to 128 separate mouse field definitions, where each mouse field
+is considered an individual data table entry.  There is no such thing as a "current
+mouse field", and as such, there is no current Mouse Field data table
+entry.  You can't switch from one mouse field to another either.</p>
+<p>
+</p>
+<p>
+The other special data table is the graphics screen data table.  The graphics
+screen data table is not actually a real data table.  You cannot switch from one
+graphics screen to another like you can with other data table entries, because
+you only have one computer monitor, and as such, only one graphics screen.  The
+graphics screen is formally defined as a data table so that it can interface
+with the data backup system (see below).</p>
+<p>
+</p>
+<h3><a name="SwitchingTables">Switching Data Tables - Context Swapping</a></h3>
+<p>
+As you may notice, most of the data tables have more than one entry, allowing
+you to have multiple defined data table entries simultaneously.  Using these
+multiple entries, you can quickly move from one drawing environment to another
+with a simple data table "switch context" command.  There are commands
+to switch from one data table to another for each type of table in the preceding
+list (e.g., <b>RIP_SWITCH_STYLE</b>, <b>RIP_SWITCH_TEXT_WINDOW</b>, etc.).</p>
+<p>
+</p>
+<p>
+Switching data tables can be extremely useful in the efficient use of
+transmission speeds.  For example, a graphics style data table could be used to
+store different kinds of drawing environments for different menus, and all you
+need to do when you go to another menu is switch to the desired graphics style -
+you don't need to re-transmit all of the RIP<i>scrip</i> commands to configure
+all of the correct drawing attributes before you actually start drawing.  This
+can result in substantial space savings in RIP<i>scrip</i> data files.</p>
+<p>
+</p>
+<h3><a name="ProtectedTables">Protected Data Tables</a></h3>
+<p>
+Having data tables at your disposal has quite a bit of usefulness in the overall
+design of efficient RIP<i>scrip</i> content.  However, for the service provider
+who is designing a large-scale online service, using data table entries
+effectively requires the ability of defining data tables that can stay defined
+permanently throughout the duration of a user's online session.</p>
+<p>
+</p>
+<p>
+This is where "protection" comes into play.  Each data table entry can
+be protected, so that it cannot be deleted or altered by some kind of
+environment reset operation.  This is perfectly suited for an online service
+that needs to use the same data table configurations throughout the service, and
+only needs to define them once.  By protecting the entries immediately after
+they're defined, you are guarding them, making them so that they will remain
+defined until you want them removed.</p>
+<p>
+</p>
+<p>
+Nearly all data table entries can be protected except for the first one, entry
+number 0.  Entry 0 in every data table is always considered a "scratch pad"
+entry, and is always modifiable.  This ensures that you will always have a
+valid, usable entry that you can change to suit your needs.  In this manner,
+entry 0 is typically referred to as the "common table entry".</p>
+<p>
+</p>
+<p>
+It should be noted that graphics screen data tables and mouse field data tables
+cannot be protected.</p>
+<p>
+</p>
+<h2><a name="DataBackupSystem">Data Backup System</a></h2>
+<p>
+Data tables, by themselves, are quite powerful in nature.  But in larger scale
+online services, where many areas of the system may be made by different
+manufacturers (as in the case of BBS systems), the operator of the service
+doesn't necessarily have complete control over each module.  This can cause
+problems with data tables that you may have defined.</p>
+<p>
+</p>
+<p>
+For example, let's say you defined all of your graphics style data table entries
+the way that you need for your basic service, then your customer links from your
+system to another server.  In this situation, the other server could entirely
+redefine the graphics styles in RIP<i>scrip</i>, overwriting yours.  When the
+customer returns to your system, the graphics styles aren't defined to what you
+expected them to be.</p>
+<p>
+</p>
+<p>
+This is where the RIP<i>scrip</i> data backup system comes in.  The data backup
+system allows you to effectively "backup" an entire data table to some
+alternate storage area, making a "safe copy" of it that you can
+restore from.  It is much like making a tape backup of a hard disk.  You make
+backup copies of your data before you go to an area that will change them, then
+restore the information when you need it.</p>
+<p>
+</p>
+<p>
+There are multiple data backup areas - one for each type of data table.  This is
+why the graphics screen and mouse fields are formally defined as data tables -
+so that they can be backed up.  Each data backup area (for each type of data
+table), has multiple storage sub-areas.  This allows you to have multiple copies
+of each data table stored separately.  Using data backup areas effectively can
+open up an enormous amount of flexibility when it comes to working with online
+software packages.</p>
+<p>
+</p>
+<p>
+The data table system can be visually broken down into three distinct areas: 
+The Base Data Save Area, the Data Save Slots and the Stack Save Area.  Visually,
+it can be described as follows:</p>
+<p>
+</p>
+<center><img src="whitepap_files/databack.gif" align="BOTTOM" border="1"></center>
+<p>
+</p>
+<h3><a name="BaseSaveArea">Base Data Save Area</a></h3>
+<p>
+The Base Save Area is perhaps one of the more commonly used save areas.  It is a
+common "scratch pad" storage area, designated for temporary storage
+only.  It cannot be protected, and should not be used to hold long-term backup
+information.  It can hold one entire data table, and can hold it indefinitely
+(until deleted, or overwritten).</p>
+<p>
+</p>
+<h3><a name="DataSlots">Data Save Slots</a></h3>
+<p>
+The Data Save Slots are one of the more useful, and most flexible storage
+mechanisms in a data backup area.  You have up to 10 separate slots available to
+you, each one of which can store an entire data table.  You access Save Slots by
+slot number (0-9), and these slots can be protected - this means that can put
+some information in a backup slot and make sure that it can't be overwritten or
+deleted by some other application!</p>
+<p>
+</p>
+<p>
+Unlike the Base Area, Save Slots do not hold their information indefinitely. 
+Save Slots are deleted (i.e., cleared) of their data immediately after you
+restore from them (unless they're protected).  In this manner, the data backup
+system automatically cleans up after itself when you restore information.</p>
+<p>
+</p>
+<p>
+You may use up to 10 of the Save Slots, but keep in mind that the 10 Save Slots
+are "shared" with the Stack Save Area (see below), so you may not have
+10 actual slots to work with - some of them might be in use by the stack!</p>
+<p>
+</p>
+<h3><a name="DataStack">Stack Save Area</a></h3>
+<p>
+The last and most useful area of the data backup system is the Stack Save Area. 
+The Stack Area "borrows" slots from the Save Slot system when
+information is stored on the stack, and those slots are returned when a data
+table is removed from the top of the stack.  In this manner, the stack can be
+considered a chronological storage mechanism.  When you store a data table onto
+the stack, you are "pushing" it onto the stack, making any other data
+tables already on the stack appear below the one you're storing.  When you
+restore from the stack (i.e., "pop"), you are removing the top-most
+data table from the stack.  Subsequent restore operations from the stack will
+remove the top entries, thus reducing the size of the stack by one with each
+restore operation.</p>
+<p>
+</p>
+<p>
+The Save Stack Area is ideally suited for an overlapping dialog box/windowing
+system.  If you want to display a dialog box on the screen, overlaying an
+existing menu, simply push all of the data tables in use onto the stack, then
+when you want to close the dialog box (and return to the previous menu), you pop
+the data tables off of the stack, thus making the old settings active again. 
+The same method can also apply to the menu that was in the background - there
+could have been another menu behind that one which could have been stored on the
+stack, which can be restored just as easily.</p>
+<p>
+</p>
+<p>
+Since the Save Stack borrows "slots" from the Save Slot system, you
+can only have a maximum of 10 data tables stored on the stack at any one point
+in time (assuming that no slots are actually in use in the Save Slot system).</p>
+<p>
+</p>
+<h2><a name="HostLanguage">Host Command Language</a></h2>
+<p>
+Up until now, we've been covering the basic architecture of RIP<i>scrip</i> in
+general - discussing the types of commands available, data areas, and structure
+of the language.  In this section, we'll discuss another, extremely powerful
+area of RIP<i>scrip</i>:  the Host Command Language.</p>
+<p>
+</p>
+<p>
+The Host Command Language (HCL) is used in mouse fields, buttons and query
+expressions to control what information is sent to the host, and also to control
+different kinds of processing that may occur.  In fact, some areas of the HCL
+may even be used in other RIP<i>scrip</i> commands like graphical text
+operations, loading bitmap files, etc., but the descriptions of their usefulness
+goes beyond the scope of this document.</p>
+<p>
+</p>
+<p>
+Normally a host command contains raw text that is to be sent to the host system.
+ This information is usually in the form of a command that the host understands,
+but can also be just about anything you want.  Using raw commands like this
+makes up the bulk of RIP<i>scrip </i>host commands.  In order to take
+accommodate the needs of most host systems, some portions of the HCL will
+inevitably be needed.  For example, to go into Email on a particular BBS, you
+might have to send the letter "<b>E</b>" followed by a carriage
+return.  The "<b>E</b>" would be considered the raw host command, but
+the carriage return would have to be handled by a control character directive in
+the HCL (e.g., "<b>^M</b>").</p>
+<p>
+</p>
+<p>
+There are five different areas of the HCL:  control characters, pop-up
+picklists, local playback directives, template directives and text variables. 
+Each of these are distinctly different in purpose, but when used in combination,
+give you a great deal of flexibility in whatever you want to do in a host
+command.</p>
+<p>
+</p>
+<h3><a name="ControlChars">Control Characters</a></h3>
+<p>
+Control characters are perhaps one of the most basic aspects of the HCL.  In
+fact, they are the most commonly used feature of the HCL as well.  With control
+characters, you can insert a code into a host command that, when processed, will
+be converted into a single-byte ASCII control character sequence (e.g., ASCII
+values 0-31).  You specify control characters as a caret symbol (<b>^</b>)
+followed by the character code designated for the control character sequence. 
+For example, "<b>^M</b>" is used for carriage return and "<b>^G</b>"
+is used for a beep.  You may also use the backquote (<b>`</b>) character
+instead of the caret if your host software uses the caret for its own purposes.</p>
+<p>
+</p>
+<h3><a name="Picklists">Pop-Up Picklists</a></h3>
+<p>
+Pop-up picklists are a very useful way of presenting the user with a list of
+choices.  Typically used in a host command of a mouse field or button, picklists
+are used to display a listing of choices to the user.  When the user makes a
+choice, the result of that choice is inserted into the host command in place of
+the picklist command itself.</p>
+<p>
+</p>
+<p>
+For example, the host command "<b>order ((apples,oranges,cherries))</b>"
+will send the sequence "<b>order </b>" to the host system, then
+display a listing of three different kinds of fruits for the user to choose. 
+Once the user chooses one of them, the appropriate value is transmitted to the
+host system.  If the user chose "<b>apples</b>", then the sequence "<b>order
+apples</b>" will be sent to the host system.</p>
+<p>
+</p>
+<p>
+There are a number of formatting options and extra features available for
+picklists to control the placement, prompt, and display of each item of the
+list, giving you considerable flexibility in how your list should be displayed.</p>
+<p>
+</p>
+<h3><a name="LocalPlayback">Local File Playback Directives</a></h3>
+<p>
+Another commonly used feature of the HCL are local file playback directives.  A
+local playback directive instructs the RIP<i>scrip</i> software to process a
+file located on its local hard disk in a client/server fashion.  An example of
+this might be to play the file BEEP.WAV when the user clicks on a particular
+button.  The file BEEP.WAV would have to be located on the user's hard disk for
+the option to work.</p>
+<p>
+</p>
+<p>
+There are four basic playback directives:  display a JPEG image, play an audio
+file, display a RIP<i>scrip</i> file, and show a BMP image.  Using local
+playback directives, you can make quite a number of things happen directly from
+inside a mouse field or button command, activated when the user clicks on the
+object.  In fact, it is entirely possible that local playback directives be used
+to simulate menus on an online service locally, thus making it so that you don't
+have to transmit hardly anything over the modem (if at all).  Many software
+packages use this feature extensively to provide the customer with lightning
+fast menu displays at the expense of a little bit of disk space on the user's
+hard disk.</p>
+<p>
+</p>
+<h3><a name="Templates">Template Directives</a></h3>
+<p>
+Template directives constitute perhaps one of the more complex areas of the HCL,
+but also one of the most powerful.  Templates are used in the RIP<i>scrip</i>
+HCL as a way of "building" more complex host commands based on
+specific conditions.  In this manner, you can think of templates as a
+cookie-cutter approach to host commands, using templates to construct host
+commands based on which buttons are selected and which ones are not.</p>
+<p>
+</p>
+<p>
+Typically, templates are used with radio buttons and checkbox buttons which have
+a distinct on/off status.  When one of these buttons is turned on, it defines a
+template sequence.  That template sequence is used by some other host command to
+"import" the currently defined template value.</p>
+<p>
+</p>
+<p>
+Taking the fruit ordering example described previously, you could make the
+selection of fruits a list of three radio buttons instead of a picklist.  Each
+radio button, when clicked, will define a particular template number to a
+specific text sequence (e.g., defines template #1 to the values "<b>apples</b>",
+"<b>oranges</b>" or "<b>cherries</b>").  Depending on
+which radio button is clicked by the user, the selected fruit can be referenced
+in an "order" button by the host command sequence "<b>order $?1$</b>".
+ When the user clicks on the order button, it sends "<b>order </b>"
+to the host system, then sends template number 1 to the host system, whichever
+value it happens to be set to at the moment (e.g., apples, oranges or cherries).</p>
+<p>
+</p>
+<p>
+Templates can perform many complex tasks well beyond the one described in this
+example.  The methods that templates can be defined are diverse, and the ways
+that they can be called upon to perform operations are equally diverse.</p>
+<p>
+</p>
+<h3><a name="TextVariables">Text Variables</a></h3>
+<p>
+Probably the most common use of the HCL in RIP<i>scrip</i>, is the usage of
+text variables.  Text variables are, as the name implies, a variable containing
+some piece of text information.  In actuality, text variables are much more
+extensive than simple data variables.  Some text variables can store a piece of
+text information, whereas other text variables don't store any text information,
+but rather perform some kind of action or processing.</p>
+<p>
+</p>
+<p>
+There are two distinctly different kinds of text variables in RIP<i>scrip</i>. 
+There are user-defined text variables, which are designed to store user-defined
+text information that the user (or the host system) specifies.  The other kind
+of text variables are pre-defined RIP<i>scrip</i> text variables.  Pre-defined
+variables typically store a particular type of text information, or perform a
+specific action that the host specifies.</p>
+<p>
+</p>
+<h4><a name="UserVars"><i>User-Defined Text Variables</i></a></h4>
+<p>
+User-defined text variables are variables that store a piece of information that
+the host system, or the user specifies.  There are two types of user-defined
+text variables:  memory variables or database variables.</p>
+<p>
+</p>
+<p>
+Memory text variables are temporary in nature, and store the designated
+information until the RIP<i>scrip</i> software is shutdown, they are deleted or
+overwritten with new information.</p>
+<p>
+</p>
+<p>
+Database text variables are essentially permanent.  They are stored in a
+database file on the user's hard disk and can be retrieved at any time. 
+Database variables can be deleted or overwritten just like memory variables can.</p>
+<p>
+</p>
+<p>
+User-defined text variables can be used for a variety of purposes.  A typical
+example of a user variable might be <b>$FIRST_NAME$</b> which contains the
+customer's first name.  Another application of user variables could be address
+information, allowing for automated signup to new online services.</p>
+<p>
+</p>
+<p>
+User-defined variables can also be created by the host system, without the
+user's intervention.  These variables are defined "transparently" to
+the user, and are typically used by the host system for various configuration
+information that needs to be stored on the client terminal.  An example of this
+is the RIP<i>master</i> software package running under TBBS which can be
+installed on many different online services.  This package implements a complete
+RIP<i>scrip</i> 3.0 multimedia presentation system for your BBS, and as such,
+uses a great many files on the user's local hard disk.  To distinguish the files
+of one online service from another, a user-defined text variable named <b>$EXTENSION$</b>
+is used to define a file extension for the system (e.g., "<b>.TG</b>"
+for TeleGrafix's BBS), and whenever a filename parameter in RIP<i>scrip</i> is
+entered, the text variable <b>$EXTENSION$</b> is used where the file's
+extension would normally appear, forcing RIP<i>scrip</i> to lookup the variable
+and replace it with "<b>.TG</b>".  In this example, the sequence "<b>FILENAME$EXTENSION$</b>"
+becomes "<b>FILENAME.TG</b>".</p>
+<p>
+</p>
+<h4><a name="PreDefinedVars"><i>Pre-Defined Text Variables</i></a></h4>
+<p>
+Pre-defined text variables in RIP<i>scrip</i> are a very powerful, very broad
+subject.  Essentially there are two types of pre-defined text variables:  data
+variables, and action variables.  There are over 160 different pre-defined text
+variables in RIP<i>scrip </i>3.0, some of which are data variables, and others
+are action variables.</p>
+<p>
+</p>
+<p>
+Data variables are basic text variables that contain a specific piece of
+information.  An example of one of these variables is <b>$DATE$ </b>which
+inserts the current date into the host command (e.g., "<b>03/07/96</b>").
+ Other variables return configuration information about various aspects of RIP<i>scrip</i>
+in the form of text information (e.g., what is the current graphics style
+number, etc.).</p>
+<p>
+</p>
+<p>
+Action text variables perform some kind of action on the RIP<i>scrip</i>
+software package.  An example of this might be the <b>$CLS$</b> text variable
+which clears the screen.  There are a great many action variables in RIP<i>scrip</i>
+which can do things ranging from simple beeps and sounds, to complex data
+copying operations.  Just about all operations with switching data table entries
+and data backup slots can be handled efficiently with action variables. 
+Effective use of RIP<i>scrip</i> to provide some kind of GUI interface to the
+user can only be accomplished with the use of action text variables.</p>
+<p>
+</p>
+<p>
+Some pre-defined text variables are a combination of both data variables and
+action variables.  For example, the text variable sequence <b>$CUR(TW)$</b> by
+itself, reports the current Text Window data table entry number as a number from
+0-35.  In this configuration, this text variable acts like a data text variable,
+inserting a piece of text into the host command.  The sequence <b>$CUR(TW,5)$</b>
+on the other hand, changes the current text window to text window number 5.  In
+this example, this text variable performs an action and hence, is an action
+variable.  When a variable performs an action, it never contains any data and
+always evaluates to nothing (e.g., the sequence "<b>Hello $CUR(TW,5)$world</b>"
+would send "<b>Hello </b>" to the host system, switch to text window
+number 5, then send "<b>world</b>" to the host system.</p>
+<p>
+</p>
+<h2><a name="PuttingItAll">Putting It All Together</a></h2>
+<p>
+With RIP<i>scrip</i> 3.0, you can use as little or as much of the language in
+the creation of your online service as you want.  At the very minimum, you might
+opt to use just the drawing capabilities to show nice pictures and images to
+your customers.  On the other side, you could build a full-fledged graphical
+online service, utilizing the full range of RIP<i>scrip</i>'s capabilities to
+present a robust, feature-rich service similar to the largest online services. 
+With RIP<i>scrip</i>, the capability is there to do just about whatever you
+want.  The more you want to do though, the more aspects of RIP<i>scrip</i>
+you'll naturally need to use.</p>
+<p>
+</p>
+<p>
+For example, if you want to present dialog boxes and menus which can overlap
+each other, that can be removed with a click of a button, you'll need to get a
+pretty good grasp of the basics of action text variables and the data backup
+system.</p>
+<p>
+</p>
+<p>
+To make your online connection as fast as possible, you would need to take
+advantage of data tables and local playback directives to create a truly
+client/server architecture.</p>
+<p>
+</p>
+<p>
+If you wish to display high-quality documents like those you would normally find
+in magazines or newspapers, then you'd need to familiarize yourself with the
+capabilities of the font systems of RIP<i>scrip</i>, and the multi-column
+system for extensive layout control.</p>
+<p>
+</p>
+<h1><a name="GoalsOfRip">Future Goals of RIP<i>scrip</i></a></h1>
+<p>
+No matter what your needs are, RIP<i>scrip</i> probably has a feature or set of
+commands that will help you accomplish your goals.  If it doesn't, contact
+TeleGrafix and request the feature for future versions of the technology.  The
+reason RIP<i>scrip</i> has so many features is because of its users asking for
+them.  RIP<i>scrip</i> is truly customer-driven technology, where the needs of
+the customer are built into the technology.</p>
+<p>
+</p>
+<p>
+There are a number of areas that are currently under design and/or development
+for RIP<i>scrip</i>.  Many of these areas were based on customer requests, or
+future TeleGrafix ideas for the technology.</p>
+<p>
+</p>
+<h2><a name="InternationalLang">International Language Support</a></h2>
+<p>
+Currently in development, international languages are an important aspect of the
+next edition of RIP<i>scrip</i> technology.  Enhancements to the language for
+international character set encoding are currently underway, with specific
+emphasis being placed on Japanese encoding of information using JIS, Shift-JIS
+and EUC encoding formats.  Additional language support will be added after this
+first phase of internationalization is complete (e.g., Hebrew, Cyrillic,
+Chinese, Korean, etc.).</p>
+<p>
+</p>
+<h2><a name="MotionVideo">Full-Motion Video</a></h2>
+<p>
+A popular request has been for full-motion video animation within the framework
+of RIP<i>scrip</i>.  Currently, the MPEG video standard is under serious
+consideration for implementation because it is an industry standard for video,
+with a large variety of third-party hardware and software support, and has a
+great deal of existing content available already in MPEG format.  With today's
+high-speed computers becoming more and more available, MPEG video is quickly
+becoming a far more widely accepted method of doing compressed, full-motion
+video.</p>
+<p>
+</p>
+<h2><a name="CompressedAudo">Compressed, Streaming Audio</a></h2>
+<p>
+Another popular request for RIP<i>scrip</i> is a formal, compressed audio
+format that is suitable for playing voice or music-grade audio over a streaming
+network connection (e.g., 14.4 modem, ethernet, TCP/IP, etc.).  Currently, a
+number of audio formats are under consideration for possible implementation
+including APEG, CELP and several others.</p>
+<p>
+</p>
+<h2><a name="IntegratedGui">Integrated GUI Environment</a></h2>
+<p>
+As RIP<i>scrip </i>evolves, and is being used for more GUI-based applications,
+more and more people are requesting that built-in GUI primitives be added to RIP<i>scrip</i>
+(e.g., real dialog boxes, multiple window objects, slider controls, spin
+buttons, combo-boxes, list boxes, edit boxes, etc.).  This would make it so that
+the system developer wouldn't have to draw every single control object for use
+in a user-defined dialog box.  A lot of thought is being put into this subject,
+considering not only the look and feel issues, but also implementing a powerful,
+yet generic GUI system that can be flexible enough to meet anybody's needs.</p>
+<p>
+</p>
+<h2><a name="FormsAndTables">Forms and Tables</a></h2>
+<p>
+Pre-defined forms support is another popular request.  A form object would allow
+you to define multiple fields on the screen that could be filled in by the user,
+without the host system having to actually do the work of implementing the form
+itself.</p>
+<p>
+</p>
+<p>
+Tables are another area that is being requested a lot.  Tables would allow you
+to display information in a formatted table of information similar to the tables
+shown elsewhere in this document.</p>
+<p>
+</p>
+<h2><a name="DocInterface">Document Oriented Interface</a></h2>
+<p>
+Another important area of improvement in RIP<i>scrip</i> is a document-oriented
+interface.  Such an interface would integrate RIP<i>scrip</i> information in a
+way suitable for the display of actual printed documents. Information would be
+based around the concept of a "page" of information, with pages
+grouped into a larger document.  This would involve a virtual screen layout,
+where the screen could be larger than the actual graphics screen, allowing the
+user to scroll around on the document to view the desired information.</p>
+<p>
+</p>
+<h2><a name="HyperText">Hyper-Text Markup Language (HTML)</a></h2>
+<p>
+As RIP<i>scrip</i> is being implemented in more and more World Wide Web
+environments, the ability to have the Hyper-Text Markup Language as a native
+sub-set of RIP<i>scrip</i> is important.  Having this ability would allow you
+to display HTML Web documents inside RIP<i>scrip</i> documents, giving you
+access to the huge base of existing HTML information available on the Web today.</p>
+<p>
+</p>
+<h1><a name="Conclusion">Conclusion</a></h1>
+<p>
+When creating your own graphical online service, you can effectively do whatever
+your imagination wants.  You can make it look like just about anything, and make
+it do nearly anything.  You are limited only by your imagination, and the
+capabilities of your graphical presentation technology.  RIP<i>scrip</i> offers
+you a wide range of features to bring your imagination to the computer screen,
+and thus your customers.</p>
+<p>
+</p>
+<p>
+Without a flexible technology at your disposal, your dreams for a graphical
+online service simply cannot happen the way that you want.  What is needed is an
+industry-standard, utterly flexible technology that meets the needs of today,
+and tomorrow.  With RIP<i>scrip</i> from TeleGrafix, you can be assured that
+your choice in presentation technologies has broad reaching implications, and an
+eye constantly on the future.</p>
+<p>
+</p> 
+<hr>
+<address>
+Copyright © 1997 TeleGrafix Communications Inc.   All Rights Reserved.<br>
+Maintained by <a href="mailto:webmaster@telegrafix.com">webmaster@telegrafix.com</a></address>
+<p>
+<a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/index.htm"><img src="whitepap_files/b_back.gif" border="0"></a>
+</p><p>
+
+<img src="whitepap_files/asrlogo.gif" alt="ASR Logo" height="213" width="336">
+</p><p>
+
+<a name="TextMenu">
+
+</a></p><center>
+<a name="TextMenu"><b><font face="Arial" size="-1">
+
+|
+</font></b></a><b><font face="Arial" size="-1"><a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/index.htm">RIP<i>master</i> Home Page</a>
+ |
+
+<a href="http://web.archive.org/web/19980114112020/http://www.boardwatch.com/mag/96/may/bwm7a.htm">Boardwatch Review</a>
+ |
+
+<a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/info.htm">Info</a>
+ |
+
+<a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/press.htm">Press Release</a>
+ |
+
+<a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/demos.htm">Demos</a>
+ |
+
+<a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/order.htm">Order</a>
+ |
+
+<a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/tools.htm">Tools</a>
+ |
+
+<a href="http://web.archive.org/web/19980114112020/http://www.telegrafix.com/asr/support.htm">Support</a>
+ |
+
+<a href="mailto:amcnamee@cybernw.com">Email</a>
+ |
+</font></b>
+<br>
+<p>
+<font size="-1">
+Trademarks: RIP<i>master</i> and the RIP<i>master</i> logo are registered trademarks of
+Advanced Systems Research.  RIP<i>scrip</i> is a trademark of TeleGrafix
+Communications. Other products named here may be trademarks of their respective
+manufacturers.
+</font>
+</p></center>
+
+<script language="Javascript">
+<!--
+
+// FILE ARCHIVED ON 19980114112020 AND RETRIEVED FROM THE
+// INTERNET ARCHIVE ON 20020113135009.
+// JAVASCRIPT APPENDED BY WAYBACK MACHINE, COPYRIGHT INTERNET ARCHIVE.
+// ALL OTHER CONTENT MAY ALSO BE PROTECTED BY COPYRIGHT (17 U.S.C.
+// SECTION 108(a)(3)).
+
+   var sWayBackCGI = "http://web.archive.org/web/19980114112020/";
+
+   function xLateUrl(aCollection, sProp) {
+      var i = 0;
+      for(i = 0; i < aCollection.length; i++)
+         if (aCollection[i][sProp].indexOf("mailto:") == -1 &&
+             aCollection[i][sProp].indexOf("javascript:") == -1)
+            aCollection[i][sProp] = sWayBackCGI + aCollection[i][sProp];
+   }
+
+   if (document.links)  xLateUrl(document.links, "href");
+   if (document.images) xLateUrl(document.images, "src");
+   if (document.embeds) xLateUrl(document.embeds, "src");
+
+   if (document.body && document.body.background)
+      document.body.background = sWayBackCGI + document.body.background;
+
+//-->
+</script>
+
+</body></html>
