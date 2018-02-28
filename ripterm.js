@@ -8,7 +8,6 @@
  * (work in progress)
  **/
 
-
 function RIPtermJS (self) {
 	'use strict';
 
@@ -156,7 +155,7 @@ function RIPtermJS (self) {
 
 	// NOT DONE (TODO: need to update)
 	self.readFile = function(filename) {
-		console.log('READ_FILE: ' + filename);  // TEST
+		console.log('READ_FILE: ' + filename);
 
 		cmdi = 0;
 		var req = new XMLHttpRequest();
@@ -429,15 +428,7 @@ function RIPtermJS (self) {
 		if (typeof writeMode   === 'undefined') { writeMode = 0; }
 		if (typeof lineThick   === 'undefined') { lineThick = 1; }
 		if (typeof linePattern === 'undefined') { linePattern = 0xFFFF; }
-	/*
-		// TEST
-		ctx.fillStyle = paletteEGA16[colr]; // test
-		ctx.lineWidth = glob.lineThick;
-		ctx.beginPath();
-		ctx.moveTo(x1, y1);
-		ctx.bezierCurveTo(x2, y2, x3, y3, x4, y4);
-		ctx.stroke();
-	*/
+
 		// Cubic Bezier formula:
 		// p = (1-t)^3 *P0 + 3*t*(1-t)^2*P1 + 3*t^2*(1-t)*P2 + t^3*P3 
 		// where t is 0 to 1
@@ -457,81 +448,6 @@ function RIPtermJS (self) {
 		drawLine(xp, yp, x4, y4, colr, writeMode, lineThick, linePattern);
 	}
 
-/*
-	// TO REMOVE
-	// NOT WORKING YET
-	function drawFloodFill1(x0, y0, border, colr, fillPattern) {
-		// uses glob.viewport
-		// TODO: fillPattern, viewport
-		// following modified from paint.js
-
-		if (getPixel(x0, y0) == border) { return; }
-		var stack = [{x:x0, y:y0, t:y0, b:y0, s:0}];
-		var popped, count = 0;
-
-		while (popped = stack.pop()) {
-			var x = popped.x;   
-			var y = popped.y;
-			var t = popped.t; // top
-			var b = popped.b; // bottom
-			var s = popped.s; // span -1=left, 0=both, +1=right
-
-			if (self.debugVerbose) {
-				console.log('   popped: x='+x+', y='+y+', t='+t+', b='+b+', s='+s );  // TEST
-			}
-
-			// find top of line (y1)
-			var y1 = y;
-			while ((y1 >= glob.viewport.y0) && (getPixel(x, y1) != border)) {
-				y1--;
-			}
-			y1++;
-			// find bottom of line (y2)
-			var y2 = y + 1;
-			while ((y2 <= glob.viewport.y1) && (getPixel(x, y2) != border)) {
-				y2++;
-			}
-			y2--;
-
-			var spanLeft = false;
-			var spanRight = false;
-			//while ((y <= glob.viewport.y1) && (getPixel(x, y) != border)) {
-			for (y = y1; y <= y2; y++) {
-				setPixelBuf(x, y, colr);
-				count++;
-
-				if (!spanLeft && (x > glob.viewport.x0) && (getPixel(x-1, y) != border)) {
-					//if ((s <= 0) || (y < t) || (y > b)) {
-					if (s <= 0) {
-						stack.push({x:x-1, y:y, t:y1, b:y2, s:-1});
-					}
-					spanLeft = true;
-				}
-				else if (spanLeft && (x > glob.viewport.x0) && (getPixel(x-1, y) == border)) {
-					spanLeft = false;
-				}
-				//else if (spanRight && (x <= glob.viewport.x0)) { spanRight = false; }
-
-				if (!spanRight && (x < glob.viewport.x1) && (getPixel(x+1, y) != border)) {
-					if ((s >= 0) || (y < t) || (y > b)) {
-					//if (s >= 0) {
-						stack.push({x:x+1, y:y, t:y1, b:y2, s:1});
-					}
-					spanRight = true;
-				}
-				else if (spanRight && (x < glob.viewport.x1) && (getPixel(x+1, y) == border)) {
-					spanRight = false;
-				}
-				//else if (spanRight && (x > glob.viewport.x1)) { spanRight = false; }
-
-				//y++;
-			}
-			//if (count > 224000) { console.log('** FloodFill MAX **'); return; } // TEST: exit after 350*640 pixels
-			if (count > 30000) { console.log('** FloodFill MAX **'); return; } // TEST: exit after 350*640 pixels
-		}
-	}
-//*/
-
 	function drawFloodFill(x0, y0, border, colr, fillPattern) {
 		// uses glob.viewport
 		// TODO: make more efficient:
@@ -545,10 +461,7 @@ function RIPtermJS (self) {
 		while (popped = stack.pop()) {
 			var x = popped.x;   
 			var y = popped.y;
-
-			if (self.debugVerbose) {
-				console.log('   popped: x='+x+', y='+y);  // TEST
-			}
+			if (self.debugVerbose) console.log('   popped: x='+x+', y='+y);
 
 			// find top of line (y1)
 			var y1 = y;
@@ -587,31 +500,8 @@ function RIPtermJS (self) {
 					spanRight = false;
 				}
 			}
-			//if (count > 224000) { console.log('** FloodFill MAX **'); return; } // TEST: exit after 350*640 pixels
-			//if (count > 30000) { console.log('** FloodFill MAX **'); return; } // TEST: exit after 350*640 pixels
 		}
 	}
-
-/*
-	// NOT DONE
-	// likely wouldn't work with corner cases (i.e. a corner!)
-	function drawFilledPolygon(colr, fillPattern) {
-		// Expects tBuf[] to contain polygon outline, which this uses
-		// to draw a filled polygon to the canvas buffer cBuf[].
-		// uses: cBuf[], tBuf[], cWidth, cHeight
-		// ignores glob.writeMode for filling
-		// TODO: fillPattern, viewport
-
-		var pixelOn = false;
-		for (var y=0; y < cHeight; y++) {
-			for (var x=0; x < cWidth; x++) {
-
-				if (pixelOn) { setPixelBuf(x, y, colr); }
-			}
-		}
-
-	}
-*/
 
 	function drawFilledPolygon(xpoly, ypoly, colr, fillPattern) {
 		// uses: glob.viewport
@@ -639,9 +529,7 @@ function RIPtermJS (self) {
 
 			// sort nodes
 			if (xnode.length == 0) continue;
-			//console.log("xnode before: " + xnode);  // TEST
 			xnode.sort(function(a, b) { return a - b; });
-			//console.log("xnode after:  " + xnode);  // TEST
 
 			// draw pixes between node pairs
 			for (i=0; i < xnode.length; i+=2) {
@@ -655,7 +543,6 @@ function RIPtermJS (self) {
 					}
 				}
 			}
-			//break;  // TEST
 		}
 	}
 
@@ -880,6 +767,9 @@ function RIPtermJS (self) {
 				var y0 = parseInt(args.substr(2,2), 36);
 				var x1 = parseInt(args.substr(4,2), 36);
 				var y1 = parseInt(args.substr(6,2), 36);
+				var s; // force xy0 to upper-left, xy1 to lower-right
+				if (x0 > x1) { s=x0; x0=x1; x1=s; }
+				if (y0 > y1) { s=y0; y0=y1; y1=s; }
 				drawRectangle(x0, y0, x1, y1, glob.drawColor, glob.writeMode, glob.lineThick, glob.linePattern);
 				if (svg) {
 					svg.appendChild( svgNode('rect', {
@@ -897,6 +787,9 @@ function RIPtermJS (self) {
 				var y0 = parseInt(args.substr(2,2), 36);
 				var x1 = parseInt(args.substr(4,2), 36);
 				var y1 = parseInt(args.substr(6,2), 36);
+				var s; // force xy0 to upper-left, xy1 to lower-right
+				if (x0 > x1) { s=x0; x0=x1; x1=s; }
+				if (y0 > y1) { s=y0; y0=y1; y1=s; }
 				// spec says RIP_BAR doesn't use writeMode (could spec be wrong??)
 				drawBar(x0, y0, x1, y1, glob.fillColor, 0, glob.fillPattern);
 				if (svg) {
@@ -1077,7 +970,7 @@ function RIPtermJS (self) {
 				var x = parseInt(args.substr(0,2), 36);
 				var y = parseInt(args.substr(2,2), 36);
 				var border = parseInt(args.substr(4,2), 36);
-				console.log('RIP_FILL: (' + x + ',' + y + ') color:' + glob.fillColor + ' border:' + border);  // TEST
+				if (self.debugVerbose) console.log('RIP_FILL: (' + x + ',' + y + ') color:' + glob.fillColor + ' border:' + border);
 				drawFloodFill(x, y, border, glob.fillColor, glob.fillPattern);
 			}
 		},
@@ -1134,6 +1027,9 @@ function RIPtermJS (self) {
 				var x1 = parseInt(args.substr(4,2), 36);
 				var y1 = parseInt(args.substr(6,2), 36);
 				// 1 byte reserved
+				var s; // force xy0 to upper-left, xy1 to lower-right
+				if (x0 > x1) { s=x0; x0=x1; x1=s; }
+				if (y0 > y1) { s=y0; y0=y1; y1=s; }
 				glob.clipboard = getImageClip(x0, y0, x1, y1);
 				//console.log('RIP_GET_IMAGE: w:' + glob.clipboard.w + ', h:' + glob.clipboard.h);
 				//console.log(glob.clipboard.img);
@@ -1205,14 +1101,14 @@ function RIPtermJS (self) {
 	}
 
 	self.reset = function() {
-		if (self.debugVerbose) { console.log('RESET'); }
+		if (self.debugVerbose) console.log('RESET');
 		self.cmd['*']();
 		cmdi = 0;
 		if (self.counterId) { counterDiv.innerHTML = cmdi + ' / ' + ripData.length; }
 	}
 
 	self.start = function() {
-		if (self.debugVerbose) { console.log('START'); }
+		if (self.debugVerbose) console.log('START');
 		if (ctx) {
 			if (cmdi >= ripData.length) { cmdi = 0; }
 			if (timer) clearTimeout(timer);
@@ -1241,7 +1137,7 @@ function RIPtermJS (self) {
 	}
 
 	self.stop = function () {
-		if (self.debugVerbose) { console.log('STOP'); }
+		if (self.debugVerbose) console.log('STOP');
 		if (timer) {
 			clearTimeout(timer);
 		}
