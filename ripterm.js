@@ -93,10 +93,6 @@ function RIPtermJS (self) {
 		*/
 	}
 
-	function randInt(min, max) {
-		return Math.floor(Math.random() * (max - min + 1)) + min;
-	}
-
 	// hex is '#rgb' or '#rrggbb', returns [R, G, B] where values are 0-255
 	function hex2rgb(hex) {
 		return (hex.length == 4) ?
@@ -144,6 +140,10 @@ function RIPtermJS (self) {
 		return [cmd, args];
 	}
 
+	function parseRIPint(args, pos) {
+		return parseInt(args.substr(pos,2), 36);
+	}
+
 	// Unescape these: "\!" "\|" "\\"
 	// (somewhat hackish, may fail)
 	function unescapeRIPtext(text) {
@@ -171,7 +171,7 @@ function RIPtermJS (self) {
 
 			// output to ripTextDiv
 			var outText = '';
-				var c=0;
+			var c=0;
 			ripData = [];
 
 			// process one line at a time
@@ -215,10 +215,11 @@ function RIPtermJS (self) {
 // graphics drawing primitives
 
 	// Converts indexed to 24-bit image using palette, then updates canvas
-	function updateCanvas() {
-		var b, j=0, numpix = cBuf.length;
+	function updateCanvas(buf) {
+		if (!buf) { buf = cBuf; }
+		var b, j=0, numpix = buf.length;
 		for (var i=0; i < numpix; ++i) {
-			b = cBuf[i];
+			b = buf[i];
 			cImg.data[j++] = palR[b];
 			cImg.data[j++] = palG[b];
 			cImg.data[j++] = palB[b];
@@ -627,10 +628,10 @@ function RIPtermJS (self) {
 		// RIP_VIEWPORT
 		'v': function(args) {
 			if (args.length >= 8) {
-				glob.viewport.x0 = parseInt(args.substr(0,2), 36);
-				glob.viewport.y0 = parseInt(args.substr(2,2), 36);
-				glob.viewport.x1 = parseInt(args.substr(4,2), 36);
-				glob.viewport.y1 = parseInt(args.substr(6,2), 36);
+				glob.viewport.x0 = parseRIPint(args, 0);
+				glob.viewport.y0 = parseRIPint(args, 2);
+				glob.viewport.x1 = parseRIPint(args, 4);
+				glob.viewport.y1 = parseRIPint(args, 6);
 			}
 		},
 
@@ -657,7 +658,7 @@ function RIPtermJS (self) {
 		// RIP_COLOR
 		'c': function(args) {
 			if (args.length >= 2) {
-				glob.drawColor = parseInt(args.substr(0,2), 36);
+				glob.drawColor = parseRIPint(args, 0);
 			}
 		},
 
@@ -666,7 +667,7 @@ function RIPtermJS (self) {
 			if (args.length >= 32) {
 				var p;
 				for (var c=0; c < 16; c++) {
-					p = parseInt(args.substr(c*2, 2), 36);
+					p = parseRIPint(args, c*2);
 					if (p < 64) {
 						setPalWithHex(c, paletteEGA64[p]);
 					}
@@ -677,8 +678,8 @@ function RIPtermJS (self) {
 		// RIP_ONE_PALETTE
 		'a': function(args) {
 			if (args.length >= 4) {
-				var colr  = parseInt(args.substr(0,2), 36);
-				var value = parseInt(args.substr(2,2), 36);
+				var colr  = parseRIPint(args, 0);
+				var value = parseRIPint(args, 2);
 				if ((colr < 16) && (value < 64)) {
 					setPalWithHex(colr, paletteEGA64[value]);
 				}
@@ -688,15 +689,15 @@ function RIPtermJS (self) {
 		// RIP_WRITE_MODE
 		'W': function(args) {
 			if (args.length >= 2) {
-				glob.writeMode = parseInt(args.substr(0,2), 36);
+				glob.writeMode = parseRIPint(args, 0);
 			}
 		},
 
 		// RIP_MOVE
 		'm': function(args) {
 			if (args.length >= 4) {
-				glob.move.x = parseInt(args.substr(0,2), 36);
-				glob.move.y = parseInt(args.substr(2,2), 36);
+				glob.move.x = parseRIPint(args, 0);
+				glob.move.y = parseRIPint(args, 2);
 			}
 		},
 /*
@@ -710,8 +711,8 @@ function RIPtermJS (self) {
 		// RIP_TEXT_XY (not done)
 		'@': function(args) {
 			if (args.length >= 4) {
-				var x = parseInt(args.substr(0,2), 36);
-				var y = parseInt(args.substr(2,2), 36);
+				var x = parseRIPint(args, 0)
+				var y = parseRIPint(args, 2);
 				var text = unescapeRIPtext(args.substr(4));
 				// TODO: draw text
 				console.log('RIP_TEXT_XY: ' + text);
@@ -721,9 +722,9 @@ function RIPtermJS (self) {
 		// RIP_FONT_STYLE
 		'Y': function(args) {
 			if (args.length >= 6) {
-				glob.fontStyle = parseInt(args.substr(0,2), 36);
-				glob.fontDir   = parseInt(args.substr(2,2), 36);
-				glob.fontSize  = parseInt(args.substr(4,2), 36);
+				glob.fontStyle = parseRIPint(args, 0);
+				glob.fontDir   = parseRIPint(args, 2);
+				glob.fontSize  = parseRIPint(args, 4);
 				// (2 bytes) reserved
 			}
 		},
@@ -731,8 +732,8 @@ function RIPtermJS (self) {
 		// RIP_PIXEL
 		'X': function(args) {
 			if (args.length >= 4) {
-				var x = parseInt(args.substr(0,2), 36);
-				var y = parseInt(args.substr(2,2), 36);
+				var x = parseRIPint(args, 0);
+				var y = parseRIPint(args, 2);
 				setPixelBuf(x, y, glob.drawColor);  // spec says doesn't use drawMode
 				if (svg) {
 					svg.appendChild( svgNode('circle', {
@@ -745,10 +746,10 @@ function RIPtermJS (self) {
 		// RIP_LINE
 		'L': function(args) {
 			if (args.length >= 8) {
-				var x0 = parseInt(args.substr(0,2), 36);
-				var y0 = parseInt(args.substr(2,2), 36);
-				var x1 = parseInt(args.substr(4,2), 36);
-				var y1 = parseInt(args.substr(6,2), 36);
+				var x0 = parseRIPint(args, 0);
+				var y0 = parseRIPint(args, 2);
+				var x1 = parseRIPint(args, 4);
+				var y1 = parseRIPint(args, 6);
 				drawLine(x0, y0, x1, y1, glob.drawColor, glob.writeMode, glob.lineThick, glob.linePattern);
 				if (svg) {
 					svg.appendChild( svgNode('line', {
@@ -763,10 +764,10 @@ function RIPtermJS (self) {
 		// RIP_RECTANGLE
 		'R': function(args) {
 			if (args.length >= 8) {
-				var x0 = parseInt(args.substr(0,2), 36);
-				var y0 = parseInt(args.substr(2,2), 36);
-				var x1 = parseInt(args.substr(4,2), 36);
-				var y1 = parseInt(args.substr(6,2), 36);
+				var x0 = parseRIPint(args, 0);
+				var y0 = parseRIPint(args, 2);
+				var x1 = parseRIPint(args, 4);
+				var y1 = parseRIPint(args, 6);
 				var s; // force xy0 to upper-left, xy1 to lower-right
 				if (x0 > x1) { s=x0; x0=x1; x1=s; }
 				if (y0 > y1) { s=y0; y0=y1; y1=s; }
@@ -783,10 +784,10 @@ function RIPtermJS (self) {
 		// RIP_BAR
 		'B': function(args) {
 			if (args.length >= 8) {
-				var x0 = parseInt(args.substr(0,2), 36);
-				var y0 = parseInt(args.substr(2,2), 36);
-				var x1 = parseInt(args.substr(4,2), 36);
-				var y1 = parseInt(args.substr(6,2), 36);
+				var x0 = parseRIPint(args, 0);
+				var y0 = parseRIPint(args, 2);
+				var x1 = parseRIPint(args, 4);
+				var y1 = parseRIPint(args, 6);
 				var s; // force xy0 to upper-left, xy1 to lower-right
 				if (x0 > x1) { s=x0; x0=x1; x1=s; }
 				if (y0 > y1) { s=y0; y0=y1; y1=s; }
@@ -805,9 +806,9 @@ function RIPtermJS (self) {
 		// RIP_CIRCLE
 		'C': function(args) {
 			if (args.length >= 6) {
-				var xc = parseInt(args.substr(0,2), 36);
-				var yc = parseInt(args.substr(2,2), 36);
-				var xr = parseInt(args.substr(4,2), 36);
+				var xc = parseRIPint(args, 0);
+				var yc = parseRIPint(args, 2);
+				var xr = parseRIPint(args, 4);
 				var yr = xr * (350/480);  // adjust aspect ratio for 640x350 EGA
 				//drawOvalArc(xc, yc, 0, 360, xr, yr, glob.drawColor, glob.lineThick);
 				drawCircle(xc, yc, 0, 360, xr, yr, glob.drawColor, glob.lineThick);  // TEST
@@ -829,10 +830,10 @@ function RIPtermJS (self) {
 		// RIP_FILLED_OVAL (not done)
 		'o': function(args) {
 			if (args.length >= 8) { 
-				var xc = parseInt(args.substr(0,2), 36);
-				var yc = parseInt(args.substr(2,2), 36);
-				var xr = parseInt(args.substr(4,2), 36);
-				var yr = parseInt(args.substr(6,2), 36);
+				var xc = parseRIPint(args, 0);
+				var yc = parseRIPint(args, 2);
+				var xr = parseRIPint(args, 4);
+				var yr = parseRIPint(args, 6);
 				// TODO: fill oval
 				drawOvalArc(xc, yc, 0, 360, xr, yr, glob.drawColor, glob.lineThick, glob.fillColor, glob.fillPattern);
 				if (svg) {
@@ -847,11 +848,11 @@ function RIPtermJS (self) {
 		// RIP_ARC
 		'A': function(args) {
 			if (args.length >= 10) {
-				var xc = parseInt(args.substr(0,2), 36);
-				var yc = parseInt(args.substr(2,2), 36);
-				var sa = parseInt(args.substr(4,2), 36);
-				var ea = parseInt(args.substr(6,2), 36);
-				var xr = parseInt(args.substr(8,2), 36);
+				var xc = parseRIPint(args, 0);
+				var yc = parseRIPint(args, 2);
+				var sa = parseRIPint(args, 4);
+				var ea = parseRIPint(args, 6);
+				var xr = parseRIPint(args, 8);
 				var yr = xr * (350/480);  // adjust aspect ratio for 640x350 EGA
 				drawOvalArc(xc, yc, sa, ea, xr, yr, glob.drawColor, glob.lineThick);
 			}
@@ -860,12 +861,12 @@ function RIPtermJS (self) {
 		// RIP_OVAL_ARC
 		'V': function(args) {
 			if (args.length >= 12) { 
-				var xc = parseInt(args.substr(0,2), 36);
-				var yc = parseInt(args.substr(2,2), 36);
-				var sa = parseInt(args.substr(4,2), 36);
-				var ea = parseInt(args.substr(6,2), 36);
-				var xr = parseInt(args.substr(8,2), 36);
-				var yr = parseInt(args.substr(10,2), 36);
+				var xc = parseRIPint(args, 0);
+				var yc = parseRIPint(args, 2);
+				var sa = parseRIPint(args, 4);
+				var ea = parseRIPint(args, 6);
+				var xr = parseRIPint(args, 8);
+				var yr = parseRIPint(args, 10);
 				drawOvalArc(xc, yc, sa, ea, xr, yr, glob.drawColor, glob.lineThick);
 			}
 		},
@@ -873,11 +874,11 @@ function RIPtermJS (self) {
 		// RIP_PIE_SLICE (not done)
 		'I': function(args) {
 			if (args.length >= 10) {
-				var xc = parseInt(args.substr(0,2), 36);
-				var yc = parseInt(args.substr(2,2), 36);
-				var sa = parseInt(args.substr(4,2), 36);
-				var ea = parseInt(args.substr(6,2), 36);
-				var xr = parseInt(args.substr(8,2), 36);
+				var xc = parseRIPint(args, 0);
+				var yc = parseRIPint(args, 2);
+				var sa = parseRIPint(args, 4);
+				var ea = parseRIPint(args, 6);
+				var xr = parseRIPint(args, 8);
 				var yr = xr * (350/480);  // adjust aspect ratio for 640x350 EGA
 				// TODO: draw & fill pie slice
 				drawOvalArc(xc, yc, sa, ea, xr, yr, glob.drawColor, glob.lineThick, glob.fillColor, glob.fillPattern);
@@ -887,12 +888,12 @@ function RIPtermJS (self) {
 		// RIP_OVAL_PIE_SLICE (not done)
 		'i': function(args) {
 			if (args.length >= 12) { 
-				var xc = parseInt(args.substr(0,2), 36);
-				var yc = parseInt(args.substr(2,2), 36);
-				var sa = parseInt(args.substr(4,2), 36);
-				var ea = parseInt(args.substr(6,2), 36);
-				var xr = parseInt(args.substr(8,2), 36);
-				var yr = parseInt(args.substr(10,2), 36);
+				var xc = parseRIPint(args, 0);
+				var yc = parseRIPint(args, 2);
+				var sa = parseRIPint(args, 4);
+				var ea = parseRIPint(args, 6);
+				var xr = parseRIPint(args, 8);
+				var yr = parseRIPint(args, 10);
 				// TODO: draw & fill oval pie slice
 				drawOvalArc(xc, yc, sa, ea, xr, yr, glob.drawColor, glob.lineThick, glob.fillColor, glob.fillPattern);
 			}
@@ -901,15 +902,15 @@ function RIPtermJS (self) {
 		// RIP_BEZIER
 		'Z': function(args) {
 			if (args.length >= 18) {
-				var x1 = parseInt(args.substr(0,2), 36);
-				var y1 = parseInt(args.substr(2,2), 36);
-				var x2 = parseInt(args.substr(4,2), 36);
-				var y2 = parseInt(args.substr(6,2), 36);
-				var x3 = parseInt(args.substr(8,2), 36);
-				var y3 = parseInt(args.substr(10,2), 36);
-				var x4 = parseInt(args.substr(12,2), 36);
-				var y4 = parseInt(args.substr(14,2), 36);
-				var cnt = parseInt(args.substr(16,2), 36);
+				var x1 = parseRIPint(args, 0);
+				var y1 = parseRIPint(args, 2);
+				var x2 = parseRIPint(args, 4);
+				var y2 = parseRIPint(args, 6);
+				var x3 = parseRIPint(args, 8);
+				var y3 = parseRIPint(args, 10);
+				var x4 = parseRIPint(args, 12);
+				var y4 = parseRIPint(args, 14);
+				var cnt = parseRIPint(args, 16);
 				// using solid linePattern (spec says it uses linePattern, but I think it's wrong.)
 				drawBezier(x1, y1, x2, y2, x3, y3, x4, y4, cnt, glob.drawColor, glob.writeMode, glob.lineThick, 0xFFFF);
 			}
@@ -918,13 +919,13 @@ function RIPtermJS (self) {
 		// RIP_POLYGON
 		'P': function(args) {
 			if (args.length >= 6) {
-				var num = parseInt(args.substr(0,2), 36);
-				var x0 = parseInt(args.substr(2,2), 36);
-				var y0 = parseInt(args.substr(4,2), 36);
+				var num = parseRIPint(args, 0);
+				var x0 = parseRIPint(args, 2);
+				var y0 = parseRIPint(args, 4);
 				var xp = x0, yp = y0, xn, yn;
 				for (var i=1; i < num; i++) {
-					xn = parseInt(args.substr(i*4+2, 2), 36);
-					yn = parseInt(args.substr(i*4+4, 2), 36);
+					xn = parseRIPint(args, i*4+2);
+					yn = parseRIPint(args, i*4+4);
 					drawLine(xp, yp, xn, yn, glob.drawColor, glob.writeMode, glob.lineThick, glob.linePattern);
 					xp = xn; yp = yn;
 				}
@@ -937,11 +938,11 @@ function RIPtermJS (self) {
 		// while inner fill doesn't use writeMode, but does use fillPattern
 		'p': function(args) {
 			if (args.length >= 6) {
-				var num = parseInt(args.substr(0,2), 36);
+				var num = parseRIPint(args, 0);
 				var xpoly = [], ypoly = [];
 				for (var i=0; i < num; i++) {
-					xpoly.push( parseInt(args.substr(i*4+2, 2), 36) );
-					ypoly.push( parseInt(args.substr(i*4+4, 2), 36) );
+					xpoly.push( parseRIPint(args, i*4+2) );
+					ypoly.push( parseRIPint(args, i*4+4) );
 				}
 				drawFilledPolygon(xpoly, ypoly, glob.fillColor, glob.fillPattern);
 				self.cmd['P'](args);
@@ -951,13 +952,13 @@ function RIPtermJS (self) {
 		// RIP_POLYLINE
 		'l': function(args) {
 			if (args.length >= 6) {
-				var num = parseInt(args.substr(0,2), 36);
-				var x0 = parseInt(args.substr(2,2), 36);
-				var y0 = parseInt(args.substr(4,2), 36);
+				var num = parseRIPint(args, 0);
+				var x0 = parseRIPint(args, 2);
+				var y0 = parseRIPint(args, 4);
 				var xp = x0, yp = y0, xn, yn;
 				for (var i=1; i < num; i++) {
-					xn = parseInt(args.substr(i*4+2, 2), 36);
-					yn = parseInt(args.substr(i*4+4, 2), 36);
+					xn = parseRIPint(args, i*4+2);
+					yn = parseRIPint(args, i*4+4);
 					drawLine(xp, yp, xn, yn, glob.drawColor, glob.writeMode, glob.lineThick, glob.linePattern);
 					xp = xn; yp = yn;
 				}
@@ -967,9 +968,9 @@ function RIPtermJS (self) {
 		// RIP_FILL
 		'F': function(args) {
 			if ((args.length >= 6) && self.floodFill) {
-				var x = parseInt(args.substr(0,2), 36);
-				var y = parseInt(args.substr(2,2), 36);
-				var border = parseInt(args.substr(4,2), 36);
+				var x = parseRIPint(args, 0);
+				var y = parseRIPint(args, 2);
+				var border = parseRIPint(args, 4);
 				if (self.debugVerbose) console.log('RIP_FILL: (' + x + ',' + y + ') color:' + glob.fillColor + ' border:' + border);
 				drawFloodFill(x, y, border, glob.fillColor, glob.fillPattern);
 			}
@@ -978,9 +979,7 @@ function RIPtermJS (self) {
 		// RIP_LINE_STYLE
 		'=': function(args) {
 			if (args.length >= 8) {
-				var style = parseInt(args.substr(0,2), 36);
-				//var style = 0;  // TEST
-				glob.lineThick = parseInt(args.substr(6,2), 36);
+				var style = parseRIPint(args, 0);
 				switch (style) {
 					case 0: glob.linePattern = 0xFFFF; break;
 					case 1: glob.linePattern = 0x3333; break;
@@ -988,17 +987,18 @@ function RIPtermJS (self) {
 					case 3: glob.linePattern = 0x1F1F; break;
 					case 4: glob.linePattern = parseInt(args.substr(2,4), 36);
 				}
+				glob.lineThick = parseRIPint(args, 6);
 			}
 		},
 
 		// RIP_FILL_STYLE
 		'S': function(args) {
 			if (args.length >= 4) {
-				var pat = parseInt(args.substr(0,2), 36);
+				var pat = parseRIPint(args, 0);
 				if (pat < fillPatterns.length) {
 					glob.fillPattern = fillPatterns[pat];
 				}
-				glob.fillColor = parseInt(args.substr(2,2), 36);
+				glob.fillColor = parseRIPint(args, 2);
 			}
 		},
 
@@ -1007,9 +1007,9 @@ function RIPtermJS (self) {
 			if (args.length >= 18) {
 				glob.fillPattern = [];
 				for (var i=0; i < 8; i++) {
-					glob.fillPattern.push( parseInt(args.substr(i*2, 2), 36) );
+					glob.fillPattern.push( parseRIPint(args, i*2) );
 				}
-				glob.fillColor = parseInt(args.substr(16,2), 36);
+				glob.fillColor = parseRIPint(args, 16);
 			}
 		},
 
@@ -1022,10 +1022,10 @@ function RIPtermJS (self) {
 		// RIP_GET_IMAGE
 		'1C': function(args) {
 			if (args.length >= 8) {
-				var x0 = parseInt(args.substr(0,2), 36);
-				var y0 = parseInt(args.substr(2,2), 36);
-				var x1 = parseInt(args.substr(4,2), 36);
-				var y1 = parseInt(args.substr(6,2), 36);
+				var x0 = parseRIPint(args, 0);
+				var y0 = parseRIPint(args, 2);
+				var x1 = parseRIPint(args, 4);
+				var y1 = parseRIPint(args, 6);
 				// 1 byte reserved
 				var s; // force xy0 to upper-left, xy1 to lower-right
 				if (x0 > x1) { s=x0; x0=x1; x1=s; }
@@ -1039,9 +1039,9 @@ function RIPtermJS (self) {
 		// RIP_PUT_IMAGE
 		'1P': function(args) {
 			if (args.length >= 7) {
-				var x0 = parseInt(args.substr(0,2), 36);
-				var y0 = parseInt(args.substr(2,2), 36);
-				var mode = parseInt(args.substr(4,2), 36);
+				var x0 = parseRIPint(args, 0);
+				var y0 = parseRIPint(args, 2);
+				var mode = parseRIPint(args, 4);
 				// 1 byte reserved
 				if (glob.clipboard) {
 					putImageClip(x0, y0, glob.clipboard, mode)
@@ -1123,7 +1123,7 @@ function RIPtermJS (self) {
 		if (cmdi < ripData.length) {
 			var d = ripData[cmdi];
 			if (self.cmd[d[0]]) { self.cmd[d[0]](d[1]); }
-			updateCanvas();
+			updateCanvas(cBuf);
 			if (self.pauseOn.includes(d[0])) {
 				if (!self.floodFill && (d[0] == 'F')) { }
 				else { self.stop(); }
