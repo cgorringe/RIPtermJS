@@ -504,15 +504,40 @@ function RIPtermJS (self) {
 		}
 	}
 
-	function drawFilledPolygon(xpoly, ypoly, colr, fillPattern) {
+	function drawPolyline(poly, colr, writeMode, lineThick, linePattern) {
+
+		var xp = poly[0][0];
+		var yp = poly[0][1];
+		var xn, yn;
+		for (var i=1; i < poly.length; i++) {
+			xn = poly[i][0];
+			yn = poly[i][1];
+			drawLine(xp, yp, xn, yn, colr, writeMode, lineThick, linePattern);
+			xp = xn; yp = yn;
+		}
+	}
+
+	function drawPolygon(poly, colr, writeMode, lineThick, linePattern) {
+
+		if (poly.length > 1) {
+			drawPolyline(poly, colr, writeMode, lineThick, linePattern);
+			// draw closing line
+			var x = poly[poly.length - 1][0];
+			var y = poly[poly.length - 1][1];
+			drawLine(x, y, poly[0][0], poly[0][1], colr, writeMode, lineThick, linePattern);
+		}
+	}
+
+	function drawFilledPolygon(poly, colr, fillPattern) {
 		// uses: glob.viewport
+		// poly is an array of [x,y] array tuples
 		// code based on: http://alienryderflex.com/polygon_fill/
 
 		if (self.debugVerbose) {
-			console.log("length xpoly:"+xpoly.length + " ypoly:"+ypoly.length + " colr:"+colr); // TEST
+			console.log("length poly:", poly.length, "colr:", colr); // TEST
 		}
 
-		var numpoly = xpoly.length;
+		var numpoly = poly.length;
 		var i, j, x, y, xnode;
 
 		// scan thru all rows in viewport
@@ -522,8 +547,8 @@ function RIPtermJS (self) {
 			// build node list
 			j = numpoly - 1;
 			for (i=0; i < numpoly; i++) {
-				if ( ((ypoly[i] < y) && (ypoly[j] >= y)) || ((ypoly[j] < y) && (ypoly[i] >= y)) ) {
-					xnode.push( Math.round( (y-ypoly[i]) / (ypoly[j]-ypoly[i]) * (xpoly[j]-xpoly[i]) + xpoly[i] ));
+				if ( ((poly[i][1] < y) && (poly[j][1] >= y)) || ((poly[j][1] < y) && (poly[i][1] >= y)) ) {
+					xnode.push( Math.round( (y-poly[i][1]) / (poly[j][1]-poly[i][1]) * (poly[j][0]-poly[i][0]) + poly[i][0] ));
 				}
 				j = i;
 			}
@@ -648,7 +673,7 @@ function RIPtermJS (self) {
 
 		// RIP_ERASE_VIEW
 		'E': function(args) {
-			drawBar(glob.viewport.x0, glob.viewport.y0, glob.viewport.x1, glob.viewport.y1);
+			drawBar(glob.viewport.x0, glob.viewport.y0, glob.viewport.x1, glob.viewport.y1, 0);
 		},
 
 		// 'g' RIP_GOTOXY
@@ -794,11 +819,15 @@ function RIPtermJS (self) {
 				// spec says RIP_BAR doesn't use writeMode (could spec be wrong??)
 				drawBar(x0, y0, x1, y1, glob.fillColor, 0, glob.fillPattern);
 				if (svg) {
+					// TODO: test with and without stroke
 					svg.appendChild( svgNode('rect', { 
-						"x":x0, "y":y0, "width":(x1-x0+1), "height":(y1-y0+1), "fill":pal2hex(glob.fillColor)
+						"x":x0, "y":y0, "width":(x1-x0+1), "height":(y1-y0+1),
+						"stroke":pal2hex(glob.fillColor), "stroke-width":1, "fill":pal2hex(glob.fillColor)
+						/* "fill":pal2hex(glob.fillColor) */
 					}));
 					// TODO: for patterns see
 					// https://developer.mozilla.org/en-US/docs/Web/SVG/Tutorial/Patterns
+					// https://developer.mozilla.org/en-US/docs/Web/SVG/Element/pattern
 				}
 			}
 		},
@@ -913,6 +942,13 @@ function RIPtermJS (self) {
 				var cnt = parseRIPint(args, 16);
 				// using solid linePattern (spec says it uses linePattern, but I think it's wrong.)
 				drawBezier(x1, y1, x2, y2, x3, y3, x4, y4, cnt, glob.drawColor, glob.writeMode, glob.lineThick, 0xFFFF);
+				if (svg) {
+					svg.appendChild( svgNode('path', {
+						"d": "M"+x1+","+y1+" C "+x2+","+y2+" "+x3+","+y3 +" "+x4+","+y4,
+						"stroke":pal2hex(glob.drawColor), "stroke-width":glob.lineThick, "fill":"transparent"
+					}));
+				}
+
 			}
 		},
 
@@ -920,32 +956,39 @@ function RIPtermJS (self) {
 		'P': function(args) {
 			if (args.length >= 6) {
 				var num = parseRIPint(args, 0);
-				var x0 = parseRIPint(args, 2);
-				var y0 = parseRIPint(args, 4);
-				var xp = x0, yp = y0, xn, yn;
-				for (var i=1; i < num; i++) {
-					xn = parseRIPint(args, i*4+2);
-					yn = parseRIPint(args, i*4+4);
-					drawLine(xp, yp, xn, yn, glob.drawColor, glob.writeMode, glob.lineThick, glob.linePattern);
-					xp = xn; yp = yn;
+				var poly = [];
+				for (var i=0; i < num; i++) {
+					poly.push( [parseRIPint(args, i*4+2), parseRIPint(args, i*4+4)] );
 				}
-				drawLine(xp, yp, x0, y0, glob.drawColor, glob.writeMode, glob.lineThick, glob.linePattern);
+				drawPolygon(poly, glob.drawColor, glob.writeMode, glob.lineThick, glob.linePattern);
+				if (svg) {
+					// TODO: linePattern
+					svg.appendChild( svgNode('polygon', {
+						"points":poly.join(' '), "stroke":pal2hex(glob.drawColor), "stroke-width":glob.lineThick
+					}));
+				}
 			}
 		},
 
-		// RIP_FILL_POLYGON (not done)
+		// RIP_FILL_POLYGON
 		// draws outline using linePattern & writeMode
 		// while inner fill doesn't use writeMode, but does use fillPattern
 		'p': function(args) {
 			if (args.length >= 6) {
 				var num = parseRIPint(args, 0);
-				var xpoly = [], ypoly = [];
+				var poly = [];
 				for (var i=0; i < num; i++) {
-					xpoly.push( parseRIPint(args, i*4+2) );
-					ypoly.push( parseRIPint(args, i*4+4) );
+					poly.push( [parseRIPint(args, i*4+2), parseRIPint(args, i*4+4)] );
 				}
-				drawFilledPolygon(xpoly, ypoly, glob.fillColor, glob.fillPattern);
-				self.cmd['P'](args);
+				drawFilledPolygon(poly, glob.fillColor, glob.fillPattern);
+				drawPolygon(poly, glob.drawColor, glob.writeMode, glob.lineThick, glob.linePattern);
+				if (svg) {
+					// TODO: fillPattern, linePattern
+					svg.appendChild( svgNode('polygon', {
+						"points":poly.join(' '), "fill":pal2hex(glob.fillColor),
+						"stroke":pal2hex(glob.drawColor), "stroke-width":glob.lineThick
+					}));
+				}
 			}
 		},
 
@@ -953,14 +996,16 @@ function RIPtermJS (self) {
 		'l': function(args) {
 			if (args.length >= 6) {
 				var num = parseRIPint(args, 0);
-				var x0 = parseRIPint(args, 2);
-				var y0 = parseRIPint(args, 4);
-				var xp = x0, yp = y0, xn, yn;
-				for (var i=1; i < num; i++) {
-					xn = parseRIPint(args, i*4+2);
-					yn = parseRIPint(args, i*4+4);
-					drawLine(xp, yp, xn, yn, glob.drawColor, glob.writeMode, glob.lineThick, glob.linePattern);
-					xp = xn; yp = yn;
+				var poly = [];
+				for (var i=0; i < num; i++) {
+					poly.push( [parseRIPint(args, i*4+2), parseRIPint(args, i*4+4)] );
+				}
+				drawPolyline(poly, glob.drawColor, glob.writeMode, glob.lineThick, glob.linePattern);
+				if (svg) {
+					// TODO: linePattern
+					svg.appendChild( svgNode('polyline', {
+						"points":poly.join(' '), "stroke":pal2hex(glob.drawColor), "stroke-width":glob.lineThick
+					}));
 				}
 			}
 		},
@@ -1097,6 +1142,10 @@ function RIPtermJS (self) {
 		}
 		if (svg) {
 			svg.innerHTML = "";
+			// fill view with background color
+			svg.appendChild( svgNode('rect', {
+				"x":0, "y":0, "width":(glob.viewport.x1+1), "height":(glob.viewport.y1+1), "fill":pal2hex(0)
+			}));
 		}
 	}
 
@@ -1177,8 +1226,8 @@ function RIPtermJS (self) {
 			var winW = window.innerWidth, winH = window.innerHeight;
 			canvas.style.width = winW + 'px';
 			canvas.style.height = winH + 'px';
-			self.clear();
 			resetGlob();
+			self.clear();
 		}
 		else {
 			// exiting fullscreen
@@ -1186,8 +1235,8 @@ function RIPtermJS (self) {
 			// restore canvas
 			canvas.style.width = bu.width;
 			canvas.style.height = bu.height;
-			self.clear();
 			resetGlob();
+			self.clear();
 		}
 		self.start();
 	}
