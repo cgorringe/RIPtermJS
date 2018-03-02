@@ -83,6 +83,7 @@ function RIPtermJS (self) {
 			fontSize: 1,   // 1-10
 			lineThick: 1,  // 1 or 3
 			linePattern: 0xFFFF,
+			svgDashArray: [],
 			clipboard: null,
 			viewport: {x0:0, y0:0, x1:639, y1:349},
 			fillPattern: fillPatterns[1]
@@ -108,12 +109,14 @@ function RIPtermJS (self) {
 			Number(palB[colr]).toString(16).padStart(2, '0');
 	}
 
-	function svgNode(n, v) {
-		n = document.createElementNS("http://www.w3.org/2000/svg", n);
-		for (var p in v) {
-			n.setAttributeNS(null, p, v[p]);
+	function svgNode(elem, dict) {
+		elem = document.createElementNS("http://www.w3.org/2000/svg", elem);
+		for (var k in dict) {
+			if ((dict[k] != null) && (dict[k] != "")) {
+				elem.setAttributeNS(null, k, dict[k]);
+			}
 		}
-		return n
+		return elem
 	}
 
 	// set palR[i], palG[i] & palB[i] to color given '#rgb' or '#rrggbb'
@@ -389,7 +392,7 @@ function RIPtermJS (self) {
 					setPixelBuf(x + xThick, y + yThick, colr, writeMode, buf);
 				}
 			}
-			pat = (pat << 1) && 0xFFFF;
+			pat = (pat << 1) & 0xFFFF;
 
 			// increment pixel
 			num += numadd;
@@ -462,7 +465,7 @@ function RIPtermJS (self) {
 		while (popped = stack.pop()) {
 			var x = popped.x;   
 			var y = popped.y;
-			if (self.debugVerbose) console.log('   popped: x='+x+', y='+y);
+			//if (self.debugVerbose) console.log('   popped: x='+x+', y='+y);
 
 			// find top of line (y1)
 			var y1 = y;
@@ -643,6 +646,48 @@ function RIPtermJS (self) {
 		}
 	}
 
+	// Takes a 16-bit RIP linePattern and returns an array of numbers to use in an
+	// SVG "stroke-dasharray" attribute.  Since dash arrays must begin with 'on' pixels
+	// before any 'off' gaps, the result may be phase-shifted from the original linePattern
+	// if it begins with 0s.
+
+	function makeDashArray(linePattern) {
+
+		if (self.debugVerbose) console.log('makeDashArray('+ linePattern.toString(16).padStart(4, '0') +')');
+		var dashes = [];
+		var pat = linePattern;
+
+		// check for empty pattern
+		if ((pat & 0xFFFF) != 0) {
+			// shift until first 1 bit
+			var n=16, c=16;
+			while (((pat & 0x8000) === 0) && (n > 0)) {
+				pat = (pat << 1) & 0xFFFF;
+				n--;
+			}
+			//console.log('1   pat:'+ pat.toString(16).padStart(4, '0') +' dashes:'+ dashes);
+			while (c > 0) {
+				n=0;
+				while (((pat & 0x8000) != 0) && (c > 0)) {
+					pat = (pat << 1) & 0xFFFF;
+					n++; c--;
+				}
+				dashes.push(n);
+				//console.log('2   pat:'+ pat.toString(16).padStart(4, '0') +' dashes:'+ dashes);
+				n=0;
+				while (((pat & 0x8000) === 0) && (c > 0)) {
+					pat = (pat << 1) & 0xFFFF;
+					n++; c--;
+				}
+				dashes.push(n);
+				//console.log('3   pat:'+ pat.toString(16).padStart(4, '0') +' dashes:'+ dashes);
+			}
+		}
+		//console.log('makeDashArray('+ linePattern.toString(16).padStart(4, '0') +') => '+ dashes);
+		if (self.debugVerbose) console.log('makeDashArray => '+ dashes);
+		return dashes;
+	}
+
 // ----------------------------------------------------------------------------------------------------
 // RIP commands
 
@@ -778,10 +823,11 @@ function RIPtermJS (self) {
 				drawLine(x0, y0, x1, y1, glob.drawColor, glob.writeMode, glob.lineThick, glob.linePattern);
 				if (svg) {
 					svg.appendChild( svgNode('line', {
-						"x1":x0, "y1":y0, "x2":x1, "y2":y1,
-						"stroke":pal2hex(glob.drawColor), "stroke-width":glob.lineThick
+						"x1":(x0+0.5), "y1":(y0+0.5), "x2":(x1+0.5), "y2":(y1+0.5),
+						"stroke":pal2hex(glob.drawColor), "stroke-width":glob.lineThick,
+						//"stroke-linecap":"square",  // doesn't work on JULY493.RIP
+						"stroke-dasharray": glob.svgDashArray.join(',')
 					}));
-					// TODO: "stroke-dasharray":"3,5" (means 3 on, 5 off)
 				}
 			}
 		},
@@ -800,7 +846,9 @@ function RIPtermJS (self) {
 				if (svg) {
 					svg.appendChild( svgNode('rect', {
 						"x":x0, "y":y0, "width":(x1-x0+1), "height":(y1-y0+1),
-						"stroke":pal2hex(glob.drawColor), "stroke-width":glob.lineThick, "fill":"transparent"
+						"stroke":pal2hex(glob.drawColor), "stroke-width":glob.lineThick,
+						"stroke-dasharray": glob.svgDashArray.join(','),
+						"fill":"transparent", "style":"fill:none"
 					}));
 				}
 			}
@@ -822,8 +870,8 @@ function RIPtermJS (self) {
 					// TODO: test with and without stroke
 					svg.appendChild( svgNode('rect', { 
 						"x":x0, "y":y0, "width":(x1-x0+1), "height":(y1-y0+1),
-						"stroke":pal2hex(glob.fillColor), "stroke-width":1, "fill":pal2hex(glob.fillColor)
-						/* "fill":pal2hex(glob.fillColor) */
+						"stroke":pal2hex(glob.fillColor), "stroke-width":1,   // TODO: test this
+						"fill":pal2hex(glob.fillColor)
 					}));
 					// TODO: for patterns see
 					// https://developer.mozilla.org/en-US/docs/Web/SVG/Tutorial/Patterns
@@ -843,8 +891,9 @@ function RIPtermJS (self) {
 				drawCircle(xc, yc, 0, 360, xr, yr, glob.drawColor, glob.lineThick);  // TEST
 				if (svg) {
 					svg.appendChild( svgNode('ellipse', {
-						"cx":xc, "cy":yc, "rx":xr, "ry":yr,
-						"stroke":pal2hex(glob.drawColor), "fill":"transparent", "stroke-width":glob.lineThick
+						"cx":(xc+0.5), "cy":(yc+0.5), "rx":xr, "ry":yr,  // TODO: need to test
+						"stroke":pal2hex(glob.drawColor), "stroke-width":glob.lineThick,
+						"fill":"transparent", "style":"fill:none"
 					}));
 				}
 			}
@@ -867,7 +916,7 @@ function RIPtermJS (self) {
 				drawOvalArc(xc, yc, 0, 360, xr, yr, glob.drawColor, glob.lineThick, glob.fillColor, glob.fillPattern);
 				if (svg) {
 					svg.appendChild( svgNode('ellipse', {
-						"cx":xc, "cy":yc, "rx":xr, "ry":yr,
+						"cx":(xc+0.5), "cy":(yc+0.5), "rx":xr, "ry":yr,  // TODO: need to test
 						"stroke":pal2hex(glob.drawColor), "fill":pal2hex(glob.fillColor), "stroke-width":glob.lineThick
 					}));
 				}
@@ -944,8 +993,9 @@ function RIPtermJS (self) {
 				drawBezier(x1, y1, x2, y2, x3, y3, x4, y4, cnt, glob.drawColor, glob.writeMode, glob.lineThick, 0xFFFF);
 				if (svg) {
 					svg.appendChild( svgNode('path', {
-						"d": "M"+x1+","+y1+" C "+x2+","+y2+" "+x3+","+y3 +" "+x4+","+y4,
-						"stroke":pal2hex(glob.drawColor), "stroke-width":glob.lineThick, "fill":"transparent"
+						"d": "M"+(x1+0.5)+","+(y1+0.5)+" C "+(x2+0.5)+","+(y2+0.5)+" "+(x3+0.5)+","+(y3+0.5) +" "+(x4+0.5)+","+(y4+0.5),  // TODO: test
+						"stroke":pal2hex(glob.drawColor), "stroke-width":glob.lineThick, "stroke-linecap":"round",
+						"fill":"transparent", "style":"fill:none"
 					}));
 				}
 
@@ -964,7 +1014,10 @@ function RIPtermJS (self) {
 				if (svg) {
 					// TODO: linePattern
 					svg.appendChild( svgNode('polygon', {
-						"points":poly.join(' '), "stroke":pal2hex(glob.drawColor), "stroke-width":glob.lineThick
+						// "points":poly.join(' '),
+						"points":poly.map(x => [x[0] + 0.5, x[1] + 0.5]).join(' '),  // TODO: test
+						"stroke":pal2hex(glob.drawColor), "stroke-width":glob.lineThick,
+						"stroke-dasharray": glob.svgDashArray.join(',')
 					}));
 				}
 			}
@@ -985,8 +1038,10 @@ function RIPtermJS (self) {
 				if (svg) {
 					// TODO: fillPattern, linePattern
 					svg.appendChild( svgNode('polygon', {
-						"points":poly.join(' '), "fill":pal2hex(glob.fillColor),
-						"stroke":pal2hex(glob.drawColor), "stroke-width":glob.lineThick
+						// "points":poly.join(' '),
+						"points":poly.map(x => [x[0] + 0.5, x[1] + 0.5]).join(' '),  // TODO: test
+						"fill":pal2hex(glob.fillColor), "stroke":pal2hex(glob.drawColor), "stroke-width":glob.lineThick,
+						"stroke-dasharray": glob.svgDashArray.join(',')
 					}));
 				}
 			}
@@ -1004,7 +1059,11 @@ function RIPtermJS (self) {
 				if (svg) {
 					// TODO: linePattern
 					svg.appendChild( svgNode('polyline', {
-						"points":poly.join(' '), "stroke":pal2hex(glob.drawColor), "stroke-width":glob.lineThick
+						// "points":poly.join(' '),
+						"points":poly.map(x => [x[0] + 0.5, x[1] + 0.5]).join(' '),  // TODO: test
+						"stroke":pal2hex(glob.drawColor), "stroke-width":glob.lineThick,
+						// "stroke-linecap":"square",  // does't work with dasharray
+						"stroke-dasharray": glob.svgDashArray.join(',')
 					}));
 				}
 			}
@@ -1025,14 +1084,16 @@ function RIPtermJS (self) {
 		'=': function(args) {
 			if (args.length >= 8) {
 				var style = parseRIPint(args, 0);
-				switch (style) {
-					case 0: glob.linePattern = 0xFFFF; break;
-					case 1: glob.linePattern = 0x3333; break;
-					case 2: glob.linePattern = 0x1E3F; break;
-					case 3: glob.linePattern = 0x1F1F; break;
-					case 4: glob.linePattern = parseInt(args.substr(2,4), 36);
-				}
 				glob.lineThick = parseRIPint(args, 6);
+				switch (style) {
+					case 0: glob.linePattern = 0xFFFF; glob.svgDashArray = []; break;
+					case 1: glob.linePattern = 0x3333; glob.svgDashArray = [2,2]; break;
+					case 2: glob.linePattern = 0x1E3F; glob.svgDashArray = [4,3,6,3]; break;
+					case 3: glob.linePattern = 0x1F1F; glob.svgDashArray = [5,3,5,3]; break;
+					case 4:
+						glob.linePattern = parseInt(args.substr(2,4), 36);
+						glob.svgDashArray = makeDashArray(glob.linePattern);
+				}
 			}
 		},
 
