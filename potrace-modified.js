@@ -1,7 +1,9 @@
 /* Copyright (C) 2001-2013 Peter Selinger.
+ * https://github.com/kilobtye/Potrace
  *
  * 3/5/2018
  * Modified for ripterm.js by Carl Gorringe (carl.gorringe.org).
+ * https://github.com/cgorringe/RIPtermJS
  *
  * A javascript port of Potrace (http://potrace.sourceforge.net).
  * 
@@ -1265,29 +1267,32 @@ var Potrace = (function() {
 
   function getPathD(size) {
 
+    const fixedDigits = 1;
+    const pxOffset = 0.5;  // 0.5
+
     function path(curve) {
-    
+
       function bezier(i) {
-        var b = 'C ' + (curve.c[i * 3 + 0].x * size).toFixed(3) + ' ' +
-            (curve.c[i * 3 + 0].y * size).toFixed(3) + ',';
-        b += (curve.c[i * 3 + 1].x * size).toFixed(3) + ' ' +
-            (curve.c[i * 3 + 1].y * size).toFixed(3) + ',';
-        b += (curve.c[i * 3 + 2].x * size).toFixed(3) + ' ' +
-            (curve.c[i * 3 + 2].y * size).toFixed(3) + ' ';
+        var b = 'C ' + (curve.c[i * 3 + 0].x * size + pxOffset).toFixed(fixedDigits) + ' ' +
+            (curve.c[i * 3 + 0].y * size + pxOffset).toFixed(fixedDigits) + ',';
+        b += (curve.c[i * 3 + 1].x * size + pxOffset).toFixed(fixedDigits) + ' ' +
+            (curve.c[i * 3 + 1].y * size + pxOffset).toFixed(fixedDigits) + ',';
+        b += (curve.c[i * 3 + 2].x * size + pxOffset).toFixed(fixedDigits) + ' ' +
+            (curve.c[i * 3 + 2].y * size + pxOffset).toFixed(fixedDigits) + ' ';
         return b;
       }
     
       function segment(i) {
-        var s = 'L ' + (curve.c[i * 3 + 1].x * size).toFixed(3) + ' ' +
-            (curve.c[i * 3 + 1].y * size).toFixed(3) + ' ';
-        s += (curve.c[i * 3 + 2].x * size).toFixed(3) + ' ' +
-            (curve.c[i * 3 + 2].y * size).toFixed(3) + ' ';
+        var s = 'L ' + (curve.c[i * 3 + 1].x * size + pxOffset).toFixed(fixedDigits) + ' ' +
+            (curve.c[i * 3 + 1].y * size + pxOffset).toFixed(fixedDigits) + ' ';
+        s += (curve.c[i * 3 + 2].x * size + pxOffset).toFixed(fixedDigits) + ' ' +
+            (curve.c[i * 3 + 2].y * size + pxOffset).toFixed(fixedDigits) + ' ';
         return s;
       }
 
       var n = curve.n, i;
-      var p = 'M' + (curve.c[(n - 1) * 3 + 2].x * size).toFixed(3) +
-          ' ' + (curve.c[(n - 1) * 3 + 2].y * size).toFixed(3) + ' ';
+      var p = 'M' + (curve.c[(n - 1) * 3 + 2].x * size + pxOffset).toFixed(fixedDigits) +
+          ' ' + (curve.c[(n - 1) * 3 + 2].y * size + pxOffset).toFixed(fixedDigits) + ' ';
       for (i = 0; i < n; i++) {
         if (curve.tag[i] === "CURVE") {
           p += bezier(i);

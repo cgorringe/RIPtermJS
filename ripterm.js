@@ -445,8 +445,9 @@ function RIPtermJS (self) {
 		for (var t=step; t < 1; t += step) {
 			// TODO: make more efficient?
 			// floor() is correct, not round()
-			xn = Math.floor( Math.pow(1-t, 3) * x1 + 3 * t * Math.pow(1-t, 2) * x2 + 3 * Math.pow(t, 2) * (1-t) * x3 + Math.pow(t, 3) * x4 );
-			yn = Math.floor( Math.pow(1-t, 3) * y1 + 3 * t * Math.pow(1-t, 2) * y2 + 3 * Math.pow(t, 2) * (1-t) * y3 + Math.pow(t, 3) * y4 );
+			var t1 = 1-t;
+			xn = Math.floor( t1*t1*t1 * x1 + 3 * t * t1*t1 * x2 + 3 * t*t * t1 * x3 + t*t*t * x4 );
+			yn = Math.floor( t1*t1*t1 * y1 + 3 * t * t1*t1 * y2 + 3 * t*t * t1 * y3 + t*t*t * y4 );
 			drawLine(xp, yp, xn, yn, colr, writeMode, lineThick, linePattern);
 			xp = xn;
 			yp = yn;
@@ -693,6 +694,8 @@ function RIPtermJS (self) {
 // ----------------------------------------------------------------------------------------------------
 // RIP commands
 
+	const svgOff = 0.5;
+
 	self.cmd = {
 
 		// 'w' RIP_TEXT_WINDOW
@@ -809,7 +812,7 @@ function RIPtermJS (self) {
 				setPixelBuf(x, y, glob.drawColor);  // spec says doesn't use drawMode
 				if (svg) {
 					svg.appendChild( svgNode('circle', {
-						"cx":(x+0.5), "cy":(y+0.5), "r":0.5, "fill":pal2hex(glob.drawColor)
+						"cx":(x+svgOff), "cy":(y+svgOff), "r":0.5, "fill":pal2hex(glob.drawColor)
 					}));
 				}
 			}
@@ -825,7 +828,7 @@ function RIPtermJS (self) {
 				drawLine(x0, y0, x1, y1, glob.drawColor, glob.writeMode, glob.lineThick, glob.linePattern);
 				if (svg) {
 					svg.appendChild( svgNode('line', {
-						"x1":(x0+0.5), "y1":(y0+0.5), "x2":(x1+0.5), "y2":(y1+0.5),
+						"x1":(x0+svgOff), "y1":(y0+svgOff), "x2":(x1+svgOff), "y2":(y1+svgOff),
 						"stroke":pal2hex(glob.drawColor), "stroke-width":glob.lineThick,
 						//"stroke-linecap":"square",  // doesn't work on JULY493.RIP
 						"stroke-dasharray": glob.svgDashArray.join(',')
@@ -847,10 +850,12 @@ function RIPtermJS (self) {
 				drawRectangle(x0, y0, x1, y1, glob.drawColor, glob.writeMode, glob.lineThick, glob.linePattern);
 				if (svg) {
 					svg.appendChild( svgNode('rect', {
-						"x":x0, "y":y0, "width":(x1-x0+1), "height":(y1-y0+1),
+						//"x":x0, "y":y0, "width":(x1-x0+1), "height":(y1-y0+1),
+						"x":(x0+svgOff), "y":(y0+svgOff), "width":(x1-x0), "height":(y1-y0),
 						"stroke":pal2hex(glob.drawColor), "stroke-width":glob.lineThick,
 						"stroke-dasharray": glob.svgDashArray.join(','),
-						"fill":"transparent", "style":"fill:none"
+						//"fill":"transparent", "style":"fill:none"
+						"fill":"none", "fill-rule":"evenodd"
 					}));
 				}
 			}
@@ -872,7 +877,7 @@ function RIPtermJS (self) {
 					// TODO: test with and without stroke
 					svg.appendChild( svgNode('rect', { 
 						"x":x0, "y":y0, "width":(x1-x0+1), "height":(y1-y0+1),
-						"stroke":pal2hex(glob.fillColor), "stroke-width":1,   // TODO: test this
+						//"stroke":pal2hex(glob.fillColor), "stroke-width":1,   // TODO: test this ??
 						"fill":pal2hex(glob.fillColor)
 					}));
 					// TODO: for patterns see
@@ -893,9 +898,12 @@ function RIPtermJS (self) {
 				drawCircle(xc, yc, 0, 360, xr, yr, glob.drawColor, glob.lineThick);  // TEST
 				if (svg) {
 					svg.appendChild( svgNode('ellipse', {
-						"cx":(xc+0.5), "cy":(yc+0.5), "rx":xr, "ry":yr,  // TODO: need to test
+						//"cx":(xc+1.0), "cy":(yc+1.0), "rx":xr, "ry":yr,
+						//"cx":(xc+svgOff), "cy":(yc+svgOff), "rx":xr, "ry":yr,
+						"cx":(xc+svgOff+0.5), "cy":(yc+svgOff+0.5), "rx":xr, "ry":yr,  // TODO: test
 						"stroke":pal2hex(glob.drawColor), "stroke-width":glob.lineThick,
-						"fill":"transparent", "style":"fill:none"
+						//"fill":"transparent", "style":"fill:none"
+						"fill":"none", "fill-rule":"evenodd"
 					}));
 				}
 			}
@@ -918,8 +926,10 @@ function RIPtermJS (self) {
 				drawOvalArc(xc, yc, 0, 360, xr, yr, glob.drawColor, glob.lineThick, glob.fillColor, glob.fillPattern);
 				if (svg) {
 					svg.appendChild( svgNode('ellipse', {
-						"cx":(xc+0.5), "cy":(yc+0.5), "rx":xr, "ry":yr,  // TODO: need to test
-						"stroke":pal2hex(glob.drawColor), "fill":pal2hex(glob.fillColor), "stroke-width":glob.lineThick
+						//"cx":(xc+svgOff), "cy":(yc+svgOff), "rx":xr, "ry":yr,
+						"cx":(xc+svgOff+0.5), "cy":(yc+svgOff+0.5), "rx":xr, "ry":yr,  // TODO: need to test
+						"stroke":pal2hex(glob.drawColor), "stroke-width":glob.lineThick,
+						"fill":pal2hex(glob.fillColor), "fill-rule":"evenodd"
 					}));
 				}
 			}
@@ -995,9 +1005,10 @@ function RIPtermJS (self) {
 				drawBezier(x1, y1, x2, y2, x3, y3, x4, y4, cnt, glob.drawColor, glob.writeMode, glob.lineThick, 0xFFFF);
 				if (svg) {
 					svg.appendChild( svgNode('path', {
-						"d": "M"+(x1+0.5)+","+(y1+0.5)+" C "+(x2+0.5)+","+(y2+0.5)+" "+(x3+0.5)+","+(y3+0.5) +" "+(x4+0.5)+","+(y4+0.5),  // TODO: test
+						"d": "M"+(x1+svgOff)+","+(y1+svgOff)+" C "+(x2+svgOff)+","+(y2+svgOff)+" "+(x3+svgOff)+","+(y3+svgOff) +" "+(x4+svgOff)+","+(y4+svgOff),  // TODO: test
 						"stroke":pal2hex(glob.drawColor), "stroke-width":glob.lineThick, "stroke-linecap":"round",
-						"fill":"transparent", "style":"fill:none"
+						//"fill":"transparent", "style":"fill:none"
+						"fill":"none", "fill-rule":"evenodd"
 					}));
 				}
 
@@ -1016,10 +1027,10 @@ function RIPtermJS (self) {
 				if (svg) {
 					// TODO: linePattern
 					svg.appendChild( svgNode('polygon', {
-						// "points":poly.join(' '),
-						"points":poly.map(x => [x[0] + 0.5, x[1] + 0.5]).join(' '),  // TODO: test
+						"points":poly.map(x => [x[0] + svgOff, x[1] + svgOff]).join(' '),
 						"stroke":pal2hex(glob.drawColor), "stroke-width":glob.lineThick,
-						"stroke-dasharray": glob.svgDashArray.join(',')
+						"stroke-dasharray": glob.svgDashArray.join(','),
+						"fill":"none", "fill-rule":"evenodd"
 					}));
 				}
 			}
@@ -1038,12 +1049,12 @@ function RIPtermJS (self) {
 				drawFilledPolygon(poly, glob.fillColor, glob.fillPattern);
 				drawPolygon(poly, glob.drawColor, glob.writeMode, glob.lineThick, glob.linePattern);
 				if (svg) {
-					// TODO: fillPattern, linePattern
+					// TODO: fillPattern
 					svg.appendChild( svgNode('polygon', {
-						// "points":poly.join(' '),
-						"points":poly.map(x => [x[0] + 0.5, x[1] + 0.5]).join(' '),  // TODO: test
-						"fill":pal2hex(glob.fillColor), "stroke":pal2hex(glob.drawColor), "stroke-width":glob.lineThick,
-						"stroke-dasharray": glob.svgDashArray.join(',')
+						"points":poly.map(x => [x[0] + svgOff, x[1] + svgOff]).join(' '),  // TODO: test
+						"stroke":pal2hex(glob.drawColor), "stroke-width":glob.lineThick,
+						"stroke-dasharray": glob.svgDashArray.join(','),
+						"fill":pal2hex(glob.fillColor), "fill-rule":"evenodd"
 					}));
 				}
 			}
@@ -1062,10 +1073,11 @@ function RIPtermJS (self) {
 					// TODO: linePattern
 					svg.appendChild( svgNode('polyline', {
 						// "points":poly.join(' '),
-						"points":poly.map(x => [x[0] + 0.5, x[1] + 0.5]).join(' '),  // TODO: test
+						"points":poly.map(x => [x[0] + svgOff, x[1] + svgOff]).join(' '),  // TODO: test
 						"stroke":pal2hex(glob.drawColor), "stroke-width":glob.lineThick,
 						// "stroke-linecap":"square",  // does't work with dasharray
-						"stroke-dasharray": glob.svgDashArray.join(',')
+						"stroke-dasharray": glob.svgDashArray.join(','),
+						"fill":"none", "fill-rule":"evenodd"
 					}));
 				}
 			}
@@ -1081,13 +1093,15 @@ function RIPtermJS (self) {
 				drawFloodFill(x, y, border, glob.fillColor, glob.fillPattern);
 
 				// requires 'potrace-modified.js'
-				if (svg && Potrace && Potrace.getPathD) {
+				if (svg && Potrace) {
 					Potrace.loadFromData(tBuf, cWidth, cHeight);
 					Potrace.process( function() { } );
 					var pathTxt = Potrace.getPathD(1);
 					if (self.debugVerbose) console.log('SVG path: ' + pathTxt);
 					svg.appendChild( svgNode('path', {
-						"d":pathTxt, "fill":pal2hex(glob.fillColor), "fill-rule":"evenodd"
+						// "stroke":pal2hex(glob.fillColor), "stroke-width":0.25,  // TODO: tweak this
+						"fill":pal2hex(glob.fillColor), "fill-rule":"evenodd",
+						"d":pathTxt
 					}));
 				}
 			}
@@ -1206,6 +1220,10 @@ function RIPtermJS (self) {
 		}
 		if (svgId) {
 			svg = document.getElementById(svgId);
+		}
+		if (Potrace) {
+			// turnpolicy ("black" / "white" / "left" / "right" / "minority" / "majority")
+			Potrace.setParameter({ turdsize:0, turnpolicy:"minority" });
 		}
 	}
 
