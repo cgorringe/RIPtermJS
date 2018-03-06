@@ -892,7 +892,7 @@ function RIPtermJS (self) {
 			if (args.length >= 6) {
 				var xc = parseRIPint(args, 0);
 				var yc = parseRIPint(args, 2);
-				var xr = parseRIPint(args, 4);
+				var xr = parseRIPint(args, 4) || 0.5;
 				var yr = xr * (350/480);  // adjust aspect ratio for 640x350 EGA
 				//drawOvalArc(xc, yc, 0, 360, xr, yr, glob.drawColor, glob.lineThick);
 				drawCircle(xc, yc, 0, 360, xr, yr, glob.drawColor, glob.lineThick);  // TEST
@@ -920,8 +920,8 @@ function RIPtermJS (self) {
 			if (args.length >= 8) { 
 				var xc = parseRIPint(args, 0);
 				var yc = parseRIPint(args, 2);
-				var xr = parseRIPint(args, 4);
-				var yr = parseRIPint(args, 6);
+				var xr = parseRIPint(args, 4) || 0.5;
+				var yr = parseRIPint(args, 6) || 0.5;
 				// TODO: fill oval
 				drawOvalArc(xc, yc, 0, 360, xr, yr, glob.drawColor, glob.lineThick, glob.fillColor, glob.fillPattern);
 				if (svg) {
@@ -942,7 +942,7 @@ function RIPtermJS (self) {
 				var yc = parseRIPint(args, 2);
 				var sa = parseRIPint(args, 4);
 				var ea = parseRIPint(args, 6);
-				var xr = parseRIPint(args, 8);
+				var xr = parseRIPint(args, 8) || 0.5;
 				var yr = xr * (350/480);  // adjust aspect ratio for 640x350 EGA
 				drawOvalArc(xc, yc, sa, ea, xr, yr, glob.drawColor, glob.lineThick);
 			}
@@ -955,8 +955,8 @@ function RIPtermJS (self) {
 				var yc = parseRIPint(args, 2);
 				var sa = parseRIPint(args, 4);
 				var ea = parseRIPint(args, 6);
-				var xr = parseRIPint(args, 8);
-				var yr = parseRIPint(args, 10);
+				var xr = parseRIPint(args, 8) || 0.5;
+				var yr = parseRIPint(args, 10) || 0.5;
 				drawOvalArc(xc, yc, sa, ea, xr, yr, glob.drawColor, glob.lineThick);
 			}
 		},
@@ -968,7 +968,7 @@ function RIPtermJS (self) {
 				var yc = parseRIPint(args, 2);
 				var sa = parseRIPint(args, 4);
 				var ea = parseRIPint(args, 6);
-				var xr = parseRIPint(args, 8);
+				var xr = parseRIPint(args, 8) || 0.5;
 				var yr = xr * (350/480);  // adjust aspect ratio for 640x350 EGA
 				// TODO: draw & fill pie slice
 				drawOvalArc(xc, yc, sa, ea, xr, yr, glob.drawColor, glob.lineThick, glob.fillColor, glob.fillPattern);
@@ -982,8 +982,8 @@ function RIPtermJS (self) {
 				var yc = parseRIPint(args, 2);
 				var sa = parseRIPint(args, 4);
 				var ea = parseRIPint(args, 6);
-				var xr = parseRIPint(args, 8);
-				var yr = parseRIPint(args, 10);
+				var xr = parseRIPint(args, 8) || 0.5;
+				var yr = parseRIPint(args, 10) || 0.5;
 				// TODO: draw & fill oval pie slice
 				drawOvalArc(xc, yc, sa, ea, xr, yr, glob.drawColor, glob.lineThick, glob.fillColor, glob.fillPattern);
 			}
