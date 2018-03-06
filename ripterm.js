@@ -23,6 +23,7 @@ function RIPtermJS (self) {
 	if (!('floodFill'    in self)) self.floodFill = true;
 	if (!('debugVerbose' in self)) self.debugVerbose = false;
 	if (!('pauseOn'      in self)) self.pauseOn   = [];
+	if (!('debugFillBuf' in self)) self.debugFillBuf = false;  // display flood-fill buffer
 	if (!('iconsPath'    in self)) self.iconsPath = 'icons';
 	if (!('fontsPath'    in self)) self.fontsPath = 'fonts';
 	if (!('fontsFiles'   in self)) {
@@ -131,6 +132,7 @@ function RIPtermJS (self) {
 		for (var i=0; i < paletteEGA16.length; i++) {
 				setPalWithHex(i, paletteEGA16[i]);
 		}
+		setPalWithHex(255, '#fff');  // used to debug fill temp buffer (tBuf)
 	}
 
 	// Extracts command code + args from RIP instruction.
@@ -1077,6 +1079,17 @@ function RIPtermJS (self) {
 				var border = parseRIPint(args, 4);
 				if (self.debugVerbose) console.log('RIP_FILL: (' + x + ',' + y + ') color:' + glob.fillColor + ' border:' + border);
 				drawFloodFill(x, y, border, glob.fillColor, glob.fillPattern);
+
+				// requires 'potrace-modified.js'
+				if (svg && Potrace && Potrace.getPathD) {
+					Potrace.loadFromData(tBuf, cWidth, cHeight);
+					Potrace.process( function() { } );
+					var pathTxt = Potrace.getPathD(1);
+					if (self.debugVerbose) console.log('SVG path: ' + pathTxt);
+					svg.appendChild( svgNode('path', {
+						"d":pathTxt, "fill":pal2hex(glob.fillColor), "fill-rule":"evenodd"
+					}));
+				}
 			}
 		},
 
@@ -1200,6 +1213,7 @@ function RIPtermJS (self) {
 		if (ctx) {
 			ctx.clearRect(0, 0, canvas.width, canvas.height);
 			cBuf.fill(0);
+			tBuf.fill(0);
 		}
 		if (svg) {
 			svg.innerHTML = "";
@@ -1233,7 +1247,7 @@ function RIPtermJS (self) {
 		if (cmdi < ripData.length) {
 			var d = ripData[cmdi];
 			if (self.cmd[d[0]]) { self.cmd[d[0]](d[1]); }
-			updateCanvas(cBuf);
+			updateCanvas( (self.debugFillBuf) ? tBuf : cBuf );
 			if (self.pauseOn.includes(d[0])) {
 				if (!self.floodFill && (d[0] == 'F')) { }
 				else { self.stop(); }
