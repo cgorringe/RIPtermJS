@@ -24,6 +24,9 @@ function RIPtermJS (self) {
 	if (!('debugVerbose' in self)) self.debugVerbose = false;
 	if (!('pauseOn'      in self)) self.pauseOn   = [];
 	if (!('debugFillBuf' in self)) self.debugFillBuf = false;  // display flood-fill buffer
+	if (!('debugPutImg'  in self)) self.debugPutImg = false;  // display get/put image border in SVG
+
+	// not yet used
 	if (!('iconsPath'    in self)) self.iconsPath = 'icons';
 	if (!('fontsPath'    in self)) self.fontsPath = 'fonts';
 	if (!('fontsFiles'   in self)) {
@@ -87,7 +90,8 @@ function RIPtermJS (self) {
 			svgDashArray: [],
 			clipboard: null,
 			viewport: {x0:0, y0:0, x1:639, y1:349},
-			fillPattern: fillPatterns[1]
+			fillPattern: fillPatterns[1],
+			putImageCount: 0
 		};
 		/*
 			textWindow (x0 y0 x1 y1 wrap size)
@@ -246,7 +250,7 @@ function RIPtermJS (self) {
 				img[o++] = cBuf[i++];
 			}
 		}
-		return {w:w, h:h, img:img};
+		return {x:x0, y:y0, w:w, h:h, img:img};
 	}
 
 	function putImageClip(x0, y0, imgClip, mode) {
@@ -1164,8 +1168,7 @@ function RIPtermJS (self) {
 				if (x0 > x1) { s=x0; x0=x1; x1=s; }
 				if (y0 > y1) { s=y0; y0=y1; y1=s; }
 				glob.clipboard = getImageClip(x0, y0, x1, y1);
-				//console.log('RIP_GET_IMAGE: w:' + glob.clipboard.w + ', h:' + glob.clipboard.h);
-				//console.log(glob.clipboard.img);
+				if (self.debugVerbose) console.log('RIP_GET_IMAGE: x:'+x0+' y:'+y0+' w:'+glob.clipboard.w+' h:'+glob.clipboard.h);
 			}
 		},
 
@@ -1177,8 +1180,53 @@ function RIPtermJS (self) {
 				var mode = parseRIPint(args, 4);
 				// 1 byte reserved
 				if (glob.clipboard) {
+					if (self.debugVerbose) console.log('RIP_PUT_IMAGE: x:'+x0+' y:'+y0+' mode:'+mode);
 					putImageClip(x0, y0, glob.clipboard, mode)
-					//console.log('RIP_PUT_IMAGE: x0:' + x0 + ' y0:' + y0 + ' mode:' + mode);
+
+					if (svg && self.debugPutImg) {
+						// SVG support is really experimental!
+						// Filter effects on "BackgroundImage" aren't supported in most browsers.
+						// This somewhat works in Inkscape, although renders slow.
+
+						var dx = x0 - glob.clipboard.x;
+						var dy = y0 - glob.clipboard.y;
+						var id = "rip-put" + glob.putImageCount;
+						var defs = svgNode('defs', {});
+						var filter = svgNode('filter', {
+							"id":id,
+							"filterUnits":"userSpaceOnUse", "primitiveUnits":"userSpaceOnUse",
+							"x": glob.viewport.x0, "y": glob.viewport.y0,
+							"width": (glob.viewport.x1 - glob.viewport.x0 + 1),
+							"height": (glob.viewport.y1 - glob.viewport.y0 + 1)
+						});
+
+						// create a composite intersection of background image with a white filled rect, then position it.
+						filter.appendChild(svgNode('feComposite', {
+							"in":"BackgroundImage", "in2":"SourceGraphic", "operator":"in"
+						}));
+						filter.appendChild(svgNode('feOffset', { "dx":dx, "dy":dy }));
+
+						// handle mode {0=copy, 1=XOR, 2=OR, 3=AND, 4=NOT}
+						// This can't be done realisticly, as we're dealing with RGB colors and not the color palette.
+						switch (mode) {
+							case 0: break;  // ok
+							case 1: break;  // XOR todo
+							case 2: filter.appendChild(svgNode('feBlend', { "in2":"BackgroundImage", "mode":"screen" })); break;
+							case 3: filter.appendChild(svgNode('feBlend', { "in2":"BackgroundImage", "mode":"multiply" })); break;
+							case 4: break;  // NOT todo
+						}
+
+						defs.appendChild(filter);
+						svg.appendChild(defs);
+						svg.appendChild( svgNode('rect', {
+							"filter":"url(#"+id+")",
+							"fill":"white",
+							"x": glob.clipboard.x, "y": glob.clipboard.y,
+							"width": glob.clipboard.w, "height": glob.clipboard.h,
+							//"stroke":"red", "stroke-width":2, "stroke-dasharray":[2,2]  // DEBUG TEST (remove later)
+						}));
+						glob.putImageCount++;
+					}
 				}
 			}
 		},
