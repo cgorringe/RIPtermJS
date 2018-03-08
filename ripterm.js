@@ -591,8 +591,7 @@ function RIPtermJS (self) {
 		// FIXME: circle not round enough?
 
 		const twoPiD = 2 * Math.PI / 360;
-		if (sa < 0) { sa = 0; }
-		if (ea > 360) { ea = 360; }
+		if (sa > ea) ea += 360;
 		var x0, y0, x1, y1;
 		var pieFlag = false;
 		if (typeof lineThick === 'undefined') { lineThick = 1; }
@@ -622,6 +621,28 @@ function RIPtermJS (self) {
 		if (pieFlag) {
 			drawLine(x0, y0, xc, yc, drawColor, 0, lineThick);
 		}
+	}
+
+	// Returns an SVG path string which defines an oval arc
+	function svgArcPathD(xc, yc, sa, ea, xrad, yrad, pieFlag) {
+		// Arc: "M x0 y0  A rx ry x-axis-rotation large-arc-flag sweep-flag x1 y1"
+		// Pie: "M xc yc  L x0 y0  A rx ry x-axis-rotation large-arc-flag sweep-flag x1 y1  Z"
+
+		const twoPiD = 2 * Math.PI / 360;
+		if (sa > ea) ea += 360;
+		var x0 = (xc + (xrad * Math.cos(sa * twoPiD))).toFixed(1);
+		var y0 = (yc - (yrad * Math.sin(sa * twoPiD))).toFixed(1);
+		var x1 = (xc + (xrad * Math.cos(ea * twoPiD))).toFixed(1);
+		var y1 = (yc - (yrad * Math.sin(ea * twoPiD))).toFixed(1);
+		var largeArc = (ea - sa > 180) ? 1 : 0;
+		var d;
+		if (pieFlag) {
+			d = 'M'+xc+' '+yc+' L '+x0+' '+y0+' A '+xrad+' '+yrad+' 0 '+largeArc+' 1 '+x1+' '+y1+' Z';
+		}
+		else {
+			d = 'M'+x0+' '+y0+' A '+xrad+' '+yrad+' 0 '+largeArc+' 1 '+x1+' '+y1;
+		}
+		return d;
 	}
 
 	// alternate, only works for whole circle / oval, thick=1 (so far)
@@ -896,18 +917,16 @@ function RIPtermJS (self) {
 			if (args.length >= 6) {
 				var xc = parseRIPint(args, 0);
 				var yc = parseRIPint(args, 2);
-				var xr = parseRIPint(args, 4) || 0.5;
+				var xr = parseRIPint(args, 4) || 1; // 0.5
 				var yr = xr * (350/480);  // adjust aspect ratio for 640x350 EGA
 				//drawOvalArc(xc, yc, 0, 360, xr, yr, glob.drawColor, glob.lineThick);
 				drawCircle(xc, yc, 0, 360, xr, yr, glob.drawColor, glob.lineThick);  // TEST
 				if (svg) {
 					svg.appendChild( svgNode('ellipse', {
 						//"cx":(xc+1.0), "cy":(yc+1.0), "rx":xr, "ry":yr,
-						//"cx":(xc+svgOff), "cy":(yc+svgOff), "rx":xr, "ry":yr,
-						"cx":(xc+svgOff+0.5), "cy":(yc+svgOff+0.5), "rx":xr, "ry":yr,  // TODO: test
-						"stroke":pal2hex(glob.drawColor), "stroke-width":glob.lineThick,
-						//"fill":"transparent", "style":"fill:none"
-						"fill":"none", "fill-rule":"evenodd"
+						"cx":(xc+svgOff), "cy":(yc+svgOff), "rx":(xr-0.5), "ry":(yr-0.5),
+						//"cx":(xc+svgOff+0.5), "cy":(yc+svgOff+0.5), "rx":xr, "ry":yr,  // TODO: test
+						"stroke":pal2hex(glob.drawColor), "stroke-width":glob.lineThick, "fill":"none"
 					}));
 				}
 			}
@@ -924,16 +943,18 @@ function RIPtermJS (self) {
 			if (args.length >= 8) { 
 				var xc = parseRIPint(args, 0);
 				var yc = parseRIPint(args, 2);
-				var xr = parseRIPint(args, 4) || 0.5;
-				var yr = parseRIPint(args, 6) || 0.5;
+				var xr = parseRIPint(args, 4) || 1; // 0.5
+				var yr = parseRIPint(args, 6) || 1;
 				// TODO: fill oval
 				drawOvalArc(xc, yc, 0, 360, xr, yr, glob.drawColor, glob.lineThick, glob.fillColor, glob.fillPattern);
 				if (svg) {
 					svg.appendChild( svgNode('ellipse', {
 						//"cx":(xc+svgOff), "cy":(yc+svgOff), "rx":xr, "ry":yr,
-						"cx":(xc+svgOff+0.5), "cy":(yc+svgOff+0.5), "rx":xr, "ry":yr,  // TODO: need to test
+						"cx":(xc+svgOff), "cy":(yc+svgOff), "rx":(xr-0.5), "ry":(yr-0.5),
+						//"cx":(xc+svgOff+0.5), "cy":(yc+svgOff+0.5), "rx":xr, "ry":yr,  // TODO: need to test
 						"stroke":pal2hex(glob.drawColor), "stroke-width":glob.lineThick,
-						"fill":pal2hex(glob.fillColor), "fill-rule":"evenodd"
+						"fill":pal2hex(glob.fillColor)
+						// TODO: SVG fillPattern
 					}));
 				}
 			}
@@ -946,9 +967,15 @@ function RIPtermJS (self) {
 				var yc = parseRIPint(args, 2);
 				var sa = parseRIPint(args, 4);
 				var ea = parseRIPint(args, 6);
-				var xr = parseRIPint(args, 8) || 0.5;
+				var xr = parseRIPint(args, 8) || 1;
 				var yr = xr * (350/480);  // adjust aspect ratio for 640x350 EGA
 				drawOvalArc(xc, yc, sa, ea, xr, yr, glob.drawColor, glob.lineThick);
+				if (svg) {
+					svg.appendChild( svgNode('path', {
+						"d":svgArcPathD((xc+svgOff), (yc+svgOff), sa, ea, (xr-0.5), (yr-0.5), false),
+						"stroke":pal2hex(glob.drawColor), "stroke-width":glob.lineThick, "fill":"none"
+					}));
+				}
 			}
 		},
 
@@ -959,9 +986,26 @@ function RIPtermJS (self) {
 				var yc = parseRIPint(args, 2);
 				var sa = parseRIPint(args, 4);
 				var ea = parseRIPint(args, 6);
-				var xr = parseRIPint(args, 8) || 0.5;
-				var yr = parseRIPint(args, 10) || 0.5;
+				var xr = parseRIPint(args, 8)  || 1;
+				var yr = parseRIPint(args, 10) || 1;
 				drawOvalArc(xc, yc, sa, ea, xr, yr, glob.drawColor, glob.lineThick);
+
+				if (svg) {
+					if ((sa === 0) && (ea === 360)) {
+						// draw ellipse
+						svg.appendChild( svgNode('ellipse', {
+							"cx":(xc+svgOff), "cy":(yc+svgOff), "rx":(xr-0.5), "ry":(yr-0.5),
+							"stroke":pal2hex(glob.drawColor), "stroke-width":glob.lineThick, "fill":"none"
+						}));
+					}
+					else {
+						// draw oval arc
+						svg.appendChild( svgNode('path', {
+							"d":svgArcPathD((xc+svgOff), (yc+svgOff), sa, ea, (xr-0.5), (yr-0.5), false),
+							"stroke":pal2hex(glob.drawColor), "stroke-width":glob.lineThick, "fill":"none"
+						}));
+					}
+				}
 			}
 		},
 
@@ -972,10 +1016,18 @@ function RIPtermJS (self) {
 				var yc = parseRIPint(args, 2);
 				var sa = parseRIPint(args, 4);
 				var ea = parseRIPint(args, 6);
-				var xr = parseRIPint(args, 8) || 0.5;
+				var xr = parseRIPint(args, 8) || 1;
 				var yr = xr * (350/480);  // adjust aspect ratio for 640x350 EGA
 				// TODO: draw & fill pie slice
 				drawOvalArc(xc, yc, sa, ea, xr, yr, glob.drawColor, glob.lineThick, glob.fillColor, glob.fillPattern);
+				if (svg) {
+					svg.appendChild( svgNode('path', {
+						"d":svgArcPathD((xc+svgOff), (yc+svgOff), sa, ea, (xr-0.5), (yr-0.5), true),
+						"stroke":pal2hex(glob.drawColor), "stroke-width":glob.lineThick,
+						"fill":pal2hex(glob.fillColor)
+						// TODO: SVG fillPattern
+					}));
+				}
 			}
 		},
 
@@ -986,10 +1038,18 @@ function RIPtermJS (self) {
 				var yc = parseRIPint(args, 2);
 				var sa = parseRIPint(args, 4);
 				var ea = parseRIPint(args, 6);
-				var xr = parseRIPint(args, 8) || 0.5;
-				var yr = parseRIPint(args, 10) || 0.5;
+				var xr = parseRIPint(args, 8)  || 1;
+				var yr = parseRIPint(args, 10) || 1;
 				// TODO: draw & fill oval pie slice
 				drawOvalArc(xc, yc, sa, ea, xr, yr, glob.drawColor, glob.lineThick, glob.fillColor, glob.fillPattern);
+				if (svg) {
+					svg.appendChild( svgNode('path', {
+						"d":svgArcPathD((xc+svgOff), (yc+svgOff), sa, ea, (xr-0.5), (yr-0.5), true),
+						"stroke":pal2hex(glob.drawColor), "stroke-width":glob.lineThick,
+						"fill":pal2hex(glob.fillColor)
+						// TODO: SVG fillPattern
+					}));
+				}
 			}
 		},
 
@@ -1015,7 +1075,6 @@ function RIPtermJS (self) {
 						"fill":"none", "fill-rule":"evenodd"
 					}));
 				}
-
 			}
 		},
 
@@ -1103,7 +1162,7 @@ function RIPtermJS (self) {
 					var pathTxt = Potrace.getPathD(1);
 					if (self.debugVerbose) console.log('SVG path: ' + pathTxt);
 					svg.appendChild( svgNode('path', {
-						// "stroke":pal2hex(glob.fillColor), "stroke-width":0.25,  // TODO: tweak this
+						"stroke":pal2hex(glob.fillColor), "stroke-width":0.25,  // TODO: tweak this
 						"fill":pal2hex(glob.fillColor), "fill-rule":"evenodd",
 						"d":pathTxt
 					}));
