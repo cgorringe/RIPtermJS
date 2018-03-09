@@ -17,14 +17,17 @@ function RIPtermJS (self) {
 	//   self.counterId - show command counter in div (e.g. '5 / 100')
 	//   self.svgId     - draw to an SVG tag (experimental)
 
-	// public defaults
+	// public properties
 	if (typeof self === 'undefined') self = {};
 	if (!('timeInterval' in self)) self.timeInterval = 1;
 	if (!('floodFill'    in self)) self.floodFill = true;
+	if (!('svgPrefix'    in self)) self.svgPrefix = "rip";  // used in internal SVG id's
+
+	// debug properties
 	if (!('debugVerbose' in self)) self.debugVerbose = false;
-	if (!('pauseOn'      in self)) self.pauseOn   = [];
+	if (!('pauseOn'      in self)) self.pauseOn = [];
 	if (!('debugFillBuf' in self)) self.debugFillBuf = false;  // display flood-fill buffer
-	if (!('debugPutImg'  in self)) self.debugPutImg = false;  // display get/put image border in SVG
+	if (!('svgIncludePut'in self)) self.svgIncludePut = false; // add '1P' RIP_PUT_IMAGE to SVG (experimental)
 
 	// not yet used
 	if (!('iconsPath'    in self)) self.iconsPath = 'icons';
@@ -42,7 +45,7 @@ function RIPtermJS (self) {
 	var palR = new Uint8ClampedArray(256);
 	var palG = new Uint8ClampedArray(256);
 	var palB = new Uint8ClampedArray(256);
-	var glob, svg;
+	var glob, svg, svgView;
 
 	const paletteEGA16 = [
 		'#000', '#00a', '#0a0', '#0aa', '#a00', '#a0a', '#a50', '#aaa',
@@ -91,12 +94,25 @@ function RIPtermJS (self) {
 			clipboard: null,
 			viewport: {x0:0, y0:0, x1:639, y1:349},
 			fillPattern: fillPatterns[1],
-			putImageCount: 0
+			svgPutCount: 0,
+			svgViewCount: 0
 		};
 		/*
 			textWindow (x0 y0 x1 y1 wrap size)
 				text font size = {0:8x8, 1:7x8, 2:8x14, 3:7x14, 4:16x14}
 		*/
+	}
+
+	function resetSVG() {
+		if (svg) {
+			svg.innerHTML = "";
+			svgSetViewport(glob.viewport);
+			glob.svgViewCount = 0;
+			// fill viewport with background color
+			svgView.appendChild(svgNode('rect', {
+				"x":0, "y":0, "width":(glob.viewport.x1+1), "height":(glob.viewport.y1+1), "fill":pal2hex(0)
+			}));
+		}
 	}
 
 	// hex is '#rgb' or '#rrggbb', returns [R, G, B] where values are 0-255
@@ -679,9 +695,9 @@ function RIPtermJS (self) {
 	// before any 'off' gaps, the result may be phase-shifted from the original linePattern
 	// if it begins with 0s.
 
-	function makeDashArray(linePattern) {
+	function svgMakeDashArray(linePattern) {
 
-		if (self.debugVerbose) console.log('makeDashArray('+ linePattern.toString(16).padStart(4, '0') +')');
+		if (self.debugVerbose) console.log('svgMakeDashArray('+ linePattern.toString(16).padStart(4, '0') +')');
 		var dashes = [];
 		var pat = linePattern;
 
@@ -711,9 +727,29 @@ function RIPtermJS (self) {
 				//console.log('3   pat:'+ pat.toString(16).padStart(4, '0') +' dashes:'+ dashes);
 			}
 		}
-		//console.log('makeDashArray('+ linePattern.toString(16).padStart(4, '0') +') => '+ dashes);
-		if (self.debugVerbose) console.log('makeDashArray => '+ dashes);
+		//console.log('svgMakeDashArray('+ linePattern.toString(16).padStart(4, '0') +') => '+ dashes);
+		if (self.debugVerbose) console.log('svgMakeDashArray => '+ dashes);
 		return dashes;
+	}
+
+	function svgSetViewport(vp) {
+		// vp is an object: {x0:, y0:, x1:, y1:}
+		// uses svg, svgView, glob.svgViewCount
+
+		if (svg) {
+			var id = self.svgPrefix + "-vp" + glob.svgViewCount;
+			var defs = svgNode('defs', {});
+			var clipPath = svgNode('clipPath', { "id":id });
+			var rect = svgNode('rect', {
+				"x":vp.x0, "y":vp.y0, "width":(vp.x1 - vp.x0 + 1), "height":(vp.y1 - vp.y0 + 1)
+			});
+			clipPath.appendChild(rect);
+			defs.appendChild(clipPath);
+			svg.appendChild(defs);
+			svgView = svgNode('g', { "clipPath":"url(#"+id+")" });
+			svg.appendChild(svgView);
+			glob.svgViewCount++;
+		}
 	}
 
 // ----------------------------------------------------------------------------------------------------
@@ -732,6 +768,7 @@ function RIPtermJS (self) {
 				glob.viewport.y0 = parseRIPint(args, 2);
 				glob.viewport.x1 = parseRIPint(args, 4);
 				glob.viewport.y1 = parseRIPint(args, 6);
+				svgSetViewport(glob.viewport);
 			}
 		},
 
@@ -749,6 +786,14 @@ function RIPtermJS (self) {
 		// RIP_ERASE_VIEW
 		'E': function(args) {
 			drawBar(glob.viewport.x0, glob.viewport.y0, glob.viewport.x1, glob.viewport.y1, 0);
+			if (svgView) {
+				svgView.appendChild(svgNode('rect', {
+					"x":glob.viewport.x0, "y":glob.viewport.y0,
+					"width":(glob.viewport.x1 - glob.viewport.x0 + 1),
+					"height":(glob.viewport.y1 - glob.viewport.y0 + 1),
+					"fill":pal2hex(0)
+				}));
+			}
 		},
 
 		// 'g' RIP_GOTOXY
@@ -835,8 +880,8 @@ function RIPtermJS (self) {
 				var x = parseRIPint(args, 0);
 				var y = parseRIPint(args, 2);
 				setPixelBuf(x, y, glob.drawColor);  // spec says doesn't use drawMode
-				if (svg) {
-					svg.appendChild( svgNode('circle', {
+				if (svgView) {
+					svgView.appendChild(svgNode('circle', {
 						"cx":(x+svgOff), "cy":(y+svgOff), "r":0.5, "fill":pal2hex(glob.drawColor)
 					}));
 				}
@@ -851,12 +896,12 @@ function RIPtermJS (self) {
 				var x1 = parseRIPint(args, 4);
 				var y1 = parseRIPint(args, 6);
 				drawLine(x0, y0, x1, y1, glob.drawColor, glob.writeMode, glob.lineThick, glob.linePattern);
-				if (svg) {
-					svg.appendChild( svgNode('line', {
+				if (svgView) {
+					svgView.appendChild(svgNode('line', {
 						"x1":(x0+svgOff), "y1":(y0+svgOff), "x2":(x1+svgOff), "y2":(y1+svgOff),
 						"stroke":pal2hex(glob.drawColor), "stroke-width":glob.lineThick,
 						//"stroke-linecap":"square",  // doesn't work on JULY493.RIP
-						"stroke-dasharray": glob.svgDashArray.join(',')
+						"stroke-dasharray":glob.svgDashArray.join(',')
 					}));
 				}
 			}
@@ -873,12 +918,12 @@ function RIPtermJS (self) {
 				if (x0 > x1) { s=x0; x0=x1; x1=s; }
 				if (y0 > y1) { s=y0; y0=y1; y1=s; }
 				drawRectangle(x0, y0, x1, y1, glob.drawColor, glob.writeMode, glob.lineThick, glob.linePattern);
-				if (svg) {
-					svg.appendChild( svgNode('rect', {
+				if (svgView) {
+					svgView.appendChild(svgNode('rect', {
 						//"x":x0, "y":y0, "width":(x1-x0+1), "height":(y1-y0+1),
 						"x":(x0+svgOff), "y":(y0+svgOff), "width":(x1-x0), "height":(y1-y0),
 						"stroke":pal2hex(glob.drawColor), "stroke-width":glob.lineThick,
-						"stroke-dasharray": glob.svgDashArray.join(','),
+						"stroke-dasharray":glob.svgDashArray.join(','),
 						//"fill":"transparent", "style":"fill:none"
 						"fill":"none", "fill-rule":"evenodd"
 					}));
@@ -898,9 +943,9 @@ function RIPtermJS (self) {
 				if (y0 > y1) { s=y0; y0=y1; y1=s; }
 				// spec says RIP_BAR doesn't use writeMode (could spec be wrong??)
 				drawBar(x0, y0, x1, y1, glob.fillColor, 0, glob.fillPattern);
-				if (svg) {
+				if (svgView) {
 					// TODO: test with and without stroke
-					svg.appendChild( svgNode('rect', { 
+					svgView.appendChild(svgNode('rect', {
 						"x":x0, "y":y0, "width":(x1-x0+1), "height":(y1-y0+1),
 						//"stroke":pal2hex(glob.fillColor), "stroke-width":1,   // TODO: test this ??
 						"fill":pal2hex(glob.fillColor)
@@ -921,8 +966,8 @@ function RIPtermJS (self) {
 				var yr = xr * (350/480);  // adjust aspect ratio for 640x350 EGA
 				//drawOvalArc(xc, yc, 0, 360, xr, yr, glob.drawColor, glob.lineThick);
 				drawCircle(xc, yc, 0, 360, xr, yr, glob.drawColor, glob.lineThick);  // TEST
-				if (svg) {
-					svg.appendChild( svgNode('ellipse', {
+				if (svgView) {
+					svgView.appendChild(svgNode('ellipse', {
 						//"cx":(xc+1.0), "cy":(yc+1.0), "rx":xr, "ry":yr,
 						"cx":(xc+svgOff), "cy":(yc+svgOff), "rx":(xr-0.5), "ry":(yr-0.5),
 						//"cx":(xc+svgOff+0.5), "cy":(yc+svgOff+0.5), "rx":xr, "ry":yr,  // TODO: test
@@ -947,8 +992,8 @@ function RIPtermJS (self) {
 				var yr = parseRIPint(args, 6) || 1;
 				// TODO: fill oval
 				drawOvalArc(xc, yc, 0, 360, xr, yr, glob.drawColor, glob.lineThick, glob.fillColor, glob.fillPattern);
-				if (svg) {
-					svg.appendChild( svgNode('ellipse', {
+				if (svgView) {
+					svgView.appendChild(svgNode('ellipse', {
 						//"cx":(xc+svgOff), "cy":(yc+svgOff), "rx":xr, "ry":yr,
 						"cx":(xc+svgOff), "cy":(yc+svgOff), "rx":(xr-0.5), "ry":(yr-0.5),
 						//"cx":(xc+svgOff+0.5), "cy":(yc+svgOff+0.5), "rx":xr, "ry":yr,  // TODO: need to test
@@ -970,8 +1015,8 @@ function RIPtermJS (self) {
 				var xr = parseRIPint(args, 8) || 1;
 				var yr = xr * (350/480);  // adjust aspect ratio for 640x350 EGA
 				drawOvalArc(xc, yc, sa, ea, xr, yr, glob.drawColor, glob.lineThick);
-				if (svg) {
-					svg.appendChild( svgNode('path', {
+				if (svgView) {
+					svgView.appendChild(svgNode('path', {
 						"d":svgArcPathD((xc+svgOff), (yc+svgOff), sa, ea, (xr-0.5), (yr-0.5), false),
 						"stroke":pal2hex(glob.drawColor), "stroke-width":glob.lineThick, "fill":"none"
 					}));
@@ -990,17 +1035,17 @@ function RIPtermJS (self) {
 				var yr = parseRIPint(args, 10) || 1;
 				drawOvalArc(xc, yc, sa, ea, xr, yr, glob.drawColor, glob.lineThick);
 
-				if (svg) {
+				if (svgView) {
 					if ((sa === 0) && (ea === 360)) {
 						// draw ellipse
-						svg.appendChild( svgNode('ellipse', {
+						svgView.appendChild(svgNode('ellipse', {
 							"cx":(xc+svgOff), "cy":(yc+svgOff), "rx":(xr-0.5), "ry":(yr-0.5),
 							"stroke":pal2hex(glob.drawColor), "stroke-width":glob.lineThick, "fill":"none"
 						}));
 					}
 					else {
 						// draw oval arc
-						svg.appendChild( svgNode('path', {
+						svgView.appendChild(svgNode('path', {
 							"d":svgArcPathD((xc+svgOff), (yc+svgOff), sa, ea, (xr-0.5), (yr-0.5), false),
 							"stroke":pal2hex(glob.drawColor), "stroke-width":glob.lineThick, "fill":"none"
 						}));
@@ -1020,8 +1065,8 @@ function RIPtermJS (self) {
 				var yr = xr * (350/480);  // adjust aspect ratio for 640x350 EGA
 				// TODO: draw & fill pie slice
 				drawOvalArc(xc, yc, sa, ea, xr, yr, glob.drawColor, glob.lineThick, glob.fillColor, glob.fillPattern);
-				if (svg) {
-					svg.appendChild( svgNode('path', {
+				if (svgView) {
+					svgView.appendChild(svgNode('path', {
 						"d":svgArcPathD((xc+svgOff), (yc+svgOff), sa, ea, (xr-0.5), (yr-0.5), true),
 						"stroke":pal2hex(glob.drawColor), "stroke-width":glob.lineThick,
 						"fill":pal2hex(glob.fillColor)
@@ -1042,8 +1087,8 @@ function RIPtermJS (self) {
 				var yr = parseRIPint(args, 10) || 1;
 				// TODO: draw & fill oval pie slice
 				drawOvalArc(xc, yc, sa, ea, xr, yr, glob.drawColor, glob.lineThick, glob.fillColor, glob.fillPattern);
-				if (svg) {
-					svg.appendChild( svgNode('path', {
+				if (svgView) {
+					svgView.appendChild(svgNode('path', {
 						"d":svgArcPathD((xc+svgOff), (yc+svgOff), sa, ea, (xr-0.5), (yr-0.5), true),
 						"stroke":pal2hex(glob.drawColor), "stroke-width":glob.lineThick,
 						"fill":pal2hex(glob.fillColor)
@@ -1067,8 +1112,8 @@ function RIPtermJS (self) {
 				var cnt = parseRIPint(args, 16);
 				// using solid linePattern (spec says it uses linePattern, but I think it's wrong.)
 				drawBezier(x1, y1, x2, y2, x3, y3, x4, y4, cnt, glob.drawColor, glob.writeMode, glob.lineThick, 0xFFFF);
-				if (svg) {
-					svg.appendChild( svgNode('path', {
+				if (svgView) {
+					svgView.appendChild(svgNode('path', {
 						"d": "M"+(x1+svgOff)+","+(y1+svgOff)+" C "+(x2+svgOff)+","+(y2+svgOff)+" "+(x3+svgOff)+","+(y3+svgOff) +" "+(x4+svgOff)+","+(y4+svgOff),  // TODO: test
 						"stroke":pal2hex(glob.drawColor), "stroke-width":glob.lineThick, "stroke-linecap":"round",
 						//"fill":"transparent", "style":"fill:none"
@@ -1087,12 +1132,11 @@ function RIPtermJS (self) {
 					poly.push( [parseRIPint(args, i*4+2), parseRIPint(args, i*4+4)] );
 				}
 				drawPolygon(poly, glob.drawColor, glob.writeMode, glob.lineThick, glob.linePattern);
-				if (svg) {
-					// TODO: linePattern
-					svg.appendChild( svgNode('polygon', {
+				if (svgView) {
+					svgView.appendChild(svgNode('polygon', {
 						"points":poly.map(x => [x[0] + svgOff, x[1] + svgOff]).join(' '),
 						"stroke":pal2hex(glob.drawColor), "stroke-width":glob.lineThick,
-						"stroke-dasharray": glob.svgDashArray.join(','),
+						"stroke-dasharray":glob.svgDashArray.join(','),
 						"fill":"none", "fill-rule":"evenodd"
 					}));
 				}
@@ -1111,12 +1155,12 @@ function RIPtermJS (self) {
 				}
 				drawFilledPolygon(poly, glob.fillColor, glob.fillPattern);
 				drawPolygon(poly, glob.drawColor, glob.writeMode, glob.lineThick, glob.linePattern);
-				if (svg) {
+				if (svgView) {
 					// TODO: fillPattern
-					svg.appendChild( svgNode('polygon', {
+					svgView.appendChild(svgNode('polygon', {
 						"points":poly.map(x => [x[0] + svgOff, x[1] + svgOff]).join(' '),  // TODO: test
 						"stroke":pal2hex(glob.drawColor), "stroke-width":glob.lineThick,
-						"stroke-dasharray": glob.svgDashArray.join(','),
+						"stroke-dasharray":glob.svgDashArray.join(','),
 						"fill":pal2hex(glob.fillColor), "fill-rule":"evenodd"
 					}));
 				}
@@ -1132,14 +1176,13 @@ function RIPtermJS (self) {
 					poly.push( [parseRIPint(args, i*4+2), parseRIPint(args, i*4+4)] );
 				}
 				drawPolyline(poly, glob.drawColor, glob.writeMode, glob.lineThick, glob.linePattern);
-				if (svg) {
-					// TODO: linePattern
-					svg.appendChild( svgNode('polyline', {
+				if (svgView) {
+					svgView.appendChild(svgNode('polyline', {
 						// "points":poly.join(' '),
 						"points":poly.map(x => [x[0] + svgOff, x[1] + svgOff]).join(' '),  // TODO: test
 						"stroke":pal2hex(glob.drawColor), "stroke-width":glob.lineThick,
 						// "stroke-linecap":"square",  // does't work with dasharray
-						"stroke-dasharray": glob.svgDashArray.join(','),
+						"stroke-dasharray":glob.svgDashArray.join(','),
 						"fill":"none", "fill-rule":"evenodd"
 					}));
 				}
@@ -1156,12 +1199,12 @@ function RIPtermJS (self) {
 				drawFloodFill(x, y, border, glob.fillColor, glob.fillPattern);
 
 				// requires 'potrace-modified.js'
-				if (svg && Potrace) {
+				if (svgView && Potrace) {
 					Potrace.loadFromData(tBuf, cWidth, cHeight);
 					Potrace.process( function() { } );
 					var pathTxt = Potrace.getPathD(1);
 					if (self.debugVerbose) console.log('SVG path: ' + pathTxt);
-					svg.appendChild( svgNode('path', {
+					svgView.appendChild(svgNode('path', {
 						"stroke":pal2hex(glob.fillColor), "stroke-width":0.25,  // TODO: tweak this
 						"fill":pal2hex(glob.fillColor), "fill-rule":"evenodd",
 						"d":pathTxt
@@ -1182,7 +1225,7 @@ function RIPtermJS (self) {
 					case 3: glob.linePattern = 0x1F1F; glob.svgDashArray = [5,3,5,3]; break;
 					case 4:
 						glob.linePattern = parseInt(args.substr(2,4), 36);
-						glob.svgDashArray = makeDashArray(glob.linePattern);
+						glob.svgDashArray = svgMakeDashArray(glob.linePattern);
 				}
 			}
 		},
@@ -1242,14 +1285,14 @@ function RIPtermJS (self) {
 					if (self.debugVerbose) console.log('RIP_PUT_IMAGE: x:'+x0+' y:'+y0+' mode:'+mode);
 					putImageClip(x0, y0, glob.clipboard, mode)
 
-					if (svg && self.debugPutImg) {
+					if (svg && self.svgIncludePut) {
 						// SVG support is really experimental!
 						// Filter effects on "BackgroundImage" aren't supported in most browsers.
 						// This somewhat works in Inkscape, although renders slow.
 
 						var dx = x0 - glob.clipboard.x;
 						var dy = y0 - glob.clipboard.y;
-						var id = "rip-put" + glob.putImageCount;
+						var id = self.svgPrefix + "-put" + glob.svgPutCount;
 						var defs = svgNode('defs', {});
 						var filter = svgNode('filter', {
 							"id":id,
@@ -1276,15 +1319,15 @@ function RIPtermJS (self) {
 						}
 
 						defs.appendChild(filter);
-						svg.appendChild(defs);
-						svg.appendChild( svgNode('rect', {
+						svgView.appendChild(defs);
+						svgView.appendChild(svgNode('rect', {
 							"filter":"url(#"+id+")",
 							"fill":"white",
 							"x": glob.clipboard.x, "y": glob.clipboard.y,
 							"width": glob.clipboard.w, "height": glob.clipboard.h,
 							//"stroke":"red", "stroke-width":2, "stroke-dasharray":[2,2]  // DEBUG TEST (remove later)
 						}));
-						glob.putImageCount++;
+						glob.svgPutCount++;
 					}
 				}
 			}
@@ -1340,13 +1383,7 @@ function RIPtermJS (self) {
 			cBuf.fill(0);
 			tBuf.fill(0);
 		}
-		if (svg) {
-			svg.innerHTML = "";
-			// fill view with background color
-			svg.appendChild( svgNode('rect', {
-				"x":0, "y":0, "width":(glob.viewport.x1+1), "height":(glob.viewport.y1+1), "fill":pal2hex(0)
-			}));
-		}
+		resetSVG();
 	}
 
 	self.reset = function() {
