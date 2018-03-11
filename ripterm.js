@@ -93,7 +93,10 @@ function RIPtermJS (self) {
 			svgDashArray: [],
 			clipboard: null,
 			viewport: {x0:0, y0:0, x1:639, y1:349},
+			fillStyle: 1,
 			fillPattern: fillPatterns[1],
+			svgFillId: "",
+			svgFillCount: 0,
 			svgPutCount: 0,
 			svgViewCount: 0
 		};
@@ -653,10 +656,10 @@ function RIPtermJS (self) {
 		var largeArc = (ea - sa > 180) ? 1 : 0;
 		var d;
 		if (pieFlag) {
-			d = 'M'+xc+' '+yc+' L '+x0+' '+y0+' A '+xrad+' '+yrad+' 0 '+largeArc+' 1 '+x1+' '+y1+' Z';
+			d = 'M'+xc+' '+yc+' L '+x0+' '+y0+' A '+xrad+' '+yrad+' 0 '+largeArc+' 0 '+x1+' '+y1+' Z';
 		}
 		else {
-			d = 'M'+x0+' '+y0+' A '+xrad+' '+yrad+' 0 '+largeArc+' 1 '+x1+' '+y1;
+			d = 'M'+x0+' '+y0+' A '+xrad+' '+yrad+' 0 '+largeArc+' 0 '+x1+' '+y1;
 		}
 		return d;
 	}
@@ -749,6 +752,41 @@ function RIPtermJS (self) {
 			svgView = svgNode('g', { "clipPath":"url(#"+id+")" });
 			svg.appendChild(svgView);
 			glob.svgViewCount++;
+		}
+	}
+
+	function svgMakeFillPattern(fillPattern) {
+
+		var d = "";
+		var bit;
+		for (var y=0; y < 8; y++) {
+			for (var x=0; x < 8; x++) {
+				bit = (fillPattern[y] >> (7 - x)) & 1;
+				if (bit) {
+					d += ' M'+x+' '+y+' h1 v1 h-1 Z';
+				}
+			}
+		}
+		return d;
+	}
+
+	function svgAppendFillPattern(fillPattern, colr) {
+
+		if (svgView) {
+			glob.svgFillId = self.svgPrefix + "-fill" + glob.svgFillCount;
+			glob.svgFillCount++;
+			var pathTxt = svgMakeFillPattern(fillPattern);
+			if (self.debugVerbose) console.log('SVG fillStyle path: ' + pathTxt);
+			var defs = svgNode('defs', {});
+			var pattern = svgNode('pattern', {
+				"id":glob.svgFillId, "width":8, "height":8, "patternUnits":"userSpaceOnUse"
+			});
+			// fill with background color
+			pattern.appendChild(svgNode('path', { "d":"M0 0 H8 V8 H0 Z", "fill":pal2hex(0) }));
+			// fill pattern
+			pattern.appendChild(svgNode('path', { "d":pathTxt, "fill":pal2hex(colr) }));
+			defs.appendChild(pattern);
+			svgView.appendChild(defs);
 		}
 	}
 
@@ -944,15 +982,11 @@ function RIPtermJS (self) {
 				// spec says RIP_BAR doesn't use writeMode (could spec be wrong??)
 				drawBar(x0, y0, x1, y1, glob.fillColor, 0, glob.fillPattern);
 				if (svgView) {
-					// TODO: test with and without stroke
+					var fill = (glob.fillStyle == 1) ? pal2hex(glob.fillColor) : "url(#"+glob.svgFillId+")";
 					svgView.appendChild(svgNode('rect', {
-						"x":x0, "y":y0, "width":(x1-x0+1), "height":(y1-y0+1),
+						"x":x0, "y":y0, "width":(x1-x0+1), "height":(y1-y0+1), "fill":fill
 						//"stroke":pal2hex(glob.fillColor), "stroke-width":1,   // TODO: test this ??
-						"fill":pal2hex(glob.fillColor)
 					}));
-					// TODO: for patterns see
-					// https://developer.mozilla.org/en-US/docs/Web/SVG/Tutorial/Patterns
-					// https://developer.mozilla.org/en-US/docs/Web/SVG/Element/pattern
 				}
 			}
 		},
@@ -993,12 +1027,13 @@ function RIPtermJS (self) {
 				// TODO: fill oval
 				drawOvalArc(xc, yc, 0, 360, xr, yr, glob.drawColor, glob.lineThick, glob.fillColor, glob.fillPattern);
 				if (svgView) {
+					var fill = (glob.fillStyle == 1) ? pal2hex(glob.fillColor) : "url(#"+glob.svgFillId+")";
 					svgView.appendChild(svgNode('ellipse', {
 						//"cx":(xc+svgOff), "cy":(yc+svgOff), "rx":xr, "ry":yr,
 						"cx":(xc+svgOff), "cy":(yc+svgOff), "rx":(xr-0.5), "ry":(yr-0.5),
 						//"cx":(xc+svgOff+0.5), "cy":(yc+svgOff+0.5), "rx":xr, "ry":yr,  // TODO: need to test
 						"stroke":pal2hex(glob.drawColor), "stroke-width":glob.lineThick,
-						"fill":pal2hex(glob.fillColor)
+						"fill":fill
 						// TODO: SVG fillPattern
 					}));
 				}
@@ -1066,11 +1101,10 @@ function RIPtermJS (self) {
 				// TODO: draw & fill pie slice
 				drawOvalArc(xc, yc, sa, ea, xr, yr, glob.drawColor, glob.lineThick, glob.fillColor, glob.fillPattern);
 				if (svgView) {
+					var fill = (glob.fillStyle == 1) ? pal2hex(glob.fillColor) : "url(#"+glob.svgFillId+")";
 					svgView.appendChild(svgNode('path', {
 						"d":svgArcPathD((xc+svgOff), (yc+svgOff), sa, ea, (xr-0.5), (yr-0.5), true),
-						"stroke":pal2hex(glob.drawColor), "stroke-width":glob.lineThick,
-						"fill":pal2hex(glob.fillColor)
-						// TODO: SVG fillPattern
+						"stroke":pal2hex(glob.drawColor), "stroke-width":glob.lineThick, "fill":fill
 					}));
 				}
 			}
@@ -1088,11 +1122,10 @@ function RIPtermJS (self) {
 				// TODO: draw & fill oval pie slice
 				drawOvalArc(xc, yc, sa, ea, xr, yr, glob.drawColor, glob.lineThick, glob.fillColor, glob.fillPattern);
 				if (svgView) {
+					var fill = (glob.fillStyle == 1) ? pal2hex(glob.fillColor) : "url(#"+glob.svgFillId+")";
 					svgView.appendChild(svgNode('path', {
 						"d":svgArcPathD((xc+svgOff), (yc+svgOff), sa, ea, (xr-0.5), (yr-0.5), true),
-						"stroke":pal2hex(glob.drawColor), "stroke-width":glob.lineThick,
-						"fill":pal2hex(glob.fillColor)
-						// TODO: SVG fillPattern
+						"stroke":pal2hex(glob.drawColor), "stroke-width":glob.lineThick, "fill":fill
 					}));
 				}
 			}
@@ -1156,12 +1189,12 @@ function RIPtermJS (self) {
 				drawFilledPolygon(poly, glob.fillColor, glob.fillPattern);
 				drawPolygon(poly, glob.drawColor, glob.writeMode, glob.lineThick, glob.linePattern);
 				if (svgView) {
-					// TODO: fillPattern
+					var fill = (glob.fillStyle == 1) ? pal2hex(glob.fillColor) : "url(#"+glob.svgFillId+")";
 					svgView.appendChild(svgNode('polygon', {
-						"points":poly.map(x => [x[0] + svgOff, x[1] + svgOff]).join(' '),  // TODO: test
+						"points":poly.map(x => [x[0] + svgOff, x[1] + svgOff]).join(' '),
 						"stroke":pal2hex(glob.drawColor), "stroke-width":glob.lineThick,
 						"stroke-dasharray":glob.svgDashArray.join(','),
-						"fill":pal2hex(glob.fillColor), "fill-rule":"evenodd"
+						"fill":fill, "fill-rule":"evenodd"
 					}));
 				}
 			}
@@ -1204,10 +1237,10 @@ function RIPtermJS (self) {
 					Potrace.process( function() { } );
 					var pathTxt = Potrace.getPathD(1);
 					if (self.debugVerbose) console.log('SVG path: ' + pathTxt);
+					var fill = (glob.fillStyle == 1) ? pal2hex(glob.fillColor) : "url(#"+glob.svgFillId+")";
 					svgView.appendChild(svgNode('path', {
 						"stroke":pal2hex(glob.fillColor), "stroke-width":0.25,  // TODO: tweak this
-						"fill":pal2hex(glob.fillColor), "fill-rule":"evenodd",
-						"d":pathTxt
+						"fill":fill, "fill-rule":"evenodd", "d":pathTxt
 					}));
 				}
 			}
@@ -1234,10 +1267,14 @@ function RIPtermJS (self) {
 		'S': function(args) {
 			if (args.length >= 4) {
 				var pat = parseRIPint(args, 0);
-				if (pat < fillPatterns.length) {
-					glob.fillPattern = fillPatterns[pat];
-				}
 				glob.fillColor = parseRIPint(args, 2);
+				if (pat < fillPatterns.length) {
+					glob.fillStyle = pat;
+					glob.fillPattern = fillPatterns[pat];
+					if (svgView && (pat != 1)) {
+						svgAppendFillPattern(glob.fillPattern, glob.fillColor);
+					}
+				}
 			}
 		},
 
@@ -1248,7 +1285,11 @@ function RIPtermJS (self) {
 				for (var i=0; i < 8; i++) {
 					glob.fillPattern.push( parseRIPint(args, i*2) );
 				}
+				glob.fillStyle = fillPatterns.length;
 				glob.fillColor = parseRIPint(args, 16);
+				if (svgView) {
+					svgAppendFillPattern(glob.fillPattern, glob.fillColor);
+				}
 			}
 		},
 
