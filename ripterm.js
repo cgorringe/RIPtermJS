@@ -199,7 +199,7 @@ function RIPtermJS (self) {
 
 			// output to ripTextDiv
 			var outText = '';
-			var c=0;
+			var c=1;
 			ripData = [];
 
 			// process one line at a time
@@ -483,10 +483,10 @@ function RIPtermJS (self) {
 		// TODO: make more efficient:
 		// [ ] convert to horizontal scan lines, write/read buffer array directly
 
+		tBuf.fill(0);
 		if (getPixel(x0, y0) == border) { return; }
 		var stack = [{x:x0, y:y0}];
 		var popped, count = 0;
-		tBuf.fill(0);
 
 		while (popped = stack.pop()) {
 			var x = popped.x;   
