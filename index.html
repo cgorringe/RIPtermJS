@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title id="path1"></title>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<!--[if lte IE 8]><script src="/ass/js/ie/html5shiv.js"></script><![endif]-->
+	<link rel="stylesheet" href="/ass/css/main.css" />
+	<link rel="stylesheet" href="/ass/css/magnific-popup.css" />
+	<link rel="stylesheet" href="/ass/js/highlight/styles/default.css" />
+	<noscript><link rel="stylesheet" href="/ass/css/noscript.css" /></noscript>
+	<!--[if lte IE 8]><link rel="stylesheet" href="/ass/css/ie8.css" /><![endif]-->
+
+<script>
+	String.prototype.rtrim = function() {
+		return this.replace(/\s\s*$/, '');
+	}
+	function writePaths() {
+		var pname = location.pathname;
+		document.getElementById("path1").innerHTML = pname;
+		// document.getElementById("path2").innerHTML = pname;
+
+		var bcrumbs = "", temp = "", url = "";
+		var plist = pname.split('/');
+
+		for (var i=0; i < plist.length; i++) {
+			if (plist[i].rtrim() != '') {
+				url += temp + '/';
+				bcrumbs += '<a href="' + url + '">' + temp + '</a> / ';
+				temp = plist[i];
+			}
+		}
+		//bcrumbs += "&gt; <b>pub</b>";
+		bcrumbs += "<strong>" + temp + "</strong>"
+		document.getElementById("path3").innerHTML = bcrumbs;
+	}
+</script>
+
+</head>
+<body>
+	<!-- Wrapper-->
+	<div id="wrapper">
+
+		<!-- Nav -->
+		<nav id="nav">
+			<a href="/#me" class="icon fa-home"><span>Home</span></a>
+			<a href="/#portfolio" class="icon fa-folder"><span>Portfolio</span></a>
+			<!-- <a href="/apps/" class="icon fa-mobile"><span>Apps</span></a> -->
+			<a href="/#contact" class="icon fa-envelope"><span>Contact</span></a>
+		</nav>
+
+		<!-- Main -->
+		<div id="main">
+
+			<article id="pub" class="panel">
+				<header>
+					<div class="row" style="position:relative;">
+						<div class="12u">
+							<h3><a href="/">home</a> <span id="path3"></span></h3>
+						</div>
+					</div>
+					<hr>
+				</header>
+				<section style="min-height:1000px">
+					<div class="row">
+						<div class="12u">
+
+
+<h2>RIPtermJS</h2>
+<h6>2011 &amp; 2018</h6>
+<br>
+<p>
+	This was an attempt to create a RIP file viewer in JavaScript in 2011 and again in 2018.  The <a href="https://en.wikipedia.org/wiki/Remote_Imaging_Protocol" class="link"><em>Remote Imaging Protocol</em></a> (RIP) was a vector graphics encoding used in BBS's during the 90's.  It draws to an HTML <strong>canvas</strong> tag (top), and there is experimental support for a RIP to SVG converter (bottom).
+</p>
+<p>
+  The most popular version of RIP<em>scrip</em> was v1.54, which had a corresponding terminal program called RIP<em>term</em> that ran under MS-DOS, using a 16-color EGA graphics mode resolution of 640 x 350 px.  Since the pixels aren't exactly square, the canvas below is stretched to make the pixels square.
+</p>
+<p>
+  Select a RIP file to display from the dropdown list below, then <strong>Load RIP</strong> and <strong>Start</strong> to draw it.<br>
+  RIP<em>scrip</em> commands are shown on the right.  <em>Blue = implemented, red = skipped.</em>
+</p>
+<p>
+	<a href="https://github.com/cgorringe/RIPtermJS" target="_blank" class="animate"><img src="img/badge_github.png" alt="Source Code on Github"></a>
+</p>
+<style>
+	#rip-canvas {
+		background-color: #000;
+		width: 640px;
+		height: 480px;
+	}
+	#rip-canvas-frame {
+		float: left;
+		margin: 4px 8px 4px 0;
+		width: 656px;
+		height: 496px;
+	}
+	#rip-svg {
+		background-color: #000;
+		width: 640px;
+		height: 480px; /* 350px */
+	}
+	#rip-svg-frame {
+		float: left;
+		margin: 4px 8px 4px 0;
+		width: 656px;
+		height: 496px; /* 366px */
+	}
+	#rip-text {
+		/* border:solid 1px #999; */
+		margin: 4px 0;
+		padding: 0px 8px;
+		width: 136px;  /* 144px */
+		height: 496px; /* 350px 496px */
+		overflow: auto;
+		background: #333;
+		font-family: monospace; 
+		font-size: 12px;
+		color: #fff;
+		vertical-align: top;
+	}
+	#rip-text::after { 
+		/* content: "";
+		display: block;
+		clear: both; */
+	}
+	.clear {
+		clear: both;
+	}
+	#rip-counter {
+		float: right;
+		font-size: 12pt;
+		/* font-weight: bold; */
+		line-height: 30px;
+		/* clear: both; */
+	}
+	.debugOptions {
+		padding-left: 0.5em;
+		font-size: 12pt;
+	}
+	.debugOptions * {
+		padding-right: 0.5em;
+		font-weight: 400;
+	}
+	.cmd-ok  { color: #88f; }
+	.cmd-not { color: #f88; }
+	.cmd-paused { color: #ff8; }
+</style>
+<div>
+
+	<select id="rip-files" onchange="selectRIP()">
+		<option value="rips/BEAR.RIP">Bear</option>
+		<option value="rips/BILL.RIP">Bill</option>
+		<option value="rips/BULLETIN.RIP">Bulletin</option>
+		<option value="rips/BUTFLY.RIP">Butterfly</option>
+		<option value="rips/CAPITOL.RIP">Capitol</option>
+		<option value="rips/CARN.RIP">Carnivores</option>
+		<option value="rips/DOORS.RIP">Doors</option>
+		<option value="rips/DRAGON01.RIP">Dragon #1</option>
+		<option value="rips/DRAGON02.RIP">Dragon #2</option>
+		<option value="rips/FIERO.RIP">Fiero</option>
+		<option value="rips/FILE5.RIP">File 5</option>
+		<option value="rips/FINISHLN.RIP">Finish Line</option>
+		<option value="rips/FLIGHT.RIP">Flight</option>
+		<option value="rips/FS7_SHUT.RIP">FS7 Shuttle</option>
+		<option value="rips/GARFIELD.RIP">Garfield #1</option>
+		<option value="rips/GFIELD2.RIP">Garfield #2</option>
+		<option value="rips/GOODBYE.RIP">Goodbye</option>
+		<option value="rips/HELLO2.RIP">Hello 2</option>
+		<option value="rips/JULY493.RIP">July 4, 1993</option>
+		<option value="rips/LTHOUSE.RIP">Lighthouse</option>
+		<option value="rips/MAIN5.RIP">Main 5</option>
+		<option value="rips/MSG5.RIP">Msg 5</option>
+		<option value="rips/NEWMOUNT.RIP">New mount</option>
+		<option value="rips/PLANE.RIP">Plane</option>
+		<option value="rips/PMID1.RIP">Pyramid 1</option>
+		<option value="rips/POSTRIP.RIP">POSTRIP</option>
+		<option value="rips/PRELOG.RIP">PRELOG</option>
+		<option value="rips/QUESTION.RIP">Question</option>
+		<option value="rips/SBBS2.RIP">SBBS2</option>
+		<option value="rips/SURFER1.RIP">Surfer 1</option>
+		<option value="rips/SYSOP9.RIP">Sysop 9</option>
+		<option value="rips/TWEED_AD.RIP">Tweed</option>
+		<option value="rips/ZIGPARTY.RIP">Zig Party</option>
+		<option value="rips/11FV.RIP">11FV</option>
+		<option value="rips/184.RIP">184</option>
+		<option value="rips/ACOMA.RIP">ACOMA</option>
+		<option value="rips/ANGEL.RIP">Angel</option>
+		<option value="rips/BAKER.RIP">Baker</option>
+		<option value="rips/BIMBO.RIP">Bimbo</option>
+		<option value="rips/CAVE2.RIP">Cave 2</option>
+		<option value="rips/FELIX.RIP">Felix</option>
+		<option value="rips/GHOST.RIP">Ghost</option>
+		<option value="rips/HOLLY.RIP">Holly</option>
+		<option value="rips/HOUND.RIP">Hound</option>
+		<option value="rips/IRIS.RIP">Iris</option>
+		<option value="rips/JDRAW.RIP">JDraw</option>
+		<option value="rips/LEAVES.RIP">Leaves</option>
+		<option value="rips/MAMA.RIP">Mama</option>
+		<option value="rips/NO-L.RIP">NO-L</option>
+		<option value="rips/NOSHIT.RIP">No Shit</option>
+		<option value="rips/NOUVEAU.RIP">Nouveau</option>
+		<option value="rips/OPUS.RIP">Opus</option>
+		<option value="rips/PAPERCUT.RIP">Papercut</option>
+		<option value="rips/PERSEID.RIP">Perseid</option>
+		<option value="rips/PISANKI.RIP">Pisanki</option>
+		<option value="rips/POSADA.RIP">Posada</option>
+		<option value="rips/PUMPKIN.RIP">Pumpkin</option>
+		<option value="rips/RIPDELIC.RIP">RIPedelic</option>
+		<option value="rips/SH.RIP">SH</option>
+		<option value="rips/SKATE.RIP">Skate</option>
+		<option value="rips/SOCCER.RIP">Soccer</option>
+		<option value="rips/SPRING.RIP">Spring</option>
+		<option value="rips/STEREO1.RIP">Stereo #1</option>
+		<option value="rips/STEREO2.RIP">Stereo #2</option>
+		<option value="rips/STPATS95.RIP">STPATS95</option>
+		<option value="rips/UKIYOE.RIP">Ukiyoe</option>
+		<option value="rips/VAL94.RIP">VAL94</option>
+		<option value="rips/VOTE.RIP">Vote</option>
+		<option value="rips/WW02.RIP">Wishing Well</option>
+		<option value="rips/XMAS-94.RIP">XMAS-94</option>
+		<option value="rips/CITY.RIP" selected>City</option>
+		<option value="rips/MOTION.RIP">Motion</option>
+		<option value="rips/FRACTMTN.RIP">Fractal Mountain</option>
+		<option value="temp/TESTFILL.RIP">Test Fill</option>
+	</select>
+
+	<!-- <button onclick="rip.clear();">Clear</button> -->
+	<button onclick="loadRIP()">Load RIP</button>
+	<button onclick="rip.start();">Start</button>
+	<button onclick="rip.stop();">Stop</button>
+	<button onclick="rip.reset();">Reset</button>
+	<button onclick="rip.fullscreen();">Full Screen</button>
+	<span id="rip-counter"> / </span>
+	<div class="clear"></div>
+
+	<div id="rip-canvas-frame" class="framed">
+		<canvas id="rip-canvas" width="640" height="350"></canvas>
+	</div>
+	<div>
+		<div id="rip-text" class="framed">
+		RIPscript here...<br/>
+		</div>
+	</div>
+	<div class="clear"></div>
+
+	<div id="rip-svg-frame" class="framed">
+		<svg id="rip-svg" viewBox="0 0 640 350" width="640" height="480" preserveAspectRatio="none"
+			enable-background="new" 
+			xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+		</svg>
+	</div>
+	<div>
+		<h5>Debug Options</h5>
+		<div class="debugOptions">
+			<input type="checkbox" id="rip-verbose" onclick="setVerbose()"><label for="rip-verbose">Verbose Log</label><br>
+			<input type="checkbox" id="rip-floodfill" onclick="setFloodFill()"><label for="rip-floodfill">Disable Fill</label><br>
+			<input type="checkbox" id="rip-pausefill" onclick="setPauseOnFill()"><label for="rip-pausefill">Pause On Fill</label><br>
+			<input type="checkbox" id="rip-fillbuffer" onclick="showFillBuffer()"><label for="rip-fillbuffer">Show Fill Buffer</label><br>
+			<input type="checkbox" id="rip-pause-gp" onclick="setPauseOnGetPut()"><label for="rip-pause-gp">Pause Get/Put</label><br>
+			<input type="checkbox" id="rip-svg-gp" onclick="setGetPutTest()"><label for="rip-svg-gp">SVG Put image (view in inkscape)</label><br>
+		</div>
+	</div>
+	<div class="clear"></div>
+
+	<a onclick="this.setAttribute('href',getCanvasPNG());" download="canvas.png" class="noline">
+		<button>Save PNG (top)</button></a>
+	<a onclick="this.setAttribute('href',getSVG());" download="example.svg" class="noline">
+		<button>Save SVG (bottom)</button></a>
+	SVG rendering is experimental.
+</div>
+
+<script src="potrace-modified.js"></script>
+<script src="ripterm.js"></script>
+<script>
+	var rip = new RIPtermJS({
+		canvasId: 'rip-canvas',
+		svgId: 'rip-svg',
+		timeInterval: 0,
+		ripTextId: 'rip-text',
+		counterId: 'rip-counter',
+		// pauseOn: ['F']
+		// pauseOn: ['p']
+	});
+
+	function setVerbose() {
+		rip.debugVerbose = document.getElementById('rip-verbose').checked ? true : false;
+	}
+
+	function setFloodFill() {
+		var floodFlag = document.getElementById('rip-floodfill').checked ? false : true;
+		rip.floodFill = floodFlag;
+		//console.log('rip.floodFill set to ' + floodFlag);
+	}
+
+	function setPauseOnFill() {
+		var pauseFlag = document.getElementById('rip-pausefill').checked ? true : false;
+		//rip.pauseOn = (pauseFlag) ? ['F'] : [];
+		if (pauseFlag) {
+			rip.pauseOn.push('F');
+		}
+		else {
+			var pos = rip.pauseOn.indexOf('F');
+			if (pos >= 0) rip.pauseOn.splice(pos, 1);
+		}
+	}
+
+	function setPauseOnGetPut() {
+		var pauseFlag = document.getElementById('rip-pause-gp').checked ? true : false;
+		if (pauseFlag) {
+			rip.pauseOn.push('1C');
+			rip.pauseOn.push('1P');
+		}
+		else {
+			var pos = rip.pauseOn.indexOf('1C');
+			if (pos >= 0) rip.pauseOn.splice(pos, 1);
+			pos = rip.pauseOn.indexOf('1P');
+			if (pos >= 0) rip.pauseOn.splice(pos, 1);
+		}
+	}
+
+	function setGetPutTest() {
+		rip.svgIncludePut = document.getElementById('rip-svg-gp').checked ? true : false;
+	}
+
+	function showFillBuffer() {
+		rip.debugFillBuf = document.getElementById('rip-fillbuffer').checked ? true : false;
+	}
+
+	function selectRIP() {
+	}
+
+	function loadRIP() {
+		var url = document.getElementById('rip-files').value;
+		rip.readFile(url);
+	}
+
+	function text2base64(text) {
+		return window.btoa(unescape(encodeURIComponent(text)));
+	}
+	function getSVG() {
+		// https://stackoverflow.com/questions/7271524/how-to-download-the-current-page-as-a-file-attachment-using-javascript
+		return 'data:text/attachment;,' + document.getElementById('rip-svg-frame').innerHTML;
+	}
+	function saveSVG() {
+		document.location = getSVG();
+		//document.location = 'data:text/attachment;base64,' + text2base64(document.getElementById('rip-svg-frame').innerHTML);
+	}
+	function getCanvasPNG() {
+		return document.getElementById('rip-canvas').toDataURL("image/png").replace("image/png", "image/octet-stream");
+	}
+
+</script>
+<br><br>
+
+<div class="autoindex"><hr>  <table>
+   <tr><th valign="top">&nbsp;</th><th>Name</th><th>Last modified</th><th>Size</th><th>Description</th></tr>
+   <tr><th colspan="5"><hr></th></tr>
+<tr><td valign="top">&nbsp;</td><td><a href="/pub/code/javascript/">Parent Directory</a></td><td>&nbsp;</td><td align="right">  - </td><td>&nbsp;</td></tr>
+<tr><td valign="top">&nbsp;</td><td><a href="docs/">docs/</a></td><td align="right">2019-12-23 01:38  </td><td align="right">  - </td><td>&nbsp;</td></tr>
+<tr><td valign="top">&nbsp;</td><td><a href="fonts/">fonts/</a></td><td align="right">2018-11-30 11:58  </td><td align="right">  - </td><td>&nbsp;</td></tr>
+<tr><td valign="top">&nbsp;</td><td><a href="icons/">icons/</a></td><td align="right">2018-02-04 20:03  </td><td align="right">  - </td><td>&nbsp;</td></tr>
+<tr><td valign="top">&nbsp;</td><td><a href="img/">img/</a></td><td align="right">2019-03-26 19:39  </td><td align="right">  - </td><td>&nbsp;</td></tr>
+<tr><td valign="top">&nbsp;</td><td><a href="rips/">rips/</a></td><td align="right">2018-02-27 18:05  </td><td align="right">  - </td><td>&nbsp;</td></tr>
+<tr><td valign="top">&nbsp;</td><td><a href="temp/">temp/</a></td><td align="right">2019-03-26 19:39  </td><td align="right">  - </td><td>&nbsp;</td></tr>
+<tr><td valign="top">&nbsp;</td><td><a href="chrfont.js">chrfont.js</a></td><td align="right">2018-02-27 18:09  </td><td align="right">537 </td><td>&nbsp;</td></tr>
+<tr><td valign="top">&nbsp;</td><td><a href="LICENSE.txt">LICENSE.txt</a></td><td align="right">2015-07-01 01:47  </td><td align="right"> 32K</td><td>&nbsp;</td></tr>
+<tr><td valign="top">&nbsp;</td><td><a href="potrace-modified.js">potrace-modified.js</a></td><td align="right">2018-03-07 19:04  </td><td align="right"> 33K</td><td>&nbsp;</td></tr>
+<tr><td valign="top">&nbsp;</td><td><a href="ripterm.js">ripterm.js</a></td><td align="right">2018-06-27 03:42  </td><td align="right"> 47K</td><td>&nbsp;</td></tr>
+   <tr><th colspan="5"><hr></th></tr>
+</table>
+</div>
+
+
+
+							</div>
+						</div>
+					</section>
+				</article>
+		</div><!-- END Main -->
+
+		<!-- Footer -->
+		<div id="footer">
+			<ul class="copyright">
+				<li>&copy; 2020 Carl Gorringe</li>
+			</ul>
+		</div>
+
+	</div>
+
+	<!-- Scripts -->
+	<script src="/ass/js/jquery.min.js"></script>
+	<script src="/ass/js/skel.min.js"></script>
+	<script src="/ass/js/skel-viewport.min.js"></script>
+	<script src="/ass/js/util.js"></script>
+	<script src="/ass/js/jquery.magnific-popup.min.js"></script>
+	<!--[if lte IE 8]><script src="/ass/js/ie/respond.min.js"></script><![endif]-->
+	<script src="/ass/js/main.js"></script>
+	<script>writePaths();</script>
+	<script src="/ass/js/highlight/highlight.pack.js"></script>
+	<script src="/ass/js/code-popups.js"></script>
+	<script>
+		cpopups.addClasses();
+		cpopups.update();
+	</script>
+</body>
+</html>
