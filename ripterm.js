@@ -2,7 +2,8 @@
  * ripterm.js
  * Copyright (c) 2018 Carl Gorringe 
  * http://carl.gorringe.org
- * 12/22/2017 - 2/2018
+ * v1: 1/9/2011
+ * v2: 12/22/2017 - 2/2018
  *
  * Renders RIPscrip v1.54 .RIP files in an HTML canvas or SVG.
  * (work in progress)
@@ -1509,6 +1510,7 @@ function RIPtermJS (self) {
 			canvas.style.height = winH + 'px';
 			resetGlob();
 			self.clear();
+			self.start();
 		}
 		else {
 			// exiting fullscreen
@@ -1519,7 +1521,6 @@ function RIPtermJS (self) {
 			resetGlob();
 			self.clear();
 		}
-		self.start();
 	}
 
 	// constructor
