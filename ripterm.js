@@ -48,6 +48,8 @@ function RIPtermJS (self) {
 	var palB = new Uint8ClampedArray(256);
 	var glob, svg, svgView;
 
+	const ASPECT_RATIO = 350.0 / 480.0 * 1.06; // = 0.7729, was 350/450 (weird aspect ratio!)
+
 	const paletteEGA16 = [
 		'#000', '#00a', '#0a0', '#0aa', '#a00', '#a0a', '#a50', '#aaa',
 		'#555', '#55f', '#5f5', '#5ff', '#f55', '#f5f', '#ff5', '#fff'
@@ -998,7 +1000,7 @@ function RIPtermJS (self) {
 				var xc = parseRIPint(args, 0);
 				var yc = parseRIPint(args, 2);
 				var xr = parseRIPint(args, 4) || 1; // 0.5
-				var yr = xr * (350/450);  // weird aspect ratio, but fixes SOCCER.RIP
+				var yr = xr * ASPECT_RATIO;  // weird aspect ratio, but fixes SOCCER.RIP
 				//var yr = xr * (350/480);  // aspect ratio for 640x350 EGA
 				drawOvalArc(xc, yc, 0, 360, xr, yr, glob.drawColor, glob.lineThick);
 				//drawCircle(xc, yc, 0, 360, xr, yr, glob.drawColor, glob.lineThick);  // TEST
@@ -1050,7 +1052,7 @@ function RIPtermJS (self) {
 				var sa = parseRIPint(args, 4);
 				var ea = parseRIPint(args, 6);
 				var xr = parseRIPint(args, 8) || 1;
-				var yr = xr * (350/450);  // weird aspect ratio
+				var yr = xr * ASPECT_RATIO;  // weird aspect ratio
 				//var yr = xr * (350/480);  // aspect ratio for 640x350 EGA
 				drawOvalArc(xc, yc, sa, ea, xr, yr, glob.drawColor, glob.lineThick);
 				if (svgView) {
@@ -1100,7 +1102,7 @@ function RIPtermJS (self) {
 				var sa = parseRIPint(args, 4);
 				var ea = parseRIPint(args, 6);
 				var xr = parseRIPint(args, 8) || 1;
-				var yr = xr * (350/450);  // weird aspect ratio
+				var yr = xr * ASPECT_RATIO;  // weird aspect ratio
 				//var yr = xr * (350/480);  // aspect ratio for 640x350 EGA
 				// TODO: draw & fill pie slice
 				drawOvalArc(xc, yc, sa, ea, xr, yr, glob.drawColor, glob.lineThick, glob.fillColor, glob.fillPattern);
