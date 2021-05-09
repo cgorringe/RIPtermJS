@@ -1,7 +1,8 @@
 /**
  * BGI.js
  * Copyright (c) 2020-2021 Carl Gorringe 
- * http://carl.gorringe.org
+ * https://carl.gorringe.org
+ * https://github.com/cgorringe/RIPtermJS
  *
  * Borland Graphics Interface (BGI) for JavaScript
  * https://en.wikipedia.org/wiki/Borland_Graphics_Interface
@@ -18,24 +19,12 @@
  *
  **/
 
-// TO REMOVE - not using separate Palette class
-class Palette {
-
-  let _size;
-
-  constructor (size = 256) {
-    this._size = size;
-    // TODO: set up color array
-  }
-
-}
-
 class BGI {
 
   ////////////////////////////////////////////////////////////////////////////////
-  // constants (public)
+  // class constants
 
-  const
+  static
     // fonts
     DEFAULT_FONT=0, TRIPLEX_FONT=1, SMALL_FONT=2, SANSSERIF_FONT=3,
     GOTHIC_FONT=4, BIG_FONT=5, SCRIPT_FONT=6, SIMPLEX_FONT=7,
@@ -66,47 +55,6 @@ class BGI {
     // numbers
     PI_CONV = (3.1415926 / 180.0);
 
-  ////////////////////////////////////////////////////////////////////////////////
-  // variables
-
-  // not using this
-  //let palette = new Uint32Array(256);  // packed RGBA value 0xAABBGGRR, although Alpha is ignored.
-
-  let palette = new Uint8ClampedArray(256 * 4); // RGBA32 format: [r, g, b, a] same as npm's canvas
-  let pixels = new Uint8ClampedArray(1); // init with single pixel
-  let imgData = null; // ImageData()
-  let ctx = null; // CanvasRenderingContext2D()
-  let width = 1, height = 1;
-  let isBuffered = true; // true = must copy pixels to context, false = using context data store
-
-  // names different than original BGI
-  let _info = {
-    bgColor: BLACK,
-    fgColor: WHITE,
-    fillColor: WHITE,
-    // fillStyle: {},
-    cp: { x:0, y:0 }, // current position
-    max: { x:0, y:0 },
-    writeMode: 0, // 0=COPY, 1=XOR
-    font: { width:0, height:0 }, // ??
-    fontMag: { x:1.0, y:1.0 }, // font magnification
-    vp: { x1:0, y1:0, x2:0, y2:0, clip:0 }, // viewport
-    ap: { x1:0, y1:0, x2:0, y2:0, clip:0 }, // active port?
-  }
-  get info () { return this._info }
-
-  // properties
-
-  /*
-  // TO REMOVE
-  let _imageData;  // ImageData() used in drawing to an html canvas
-  get imageData () {
-    // TODO: do we copy the byte buffer over here, or in another method call?
-    return this._imageData;
-  }
-  */
-
-  // data
 
   // TODO: do I need these?
   //const bgi_palette = [
@@ -138,7 +86,7 @@ class BGI {
   */
 
   // RGBA32 format: R, G, B, A
-  const ega_palette = [
+  static ega_palette = [
     0x00, 0x00, 0x00, 0xFF, // 00 BLACK
     0x00, 0x00, 0xAA, 0xFF, // 01 BLUE
     0x00, 0xAA, 0x00, 0xFF, // 02 GREEN
@@ -157,7 +105,7 @@ class BGI {
     0xFF, 0xFF, 0xFF, 0xFF, // 0F WHITE
   ];
 
-  const line_patterns = [
+  static line_patterns = [
     0xFFFF, // 00 SOLID_LINE  : 1111111111111111
     0xCCCC, // 01 DOTTED_LINE : 1100110011001100
     0xF1F8, // 02 CENTER_LINE : 1111000111111000
@@ -165,7 +113,7 @@ class BGI {
     0xFFFF,
   ];
 
-  const fill_patterns = [
+  static fill_patterns = [
     [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00], // 00 EMPTY_FILL
     [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF], // 01 SOLID_FILL
     [0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00], // 02 LINE_FILL
@@ -182,7 +130,7 @@ class BGI {
   ];
 
   /*
-  // from ripterm.js (REMOVE?)
+  // from ripterm.js
     [0xE0, 0xC1, 0x83, 0x07, 0x0E, 0x1C, 0x38, 0x70], // 04
     [0xF0, 0x78, 0x3C, 0x1E, 0x0F, 0x87, 0xC3, 0xE1], // 05
     [0xA5, 0xD2, 0x69, 0xB4, 0x5A, 0x2D, 0x96, 0x4B], // 06
@@ -194,11 +142,40 @@ class BGI {
   */
 
   ////////////////////////////////////////////////////////////////////////////////
-  // General functions
+  // instance properties
 
   constructor (ctx, width, height) {
-    initContext(ctx, width, height);
+
+    // public fields
+    this.info = this.infoDefaults();
+    this.width = 1;
+    this.height = 1;
+    this.isBuffered = true; // true = copy pixels to context, false = using context data store
+    this.palette = new Uint8ClampedArray(256 * 4); // RGBA32 [r, g, b, a] same as npm's canvas
+
+    // assigned next
+    // this.ctx     : CanvasRenderingContext2D()
+    // this.pixels  : Uint8ClampedArray()
+    // this.imgData : ImageData()
+
+    this.initContext(ctx, width, height);
   }
+
+
+  // properties
+
+  /*
+  // TO REMOVE
+  let _imageData;  // ImageData() used in drawing to an html canvas
+  get imageData () {
+    // TODO: do we copy the byte buffer over here, or in another method call?
+    return this._imageData;
+  }
+  */
+
+  ////////////////////////////////////////////////////////////////////////////////
+  // General methods
+
 
   unimplemented (msg) {
     console.log(msg + '() is not implemented.')
@@ -212,6 +189,23 @@ class BGI {
   }
   */
 
+  infoDefaults () {
+    return {
+      bgColor: BGI.BLACK,
+      fgColor: BGI.WHITE,
+      fillColor: BGI.WHITE,
+      // fillStyle: {},
+      line: { style: BGI.SOLID_LINE, thickness: 1, pattern: 0xFFFF }, // TODO
+      cp: { x: 0, y: 0 }, // current position
+      vp: { left: 0, top: 0, right: 0, bottom: 0, clip: 0 }, // viewport / visual page?
+      ap: { left: 0, top: 0, right: 0, bottom: 0, clip: 0 }, // active port / page? (NOT USED?)
+      // max: { x: 0, y: 0 }, // TODO: may remove and just use the width & height?
+      writeMode: 0, // 0=COPY, 1=XOR
+      font: { width: 0, height: 0 }, // ??
+      fontMag: { x: 1.0, y: 1.0 }, // font magnification
+      aspect: { x: 100, y: 100 }, // aspect ratio used to make circles round
+    };
+  }
 
   // Initializes BGI with a canvas context. [not in BGI]
   // ctx comes from canvas.getContext('2d').
@@ -233,6 +227,7 @@ class BGI {
 
   initContext (ctx, width, height) {
 
+    this.ctx = ctx
     if (width && height) {
       // used provided size
       this.width = Math.floor(width);
@@ -247,23 +242,24 @@ class BGI {
       console.error('Missing width or height in context passed to BGI!');
       return;
     }
-
-    this.ctx = ctx;
-    info.max.x = this.width - 1;
-    info.max.y = this.height - 1;
+    // TODO: may remove?
+    this.info.max.x = this.width - 1;
+    this.info.max.y = this.height - 1;
 
     // needed to access context pixel data ??
     //this.imgData = ctx.getImageData(0, 0, this.width, this.height);
+    this.imgData = ctx.createImageData(this.width, this.height);
 
     // Do we need to use this for 'A8' pixel format?
-    // = new ImageData(new Uint8ClampedArray(size), width, height)
+    // this.imgData = new ImageData(new Uint8ClampedArray(size), width, height)
 
     // check to see if ctx is already using 8-bit indexed pixel data
     let attr = ctx.getContextAttributes();
     if (attr && (attr.pixelFormat === 'A8') /* && this.imgData && this.imgData.data */) {
       // use existing context data, which may be used in node canvas [NOT TESTED]
-      //this.pixels = this.imgData.data;
-      this.pixels = new Uint8ClampedArray(this.width * this.height)
+      // does this a reference or a copy?
+      this.pixels = this.imgData.data;
+      //this.pixels = new Uint8ClampedArray(this.width * this.height)
       this.isBuffered = false;
     }
     else {
@@ -298,76 +294,121 @@ class BGI {
   }
 
   ////////////////////////////////////////////////////////////////////////////////
-  // Extra functions
+  // Extra methods
 
 
   // updates the screen
   refresh () {
-    // TODO
 
-    const img = ctx.getImageData(0, 0, this.width, this.height);
+    if (!(ctx && this.imgData && this.pixels && this.palette)) { return false; }
+
+    //const img = ctx.getImageData(0, 0, this.width, this.height);
+    const img = this.imgData;
 
     // copy pixel buffer to img
     if (this.isBuffered) {
-      // copy 8-bit pixels to 32-bit img
+      // copy 8-bit pixels to 32-bit imgData
+      const numpix = this.pixels.length;
       let pi = 0;
-      for (let i=0, j=0; i < this.pixels.length; i++, j+=4) {
+      for (let i=0, j=0; i < numpix; i++, j+=4) {
         pi = this.pixels[i] * 4;
-        img.data[j + 0] = this.palette[pi + 0]; // R value
-        img.data[j + 1] = this.palette[pi + 1]; // G value
-        img.data[j + 2] = this.palette[pi + 2]; // B value
-        img.data[j + 3] = 255; // A value
-        j += 4;
+        img.data[j + 0] = this.palette[pi + 0]; // R
+        img.data[j + 1] = this.palette[pi + 1]; // G
+        img.data[j + 2] = this.palette[pi + 2]; // B
+        img.data[j + 3] = 255; // A
       }
-      ctx.putImageData(img, 0, 0);
     }
+    /*
     else {
-
+      // using 8-bit imgData
+      let numpix = this.pixels.length;
+      for (let i=0; i < numpix; i++) {
+        img.data[i] = this.pixels[i];
+      }
+      // assumes this.pixels point to this.imgData.data
+      //ctx.putImageData(this.imgData, 0, 0);
     }
-
-
+    */
+    ctx.putImageData(img, 0, 0);
+    return true;
   }
 
   // conditionally refreshes the screen or schedule it
   update () {
     // TODO
+    this.refresh();
   }
 
-  // TODO
-  _putpixel (x, y) {
+  // (see line 3225 & 3362 of SDL_bgi.c)
+  // Draws a pixel offset by and clipped by current viewport.
+  putpixel (x, y, color = this.info.fgColor, wmode = this.info.writeMode) {
 
+    const vp = this.info.vp;
+    x += vp.left;
+    y += vp.top;
+
+    if ( (x >= 0) && (x < this.width) && (y >= 0) && (y < this.height) &&
+      (!vp.clip || ((x >= vp.left) && (x <= vp.right) && (y >= vp.top) && (y <= vp.bottom))) ) {
+
+      switch (wmode) {
+        default:
+        case BGI.COPY_PUT:
+          this.pixels[y * this.width + x] = color;
+          break;
+        case BGI.XOR_PUT:
+          this.pixels[y * this.width + x] ^= color;
+          break;
+        case BGI.OR_PUT:
+          this.pixels[y * this.width + x] |= color;
+          break;
+        case BGI.AND_PUT:
+          this.pixels[y * this.width + x] &= color;
+          break;
+        case BGI.NOT_PUT:
+          this.pixels[y * this.width + x] = (~color & 0x0F); // FIXME: currently limited to EGA colors 0-15
+      }
+    }
   }
 
-  // TODO
+  // TODO: compare to _putpixel(x, y)
+
+  // NOT USED
+  // Draws a pixel relative to canvas, clipped by viewport.
   putpixel_copy (x, y, pixel) {
 
+    if ((x >= 0) && (x < this.width) && (y >= 0) && (y < this.height)) {
+      const vp = this.info.vp;
+      if (!vp.clip || ((x >= vp.left) && (x <= vp.right) && (y >= vp.top) && (y <= vp.bottom))) {
+        this.pixels[y * this.width + x] = pixel;
+      }
+    }
   }
 
-  // TODO
+  // TODO (skip)
   putpixel_xor (x, y, pixel) {
 
   }
 
-  // TODO
-  putpixel_and (x, y, pixel) {
-
-  }
-
-  // TODO
+  // TODO (skip)
   putpixel_or (x, y, pixel) {
 
   }
 
-  // TODO
+  // TODO (skip)
+  putpixel_and (x, y, pixel) {
+
+  }
+
+  // TODO (skip)
   putpixel_not (x, y, pixel) {
 
   }
 
   // TODO
-  // uses fill pattern
+  // floodfill putpixel uses fill pattern
   ff_putpixel (x, y) {
-    x += this._info.vp.x1;
-    y += this._info.vp.y1;
+    x += this.info.vp.left;
+    y += this.info.vp.top;
 
   }
 
@@ -385,26 +426,67 @@ class BGI {
 
   }
 
-  // NOT IN SDL_bgi ?
   // Draws and fills a rectangle, using fill style and color. Has no border. (see fillrect)
-  bar (x1, y1, x2, y2) {
+  bar (left, top, right, bottom) {
 
   }
 
-  bar3d (x1, y1, x2, y2, depth, topflag) {
+  bar3d (left, top, right, bottom, depth, topflag) {
 
   }
 
-  circle (x, y, radius) {
+  circle_bresenham (x, y, radius) {
 
+    let xx = -radius, yy = 0, err = 2 - (2 * radius);
+    do {
+      this.putpixel(x - xx, y + yy);
+      this.putpixel(x - yy, y - xx);
+      this.putpixel(x + xx, y - yy);
+      this.putpixel(x + yy, y + xx);
+      radius = err;
+      if (radius <= yy) { err += ++yy * 2 + 1; }
+      if ((radius > xx) || (err > yy)) { err += ++xx * 2 + 1; }
+    } while (xx < 0);
   }
 
-  cleardevice (/* void */) {
+  circle (x, y, radius, thickness = this.info.line.thickness) {
 
+    if (thickness === BGI.NORM_WIDTH) {
+      // thin better-looking circle
+      circle_bresenham(x, y, radius);
+    }
+    else {
+      // thicker circle
+      this.arc(x, y, 0, 360, radius);
+    }
   }
 
-  clearviewport (/* void */) {
+  // Clears the screen, filling it with the current background color.
+  // Resets cp to (0,0).
+  cleardevice (bgcolor = this.info.bgColor) {
 
+    this.info.cp.x = 0;
+    this.info.cp.y = 0;
+    // TODO: may use a faster method to set array values?
+    const numpix = this.pixels.length;
+    for (let i=0; i < numpix; i++) {
+      this.pixels[i] = bgcolor;
+    }
+  }
+
+  // Clears the viewport, filling it with the current background color.
+  // Resets cp to (0,0).
+  clearviewport (bgcolor = this.info.bgColor) {
+
+    this.info.cp.x = 0;
+    this.info.cp.y = 0;
+    const vp = this.info.vp;
+    for (let y = vp.top; y < vp.bottom + 1; y++) {
+      const row = y * this.width;
+      for (let x = vp.left; x < vp.right + 1; x++) {
+        this.pixels[row + x] = bgcolor;
+      }
+    }
   }
 
   // not implemented (STUB)
@@ -431,7 +513,7 @@ class BGI {
 
   // NOT IN SDL_bgi ?
   // Draws and fills a rectangle, using fgcolor, line & fill style. Includes border.
-  fillrect (x1, y1, x2, y2) {
+  fillrect (left, top, right, bottom) {
 
   }
 
@@ -461,7 +543,10 @@ class BGI {
   }
 
   // not implemented (STUB)
-  getdrivername () { return ''; }  // ?
+  getdrivername () {
+    unimplemented('getdrivername');
+    return '';
+  }
 
   getfillpattern (pattern) { // ***
     // char *pattern
@@ -492,11 +577,11 @@ class BGI {
   }
 
   getmaxx (/* void */) {
-    return 0; // int
+    return this.width - 1; // int
   }
 
   getmaxy (/* void */) {
-    return 0; // int
+    return this.height - 1; // int
   }
 
   getmodename (mode_number) {
@@ -519,8 +604,18 @@ class BGI {
     return Math.floor(this.palette.size / 4); // int
   }
 
+  // Get pixel offset by current viewport, else return 0.
   getpixel (x, y) {
-    return 0; // int
+
+    // offset by viewport
+    const vp = this.info.vp;
+    x += vp.left;
+    y += vp.top;
+
+    if ((x >= 0) && (x < this.width) && (y >= 0) && (y < this.height)) {
+      return this.pixels[y * this.width + x]; // int
+    }
+    return 0;
   }
 
   gettextsettings (texttypeinfo) { // ***
@@ -532,11 +627,11 @@ class BGI {
   }
 
   getx (/* void */) {
-    return 0; // int
+    return this.info.cp.x; // int
   }
 
   gety (/* void */) {
-    return 0; // int
+    return this.info.cp.y; // int
   }
 
   graphdefaults (/* void */) {
@@ -594,29 +689,103 @@ class BGI {
     return 0; // int
   }
 
-  // Draws a line in the current color, using the current line style and thickness
-  // between the two points without updating the current position (CP).
-  line (x1, y1, x2, y2) {
 
+  // Bresenham's line algorithm
+  line_bresenham (x1, y1, x2, y2, color, wmode, pattern = 0xFFFF) {
+
+    const
+      dx = Math.abs(x2 - x1),
+      sx = (x1 < x2) ? 1 : -1,
+      dy = Math.abs(y2 - y1),
+      sy = (y1 < y2) ? 1 : -1;
+    let
+      count = 0,
+      err = Math.floor(((dx > dy) ? dx : -dy) / 2),
+      e2;
+
+    while (true) {
+      if ((pattern >> (count % 16)) & 1) { // TODO: Test this!
+        putpixel(x1, y1, color, wmode);
+      }
+      count++;
+
+      if ((x1 == x2) && (y1 == y2)) { break; }
+      e2 = err;
+      if (e2 > -dx) {
+        err -= dy;
+        x1 += sx;
+      }
+      if (e2 < dy) {
+        err += dx;
+        y1 += sy;
+      }
+    }
+  }
+
+  // Returns the octant (1-8) where (x, y) lies, used by line().
+  octant (x, y) {
+    return (x >= 0) ? ( (y >= 0) ? (( x > y) ? 1 : 2) : (( x > -y) ? 8 : 7) )
+                    : ( (y >= 0) ? ((-x > y) ? 4 : 3) : ((-x > -y) ? 5 : 6) );
+  }
+
+  // Draws a line in the current color, using the current write mode, line style, and thickness
+  // between the two points without updating the current position (info.cp).
+  line (x1, y1, x2, y2, color = this.info.fgColor, wmode = this.info.writeMode,
+        style = this.info.line.style, thickness = this.info.line.thickness) {
+
+    // offset by viewport
+    const vp = this.info.vp;
+    x1 += vp.left;
+    y1 += vp.top;
+    x2 += vp.left;
+    y2 += vp.top;
+
+    // set pattern
+    // TODO: should this be here, or passed into line()?
+    let pattern = (style < BGI.USERBIT_LINE) ? BGI.line_patterns[style] : this.info.line.pattern;
+
+    // first line
+    this.line_bresenham(x1, y1, x2, y2, color, wmode, pattern);
+
+    // 2nd & 3rd lines
+    if (thickness === BGI.THICK_WIDTH) {
+      const oct = this.octant(x2 - x1, y1 - y2);
+      if ((oct === 1) || (oct === 4) || (oct ===5) || (oct === 8)) {
+        this.line_bresenham(x1, y1 - 1, x2, y2 - 1, color, wmode, pattern);
+        this.line_bresenham(x1, y1 + 1, x2, y2 + 1, color, wmode, pattern);
+      }
+      else {
+        this.line_bresenham(x1 - 1, y1, x2 - 1, y2, color, wmode, pattern);
+        this.line_bresenham(x1 + 1, y1, x2 + 1, y2, color, wmode, pattern);
+      }
+    }
   }
 
   // Draws a line from the CP (current position) to a point that is a relative distance (dx,dy)
   // from the CP. The CP is advanced by (dx,dy).
   linerel (dx, dy) {
-
+    this.line(this.info.cp.x, this.info.cp.y, this.info.cp.x + dx, this.info.cp.y + dy);
+    this.info.cp.x += dx;
+    this.info.cp.y += dy;
   }
 
   // Draws a line from the CP (current position) to (x,y), then moves the CP to (x,y).
   lineto (x, y) {
-
+    this.line(this.info.cp.x, this.info.cp.y, x, y);
+    this.info.cp.x = x;
+    this.info.cp.y = y;
   }
 
+  // Moves the CP by (dx, dy) pixels.
   moverel (dx, dy) {
-
+    this.info.cp.x += dx;
+    this.info.cp.y += dy;
   }
 
+  // Moves the CP to the position (x, y) relative to the viewport.
   moveto (x, y) {
-
+    this.info.cp.x = x;
+    this.info.cp.y = y;
   }
 
   outtext (text) {
@@ -637,10 +806,6 @@ class BGI {
     // no info on whether image gets clipped by viewport ???
   }
 
-  putpixel (x, y, color) {
-
-  }
-
   // NOT IN BGI
   // random (range) { return (rand() % (range)) }
 
@@ -654,11 +819,10 @@ class BGI {
 
   rectangle (x1, y1, x2, y2) {
     // draws in current line style, thickness, and drawing color
-    line_fast(x1, y1, x2, y1);
-    line_fast(x2, y1, x2, y2);
-    line_fast(x2, y2, x1, y2);
-    line_fast(x1, y2, x1, y1);
-    update();    
+    line(x1, y1, x2, y1);
+    line(x2, y1, x2, y2);
+    line(x2, y2, x1, y2);
+    line(x1, y2, x1, y1);
   }
 
   // don't implement these (DOS only) (STUB)
@@ -677,7 +841,7 @@ class BGI {
     unimplemented('restorecrtmode');
   }
 
-  // Draws and fills an elliptical sector.
+  // Draws and fills an elliptical pie slice centered at (x, y).
   sector (x, y, start, stop, xradius, yradius) {
     // Outlines using current color, filled using pattern & color 
     // from setfillstyle & setfillpattern.
@@ -698,17 +862,20 @@ class BGI {
   // Used to make sure circles are round.
   // SEE getaspectratio()
   setaspectratio (xasp, yasp) {
+    this.info.aspect.x = xasp;
+    this.info.aspect.y = yasp;
   }
 
   // sets background to given index color.
   // WIN version doesn't change the 0 pallete, so it's not instant,
   // but any future drawings will use what is currently in color at index [color].
   setbkcolor (color) {
-
+    this.info.bgColor = color;
   }
 
   // sets current drawing color: 0 to getmaxcolor(), usually 0-15. WIN allows RGB COLOR()
   setcolor (color) {
+    this.info.fgColor = color;
   }
 
   // upattern is a squence of 8 bytes, each byte is 8 pixels in the pattern.
@@ -777,16 +944,16 @@ class BGI {
 
   // Sets the current viewport for graphics output.
   // Current position (CP) is moved to (0,0) in the new window. (so coords change??)
-  // If clip is nonzero, all drawings will be clipped to the current viewport.
+  // If clip is true, all drawings will be clipped to the current viewport.
   setviewport (x1, y1, x2, y2, clip) {
-    if ((x1 >= 0) && (x2 <= this._info.max.x) && (y1 >= 0) && (y2 <= this._info.max.y)) {
-      this._info.vp.x1 = x1;
-      this._info.vp.y1 = y1;
-      this._info.vp.x2 = x2;
-      this._info.vp.y2 = y2;
-      this._info.vp.clip = clip;
-      this._info.cp.x = 0;
-      this._info.cp.y = 0;
+    if ((x1 >= 0) && (x2 < this.width) && (y1 >= 0) && (y2 < this.height)) {
+      this.info.vp.left = x1;
+      this.info.vp.top = y1;
+      this.info.vp.right = x2;
+      this.info.vp.bottom = y2;
+      this.info.vp.clip = clip;
+      this.info.cp.x = 0;
+      this.info.cp.y = 0;
     }
   }
 
@@ -814,6 +981,8 @@ class BGI {
   ////////////////////////////////////////////////////////////////////////////////
   // BGI for Windows Color functions
   // (not sure if these will be implemented?)
+
+  // TODO: should these be renamed using lower or mixed case?
 
   // TODO: REDO
   // r,g,b range 0-255
