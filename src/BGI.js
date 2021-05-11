@@ -468,6 +468,7 @@ class BGI {
     }
   }
 
+  // NOT USED?
   // Bresenham's line using current fill pattern.
   line_fill (x1, y1, x2, y2, color, wmode) {
 
@@ -481,7 +482,7 @@ class BGI {
       e2;
 
     while (true) {
-      ff_putpixel(x1, y1, color, wmode);
+      this.ff_putpixel(x1, y1, color, wmode);
 
       if ((x1 == x2) && (y1 == y2)) { break; }
       e2 = err;
@@ -522,13 +523,19 @@ class BGI {
     const fillcolor = (this.info.fill.style === BGI.EMPTY_FILL) ? this.info.bgcolor : color;
 
     if (this.info.fill.style === BGI.SOLID_FILL) {
+      // draw filled solid bar
       for (let y = top; y <= bottom; y++) {
-        line(left, y, right, y, fillcolor, wmode, BGI.SOLID_LINE, BGI.NORM_WIDTH);
+        for (let x = left; x <= right; x++) {
+          this.putpixel(x, y, fillcolor, wmode);
+        }
       }
     }
     else {
+      // draw filled patterned bar
       for (let y = top; y <= bottom; y++) {
-        line_fill(left, y, right, y, fillcolor, wmode);
+        for (let x = left; x <= right; x++) {
+          this.ff_putpixel(x, y, fillcolor, wmode);
+        }
       }
     }
   }
