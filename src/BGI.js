@@ -19,41 +19,44 @@
  *
  **/
 
-export class BGI {
+export default class BGI {
 
   ////////////////////////////////////////////////////////////////////////////////
   // class constants
 
-  static
+    // these static properties causing error in Safari!
+
     // fonts
-    DEFAULT_FONT=0, TRIPLEX_FONT=1, SMALL_FONT=2, SANSSERIF_FONT=3,
-    GOTHIC_FONT=4, BIG_FONT=5, SCRIPT_FONT=6, SIMPLEX_FONT=7,
-    TRIPLEX_SCR_FONT=8, COMPLEX_FONT=9, EUROPEAN_FONT=10, BOLD_FONT=11,
+    static DEFAULT_FONT=0; static TRIPLEX_FONT=1; static SMALL_FONT=2; static SANSSERIF_FONT=3;
+    static GOTHIC_FONT=4; static BIG_FONT=5; static SCRIPT_FONT=6; static SIMPLEX_FONT=7;
+    static TRIPLEX_SCR_FONT=8; static COMPLEX_FONT=9; static EUROPEAN_FONT=10; static BOLD_FONT=11;
 
     // text alignment used in settextjustify()
-    HORIZ_DIR=0, VERT_DIR=1, // text_just enum
-    LEFT_TEXT=0, CENTER_TEXT=1, RIGHT_TEXT=2,
-    BOTTOM_TEXT=0, TOP_TEXT=2, // or is it?? top=0 bottom=1 baseline=2
+    static HORIZ_DIR=0; static VERT_DIR=1; // text_just enum
+    static LEFT_TEXT=0; static CENTER_TEXT=1; static RIGHT_TEXT=2;
+    static BOTTOM_TEXT=0; static TOP_TEXT=2; // or is it?? top=0 bottom=1 baseline=2
 
     // BGI colors
-    BLACK=0, BLUE=1, GREEN=2, CYAN=3, RED=4, MAGENTA=5, BROWN=6,
-    LIGHTGRAY=7, DARKGRAY=8, LIGHTBLUE=9, LIGHTGREEN=10, LIGHTCYAN=11, 
-    LIGHTRED=12, LIGHTMAGENTA=13, YELLOW=14, WHITE=15,
-    MAXCOLORS=15, 
-    BGI_COLORS=16, // do we need this?
+    static BLACK=0; static BLUE=1; static GREEN=2; static CYAN=3; static RED=4; static MAGENTA=5;
+    static BROWN=6; static LIGHTGRAY=7; static DARKGRAY=8; static LIGHTBLUE=9; static LIGHTGREEN=10;
+    static LIGHTCYAN=11; static LIGHTRED=12; static LIGHTMAGENTA=13; static YELLOW=14; static WHITE=15;
+    static MAXCOLORS=15;
+    static BGI_COLORS=16; // do we need this?
 
     // line style, thickness, and drawing mode
-    SOLID_LINE=0, DOTTED_LINE=1, CENTER_LINE=2, DASHED_LINE=3, USERBIT_LINE=4, // line_styles enum
-    NORM_WIDTH=1, THICK_WIDTH=3,
-    COPY_PUT=0, XOR_PUT=1, OR_PUT=2, AND_PUT=3, NOT_PUT=4, // putimage_ops enum
+    static SOLID_LINE=0; static DOTTED_LINE=1; static CENTER_LINE=2;
+    static DASHED_LINE=3; static USERBIT_LINE=4; // line_styles enum
+    static NORM_WIDTH=1; static THICK_WIDTH=3;
+    static COPY_PUT=0; static XOR_PUT=1; static OR_PUT=2; static AND_PUT=3; static NOT_PUT=4; // putimage_ops enum
 
     // fill styles
-    EMPTY_FILL=0, SOLID_FILL=1, LINE_FILL=2, LTSLASH_FILL=3, SLASH_FILL=4,
-    BKSLASH_FILL=5, LTBKSLASH_FILL=6, HATCH_FILL=7, XHATCH_FILL=8,
-    INTERLEAVE_FILL=9, WIDE_DOT_FILL=10, CLOSE_DOT_FILL=11, USER_FILL=12,
+    static EMPTY_FILL=0; static SOLID_FILL=1; static LINE_FILL=2; static LTSLASH_FILL=3;
+    static SLASH_FILL=4; static BKSLASH_FILL=5; static LTBKSLASH_FILL=6; static HATCH_FILL=7;
+    static XHATCH_FILL=8; static INTERLEAVE_FILL=9; static WIDE_DOT_FILL=10; static CLOSE_DOT_FILL=11;
+    static USER_FILL=12;
 
     // numbers
-    PI_CONV = (3.1415926 / 180.0);
+    static PI_CONV = (3.1415926 / 180.0);
 
 
   // TODO: do I need these?
@@ -295,7 +298,7 @@ export class BGI {
 
 
   // updates the screen
-  refresh () {
+  refresh (ctx) {
 
     if (!(ctx && this.imgData && this.pixels && this.palette)) { return false; }
 

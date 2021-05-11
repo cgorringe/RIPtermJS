@@ -10,10 +10,10 @@
  * (work in progress)
  **/
 
-import BGI from 'BGI.js';
+import BGI from './BGI.js';
 
 
-function RIPtermJS (args) {
+function mainRIP (args) {
 
   // public properties
   if (typeof args === 'undefined') args = {};
@@ -24,11 +24,12 @@ function RIPtermJS (args) {
 
 
   // test
-  bgi.setcolor(BGI.YELLOW);
-  bgi.line(10, 10, 100, 100);
+  //bgi.setcolor(BGI.YELLOW);
+  //bgi.line(10, 10, 100, 100);
 
-  bgi.refresh();
+  //bgi.refresh(ctx);
 
   return args;
 }
-RIPtermJS();
+
+mainRIP({ canvasId: 'rip-canvas' });

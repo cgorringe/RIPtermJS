@@ -66,12 +66,12 @@
 		height: 496px; /* 350px 496px */
 		overflow: auto;
 		background: #333;
-		font-family: monospace; 
+		font-family: monospace;
 		font-size: 12px;
 		color: #fff;
 		vertical-align: top;
 	}
-	#rip-text::after { 
+	#rip-text::after {
 		/* content: "";
 		display: block;
 		clear: both; */
@@ -200,20 +200,34 @@
 </div>
 
 <!-- <script src="potrace-modified.js"></script> -->
+<!-- <script type="module" src="src/BGI.js"></script> -->
 <script type="module" src="src/ripterm3.js"></script>
 <script>
-	let rip = new RIPtermJS({ canvasId: 'rip-canvas' });
 
+	// let rip = new RIPtermJS({ canvasId: 'rip-canvas' });
+	// mainRIP({ canvasId: 'rip-canvas' });
+
+  //const canvas = document.getElementById('rip-canvas');
+  //const ctx = canvas.getContext('2d');
+  //const bgi = new BGI(ctx, 200, 200);
+
+  // TEST
+  //bgi.setcolor(BGI.YELLOW);
+  //bgi.line(10, 10, 100, 100);
+  //bgi.refresh();
+
+</script>
+<script>
 	function selectRIP() {
 	}
 
 	function loadRIP() {
 		let url = document.getElementById('rip-files').value;
-		rip.readFile(url);
+		//rip.readFile(url);
 	}
 
 	function text2base64(text) {
-		return window.btoa(unescape(encodeURIComponent(text)));
+		//return window.btoa(unescape(encodeURIComponent(text)));
 	}
 	function getCanvasPNG() {
 		return document.getElementById('rip-canvas').toDataURL("image/png").replace("image/png", "image/octet-stream");
