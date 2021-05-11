@@ -62,10 +62,10 @@ class BGI {
   //  '#555', '#55f', '#5f5', '#5ff', '#f55', '#f5f', '#ff5', '#fff'
   //];
 
-  /*
-  // TO REMOVE
+  // don't want both below...
+
   // packed ARGB values (0xAARRGGBB) in C++ style
-  const bgi_palette = [
+  static bgi_palette = [
     0xFF000000, // 00 BLACK
     0xFF0000AA, // 01 BLUE
     0xFF00AA00, // 02 GREEN
@@ -83,7 +83,6 @@ class BGI {
     0xFFFFFF55, // 0E YELLOW
     0xFFFFFFFF  // 0F WHITE
   ];
-  */
 
   // RGBA32 format: R, G, B, A
   static ega_palette = [
@@ -146,19 +145,19 @@ class BGI {
 
   constructor (ctx, width, height) {
 
+    this.initContext(ctx, width, height);
+    // which assigns these:
+    //   this.ctx     : CanvasRenderingContext2D()
+    //   this.pixels  : Uint8ClampedArray()
+    //   this.imgData : ImageData()
+
     // public fields
-    this.info = this.infoDefaults();
     this.width = 1;
     this.height = 1;
     this.isBuffered = true; // true = copy pixels to context, false = using context data store
     this.palette = new Uint8ClampedArray(256 * 4); // RGBA32 [r, g, b, a] same as npm's canvas
+    this.info = BGI.infoDefaults();
 
-    // assigned next
-    // this.ctx     : CanvasRenderingContext2D()
-    // this.pixels  : Uint8ClampedArray()
-    // this.imgData : ImageData()
-
-    this.initContext(ctx, width, height);
   }
 
 
@@ -177,8 +176,8 @@ class BGI {
   // General methods
 
 
-  unimplemented (msg) {
-    console.log(msg + '() is not implemented.')
+  unimplemented (method) {
+    console.log('BGI.' + method + '() not implemented.')
   }
 
   // NOT in BGI (REMOVE)
@@ -189,21 +188,22 @@ class BGI {
   }
   */
 
-  infoDefaults () {
+  static infoDefaults () {
     return {
-      bgColor: BGI.BLACK,
-      fgColor: BGI.WHITE,
-      fillColor: BGI.WHITE,
-      // fillStyle: {},
-      line: { style: BGI.SOLID_LINE, thickness: 1, pattern: 0xFFFF }, // TODO
+      bgcolor: BGI.BLACK,
+      fgcolor: BGI.WHITE,
+      // need to set fill.fpattern whenever fill.style is set
+      fill: { style: BGI.SOLID_FILL, color: BGI.WHITE, fpattern: BGI.fill_patterns[BGI.SOLID_FILL] },
+      line: { style: BGI.SOLID_LINE, upattern: 0xFFFF, thickness: 1 },
       cp: { x: 0, y: 0 }, // current position
-      vp: { left: 0, top: 0, right: 0, bottom: 0, clip: 0 }, // viewport / visual page?
-      ap: { left: 0, top: 0, right: 0, bottom: 0, clip: 0 }, // active port / page? (NOT USED?)
-      // max: { x: 0, y: 0 }, // TODO: may remove and just use the width & height?
-      writeMode: 0, // 0=COPY, 1=XOR
+      vp: { left: 0, top: 0, right: (this.width - 1), bottom: (this.height - 1), clip: 0 }, // viewport / visual page?
+      // ap: { left: 0, top: 0, right: (this.width - 1), bottom: (this.height - 1), clip: 0 }, // active port / page?
+      // max: { x: (this.width - 1), y: (this.height - 1) }, // just use width & height?
+      writeMode: 0, // 0=COPY, 1=XOR, 2=OR, 3=AND, 4=NOT
       font: { width: 0, height: 0 }, // ??
       fontMag: { x: 1.0, y: 1.0 }, // font magnification
       aspect: { x: 100, y: 100 }, // aspect ratio used to make circles round
+      text: { font: 0, direction: 0, charsize: 0, horiz: 0, vert: 0 },
     };
   }
 
@@ -239,12 +239,9 @@ class BGI {
       this.height = Math.floor(ctx.canvas.height);
     }
     else {
-      console.error('Missing width or height in context passed to BGI!');
+      console.error('Missing width or height in context passed to BGI()!');
       return;
     }
-    // TODO: may remove?
-    this.info.max.x = this.width - 1;
-    this.info.max.y = this.height - 1;
 
     // needed to access context pixel data ??
     //this.imgData = ctx.getImageData(0, 0, this.width, this.height);
@@ -288,7 +285,7 @@ class BGI {
     //info.vp = { x1:0, y1:0, x2:0, y2:0, clip:0 };
     //info.ap = { x1:0, y1:0, x2:0, y2:0, clip:0 };
 
-    graphdefaults();
+    this.graphdefaults();
 
     return 0;
   }
@@ -341,7 +338,7 @@ class BGI {
 
   // (see line 3225 & 3362 of SDL_bgi.c)
   // Draws a pixel offset by and clipped by current viewport.
-  putpixel (x, y, color = this.info.fgColor, wmode = this.info.writeMode) {
+  putpixel (x, y, color = this.info.fgcolor, wmode = this.info.writeMode) {
 
     const vp = this.info.vp;
     x += vp.left;
@@ -404,36 +401,26 @@ class BGI {
 
   }
 
-  // TODO
-  // floodfill putpixel uses fill pattern
-  ff_putpixel (x, y) {
-    x += this.info.vp.left;
-    y += this.info.vp.top;
+  // floodfill putpixel using fill pattern.
+  // uses info.fgcolor & info.bgcolor, and info.fill.fpattern that must be pre-set.
+  ff_putpixel (x, y, fgcolor = this.info.fgcolor, wmode = this.info.writeMode) {
 
+    // skip adjusting offset since putpixel() does it
+    const bgcolor = this.info.bgcolor;
+    const fpattern = this.info.fill.fpattern; // array
+
+    // draw pixel if bit in pattern is 1
+    if ( (fpattern[y % 8] >> (x % 8)) & 1) {
+      // forground pixel
+      this.putpixel(x, y, fgcolor, wmode);
+    }
+    else {
+      // background pixel
+      this.putpixel(x, y, bgcolor, wmode);
+    }
   }
 
   // drawbezier(numpoints, polypoints) { }
-
-
-  ////////////////////////////////////////////////////////////////////////////////
-  // Standard BGI functions
-  // SEE https://www.cs.colorado.edu/~main/bgi/doc/
-  // To convert Pascal syntax to JS, simply convert function names to lowercase.
-
-  // Draw a circular arc centered at (x, y),
-  // from stangle to endangle in [UNITS?]
-  arc (x, y, stangle, endangle, radius) {
-
-  }
-
-  // Draws and fills a rectangle, using fill style and color. Has no border. (see fillrect)
-  bar (left, top, right, bottom) {
-
-  }
-
-  bar3d (left, top, right, bottom, depth, topflag) {
-
-  }
 
   circle_bresenham (x, y, radius) {
 
@@ -449,8 +436,148 @@ class BGI {
     } while (xx < 0);
   }
 
+  // Bresenham's line algorithm
+  line_bresenham (x1, y1, x2, y2, color, wmode, upattern = 0xFFFF) {
+
+    const
+      dx = Math.abs(x2 - x1),
+      sx = (x1 < x2) ? 1 : -1,
+      dy = Math.abs(y2 - y1),
+      sy = (y1 < y2) ? 1 : -1;
+    let
+      count = 0,
+      err = Math.floor(((dx > dy) ? dx : -dy) / 2),
+      e2;
+
+    while (true) {
+      if ((upattern >> (count % 16)) & 1) { // TODO: Test this!
+        this.putpixel(x1, y1, color, wmode);
+      }
+      count++;
+
+      if ((x1 == x2) && (y1 == y2)) { break; }
+      e2 = err;
+      if (e2 > -dx) {
+        err -= dy;
+        x1 += sx;
+      }
+      if (e2 < dy) {
+        err += dx;
+        y1 += sy;
+      }
+    }
+  }
+
+  // Bresenham's line using current fill pattern.
+  line_fill (x1, y1, x2, y2, color, wmode) {
+
+    const
+      dx = Math.abs(x2 - x1),
+      sx = (x1 < x2) ? 1 : -1,
+      dy = Math.abs(y2 - y1),
+      sy = (y1 < y2) ? 1 : -1;
+    let
+      err = Math.floor(((dx > dy) ? dx : -dy) / 2),
+      e2;
+
+    while (true) {
+      ff_putpixel(x1, y1, color, wmode);
+
+      if ((x1 == x2) && (y1 == y2)) { break; }
+      e2 = err;
+      if (e2 > -dx) {
+        err -= dy;
+        x1 += sx;
+      }
+      if (e2 < dy) {
+        err += dx;
+        y1 += sy;
+      }
+    }
+  }
+
+  // Returns the octant (1-8) where (x, y) lies, used by line().
+  octant (x, y) {
+    return (x >= 0) ? ( (y >= 0) ? (( x > y) ? 1 : 2) : (( x > -y) ? 8 : 7) )
+                    : ( (y >= 0) ? ((-x > y) ? 4 : 3) : ((-x > -y) ? 5 : 6) );
+  }
+
+
+  ////////////////////////////////////////////////////////////////////////////////
+  // Standard BGI functions
+  // SEE https://www.cs.colorado.edu/~main/bgi/doc/
+  // To convert Pascal syntax to JS, simply convert function names to lowercase.
+
+  // Draw a circular arc centered at (x, y), from stangle to endangle in degrees,
+  // counterclockwise with 0 = 3 o'clock, 90 = 12 o'clock, etc.
+  // doesn't use linestyle.
+  arc (x, y, stangle, endangle, radius, thickness = this.info.line.thickness) {
+
+  }
+
+  // Draws and fills a rectangle, using fill style and color. Has no border. (see fillrect)
+  // For a border, use bar3d with depth = 0.
+  bar (left, top, right, bottom, color = this.info.fill.color, wmode = this.info.writeMode) {
+
+    const fillcolor = (this.info.fill.style === BGI.EMPTY_FILL) ? this.info.bgcolor : color;
+
+    if (this.info.fill.style === BGI.SOLID_FILL) {
+      for (let y = top; y <= bottom; y++) {
+        line(left, y, right, y, fillcolor, wmode, BGI.SOLID_LINE, BGI.NORM_WIDTH);
+      }
+    }
+    else {
+      for (let y = top; y <= bottom; y++) {
+        line_fill(left, y, right, y, fillcolor, wmode);
+      }
+    }
+  }
+
+  // Draws a 3D filled rectangle using fill color and pattern.
+  // Outline drawn using line style and fg color.
+  // if topflag != 0, draws a top.
+  bar3d (left, top, right, bottom, depth, topflag) {
+
+    /* topflag = true           false
+           +----------+                  +
+          /          /|                 /|
+         +----------+ |     +----------+ |
+         |XXXXXXXXXX| +     |XXXXXXXXXX| +
+         |XXXXXXXXXX|/      |XXXXXXXXXX|/
+         +----------+       +----------+
+
+      Outline uses info.fgcolor & info.line...
+      Fill uses info.fill.color & fill.style, or info.bgcolor if using EMPTY_FILL.
+      All use info.writeMode. Sides aren't filled in.
+    */
+
+    // swap
+    if (left > right) { let tmp = left; left = right; right = tmp; }
+    if (top > bottom) { let tmp = top; top = bottom; bottom = tmp; }
+
+    // draw filled bar
+    const fillcolor = (this.info.fill.style === BGI.EMPTY_FILL) ? this.info.bgcolor : this.info.fill.color;
+    this.bar(left, top, right, bottom, fillcolor)
+
+    // following drawn using info.fgcolor
+    if (depth > 0) {
+      // TODO: doesn't seem to fill in 3d part, only draws an outline?
+      // also calling line() would have thickness and line pattern
+      if (topflag) {
+        this.line(left, top, left + depth, top - depth);
+        this.line(left + depth, top - depth, right + depth, top - depth);
+      }
+      this.line(right, top, right + depth, top - depth);
+      this.line(right, bottom, right + depth, bottom - depth);
+      this.line(right + depth, bottom - depth, right + depth, top - depth);
+    }
+    this.rectangle(left, top, right, bottom);
+  }
+
+  // doesn't use linestyle
   circle (x, y, radius, thickness = this.info.line.thickness) {
 
+    // TODO: must draw ellipse if aspect ratio not 1:1
     if (thickness === BGI.NORM_WIDTH) {
       // thin better-looking circle
       circle_bresenham(x, y, radius);
@@ -462,37 +589,39 @@ class BGI {
   }
 
   // Clears the screen, filling it with the current background color.
-  // Resets cp to (0,0).
-  cleardevice (bgcolor = this.info.bgColor) {
+  // Resets CP to (0,0).
+  cleardevice (bgcolor = this.info.bgcolor) {
 
     this.info.cp.x = 0;
     this.info.cp.y = 0;
-    // TODO: may use a faster method to set array values?
-    const numpix = this.pixels.length;
-    for (let i=0; i < numpix; i++) {
-      this.pixels[i] = bgcolor;
-    }
+    this.pixels.fill(bgcolor);
   }
 
   // Clears the viewport, filling it with the current background color.
   // Resets cp to (0,0).
-  clearviewport (bgcolor = this.info.bgColor) {
+  clearviewport (bgcolor = this.info.bgcolor) {
 
     this.info.cp.x = 0;
     this.info.cp.y = 0;
     const vp = this.info.vp;
-    for (let y = vp.top; y < vp.bottom + 1; y++) {
+    for (let y = vp.top; y <= vp.bottom; y++) {
       const row = y * this.width;
-      for (let x = vp.left; x < vp.right + 1; x++) {
+      for (let x = vp.left; x <= vp.right; x++) {
         this.pixels[row + x] = bgcolor;
       }
+      /*
+      // maybe or maybe not faster
+      const st = (y * this.width) + vp.left;
+      const en = (y * this.width) + vp.right + 1;
+      this.pixels.fill(bgcolor, st, en)
+      */
     }
   }
 
   // not implemented (STUB)
   detectgraph (graphdriver, graphmode) {
     // int *graphdriver, int *graphmode
-    unimplemented('detectgraph')
+    this.unimplemented('detectgraph')
   }
 
   drawpoly (numpoints, polypoints) {
@@ -531,20 +660,21 @@ class BGI {
   }
 
   getbkcolor (/* void */) {
-    return 0; // int
+    return this.info.bgcolor; // int
   }
 
   getcolor (/* void */) {
-    return 0; // int
+    return this.info.fgcolor; // int
   }
 
   getdefaultpalette (/* void */) {
     // return struct palettetype*
+    return this.ega_palette; // TODO: might change
   }
 
   // not implemented (STUB)
   getdrivername () {
-    unimplemented('getdrivername');
+    this.unimplemented('getdrivername');
     return '';
   }
 
@@ -552,8 +682,9 @@ class BGI {
     // char *pattern
   }
 
-  getfillsettings (fillinfo) { // ***
+  getfillsettings (/* fillinfo */) { // ***
     // struct fillsettingstype *fillinfo
+    return this.info.fill;
   }
 
   getgraphmode (/* void */) {
@@ -564,8 +695,9 @@ class BGI {
     // void *bitmap
   }
 
-  getlinesettings (lineinfo) { // ***
+  getlinesettings (/* lineinfo */) { // ***
     // struct linesettingstype *lineinfo
+    return this.info.line;
   }
 
   getmaxcolor (/* void */) {
@@ -601,7 +733,7 @@ class BGI {
 
   // returns number of colors in the RGBA32 palette array
   getpalettesize (/* void */) {
-    return Math.floor(this.palette.size / 4); // int
+    return Math.floor(this.palette.length / 4); // int
   }
 
   // Get pixel offset by current viewport, else return 0.
@@ -643,19 +775,23 @@ class BGI {
       sets the default fill style and pattern.
       sets the default text font and justification.
     */
+
+    // TODO: need to check & reset palette
+    this.info = BGI.infoDefaults();
+
   }
 
   // not implemented (STUB)
   grapherrormsg (errorcode) {
     // errorcode from graphresult() return value.
-    unimplemented('grapherrormsg');
+    this.unimplemented('grapherrormsg');
     return '';
   }
 
   // not implemented (STUB)
   graphresult (/* void */) {
     // returns error code for the last graphics operation that reported an error
-    unimplemented('graphresult');
+    this.unimplemented('graphresult');
     return 0;
   }
 
@@ -671,14 +807,14 @@ class BGI {
     // int *graphdriver, int *graphmode, char *pathtodriver // original args
     // pathtodriver = is also path to *.CHR files
     // in Windows instead use: initwindow(w, h)
-    unimplemented('initgraph');
+    this.unimplemented('initgraph');
   }
 
   // don't implement (STUB)
   // old DOS function
   installuserdriver () {
     // char *name, int huge (*detect)(void)
-    unimplemented('installuserdriver');
+    this.unimplemented('installuserdriver');
     return 0;
   }
 
@@ -689,74 +825,38 @@ class BGI {
     return 0; // int
   }
 
-
-  // Bresenham's line algorithm
-  line_bresenham (x1, y1, x2, y2, color, wmode, pattern = 0xFFFF) {
-
-    const
-      dx = Math.abs(x2 - x1),
-      sx = (x1 < x2) ? 1 : -1,
-      dy = Math.abs(y2 - y1),
-      sy = (y1 < y2) ? 1 : -1;
-    let
-      count = 0,
-      err = Math.floor(((dx > dy) ? dx : -dy) / 2),
-      e2;
-
-    while (true) {
-      if ((pattern >> (count % 16)) & 1) { // TODO: Test this!
-        putpixel(x1, y1, color, wmode);
-      }
-      count++;
-
-      if ((x1 == x2) && (y1 == y2)) { break; }
-      e2 = err;
-      if (e2 > -dx) {
-        err -= dy;
-        x1 += sx;
-      }
-      if (e2 < dy) {
-        err += dx;
-        y1 += sy;
-      }
-    }
-  }
-
-  // Returns the octant (1-8) where (x, y) lies, used by line().
-  octant (x, y) {
-    return (x >= 0) ? ( (y >= 0) ? (( x > y) ? 1 : 2) : (( x > -y) ? 8 : 7) )
-                    : ( (y >= 0) ? ((-x > y) ? 4 : 3) : ((-x > -y) ? 5 : 6) );
-  }
-
   // Draws a line in the current color, using the current write mode, line style, and thickness
   // between the two points without updating the current position (info.cp).
-  line (x1, y1, x2, y2, color = this.info.fgColor, wmode = this.info.writeMode,
-        style = this.info.line.style, thickness = this.info.line.thickness) {
+  line (x1, y1, x2, y2, color = this.info.fgcolor, wmode = this.info.writeMode,
+        linestyle = this.info.line.style, thickness = this.info.line.thickness) {
+    // TODO: pass in 'linesettingstype' object instead?
 
-    // offset by viewport
+    /* REMOVE
+    // already offset by viewport in putpixel()
     const vp = this.info.vp;
     x1 += vp.left;
     y1 += vp.top;
     x2 += vp.left;
     y2 += vp.top;
+    */
 
     // set pattern
     // TODO: should this be here, or passed into line()?
-    let pattern = (style < BGI.USERBIT_LINE) ? BGI.line_patterns[style] : this.info.line.pattern;
+    let upattern = (linestyle < BGI.USERBIT_LINE) ? BGI.line_patterns[linestyle] : this.info.line.upattern;
 
     // first line
-    this.line_bresenham(x1, y1, x2, y2, color, wmode, pattern);
+    this.line_bresenham(x1, y1, x2, y2, color, wmode, upattern);
 
     // 2nd & 3rd lines
     if (thickness === BGI.THICK_WIDTH) {
       const oct = this.octant(x2 - x1, y1 - y2);
       if ((oct === 1) || (oct === 4) || (oct ===5) || (oct === 8)) {
-        this.line_bresenham(x1, y1 - 1, x2, y2 - 1, color, wmode, pattern);
-        this.line_bresenham(x1, y1 + 1, x2, y2 + 1, color, wmode, pattern);
+        this.line_bresenham(x1, y1 - 1, x2, y2 - 1, color, wmode, upattern);
+        this.line_bresenham(x1, y1 + 1, x2, y2 + 1, color, wmode, upattern);
       }
       else {
-        this.line_bresenham(x1 - 1, y1, x2 - 1, y2, color, wmode, pattern);
-        this.line_bresenham(x1 + 1, y1, x2 + 1, y2, color, wmode, pattern);
+        this.line_bresenham(x1 - 1, y1, x2 - 1, y2, color, wmode, upattern);
+        this.line_bresenham(x1 + 1, y1, x2 + 1, y2, color, wmode, upattern);
       }
     }
   }
@@ -817,28 +917,28 @@ class BGI {
     // nothing returned
   }
 
-  rectangle (x1, y1, x2, y2) {
+  rectangle (x1, y1, x2, y2, color = this.info.fgcolor) {
     // draws in current line style, thickness, and drawing color
-    line(x1, y1, x2, y1);
-    line(x2, y1, x2, y2);
-    line(x2, y2, x1, y2);
-    line(x1, y2, x1, y1);
+    line(x1, y1, x2, y1, color);
+    line(x2, y1, x2, y2, color);
+    line(x2, y2, x1, y2, color);
+    line(x1, y2, x1, y1, color);
   }
 
   // don't implement these (DOS only) (STUB)
   registerbgidriver () {
     // registerbgidriver(void (*driver)(void)) { }
-    unimplemented('registerbgidriver');
+    this.unimplemented('registerbgidriver');
   }
   registerbgifont () {
     //registerbgifont(void (*font)(void)) { }
-    unimplemented('registerbgifont');
+    this.unimplemented('registerbgifont');
   }
 
   // don't implement (DOS only) (STUB)
   // only makes sense when switching to text mode in DOS.
   restorecrtmode (/* void */) {
-    unimplemented('restorecrtmode');
+    this.unimplemented('restorecrtmode');
   }
 
   // Draws and fills an elliptical pie slice centered at (x, y).
@@ -870,37 +970,46 @@ class BGI {
   // WIN version doesn't change the 0 pallete, so it's not instant,
   // but any future drawings will use what is currently in color at index [color].
   setbkcolor (color) {
-    this.info.bgColor = color;
+    this.info.bgcolor = color;
   }
 
   // sets current drawing color: 0 to getmaxcolor(), usually 0-15. WIN allows RGB COLOR()
   setcolor (color) {
-    this.info.fgColor = color;
+    this.info.fgcolor = color;
   }
 
-  // upattern is a squence of 8 bytes, each byte is 8 pixels in the pattern.
-  setfillpattern (upattern, color) {
+  // TODO
+  // fpattern is a squence of 8 bytes, each byte is 8 pixels in the pattern.
+  setfillpattern (fpattern, color) {
     // void setfillpattern(char *upattern, int color);
+
+    this.info.fill.style = BGI.USER_FILL;
+    //this.info.fill.fpattern = []; // TODO
   }
 
-  // pattern is index 0-11 into fill_patterns[]
+  // style is index 0-11 into fill_patterns[]
   // pattern bits 0=current bg color, 1=color (passed in, not global color)
-  setfillstyle (pattern, color) {
+  setfillstyle (style, color) {
 
+    this.info.fill.color = color;
+    if ((style >= 0) && (style < BGI.USER_FILL)) {
+      this.info.fill.style = style;
+      this.info.fill.fpattern = BGI.fill_patterns[style];
+    }
   }
 
   // don't implement (STUB)
   setgraphbufsize (size) {
     // unsigned setgraphbufsize(unsigned bufsize);
     // tells how much memory to allocate for internal graphics buffer used by floodfill.
-    unimplemented('setgraphbufsize');
+    this.unimplemented('setgraphbufsize');
   }
 
   // don't implement?? (STUB)
   setgraphmode (mode) {
     // selects graphics mode different than default set by initgraph()
     // clears screen, resets graphics to defaults.
-    unimplemented('setgraphmode');
+    this.unimplemented('setgraphmode');
   }
 
   setlinestyle (linestyle, upattern = 0xFFFF, thickness = 1) {
@@ -909,11 +1018,27 @@ class BGI {
     // upattern is a 16-bit int (e.g. 0xFFFF is a solid line).
     // upattern only applies if linestyle == 4 (USERBIT_LINE)
     // The linestyle doesn't effect arcs, circles, ellipses, or pie slices. Only thickness does.
+
+    this.info.line.style = linestyle;
+    this.info.line.upattern = upattern;
+    this.info.line.thickness = thickness;
   }
 
   // Set colornum index in palette (0-15) to color (0-15), or RGB color using COLOR() in WIN.
+  // TODO: should we support EGA palette colors (0-63)?
   setpalette (colornum, color) {
-    // see next about setting RGB colors...
+
+    if (BGI.IS_RGB_COLOR(color)) {
+      this.setrgbpalette(colornum, BGI.RED_VALUE(color), BGI.GREEN_VALUE(color), BGI.BLUE_VALUE(color));
+    }
+    else if (BGI.IS_BGI_COLOR(color)) {
+      // lookup bgi color
+      const c = BGI.bgi_palette[color];
+      this.setrgbpalette(colornum, BGI.RED_VALUE(c), BGI.GREEN_VALUE(c), BGI.BLUE_VALUE(c));
+    }
+    else {
+      console.log(`BGI.setpalette() color [${color}] not supported!`);
+    }
   }
 
   // colornum can be 0-15 or 0-255 depending on the grapics mode?
@@ -921,6 +1046,17 @@ class BGI {
   // (but this implementation will use all 8 bits.)
   setrgbpalette (colornum, red, green, blue) {
     // setrgbpalette(int colornum, int red, int green, int blue);
+    const pi = colornum * 4;
+    if (pi < this.palette.length) {
+      // RGBA32 format: R, G, B, A
+      this.pallete[pi + 0] = red & 0xFF;
+      this.pallete[pi + 1] = green & 0xFF;
+      this.pallete[pi + 2] = blue & 0xFF;
+      this.pallete[pi + 3] = 255;
+    }
+    else {
+      console.log(`BGI.setrgbpalette() colornum [${colornum}] out of range!`);
+    }
   }
 
   // affects text written
@@ -960,7 +1096,7 @@ class BGI {
   // likely won't implement (STUB)
   // makes page the visual graphics page.
   setvisualpage (page) {
-    unimplemented('setvisualpage');
+    this.unimplemented('setvisualpage');
   }
 
   // mode = COPY_PUT (0), XOR_PUT (1)
@@ -980,31 +1116,35 @@ class BGI {
 
   ////////////////////////////////////////////////////////////////////////////////
   // BGI for Windows Color functions
-  // (not sure if these will be implemented?)
 
-  // TODO: should these be renamed using lower or mixed case?
+  // Do we need EGA palette specific functions?
+  // Didn't check this code against reference.
 
-  // TODO: REDO
   // r,g,b range 0-255
-  COLOR (r, g, b) {
-    return 0xff000000 | r << 16 | g << 8 | b;
+  // returns packed ARGB values (0xAARRGGBB) in C++ style
+  static COLOR (r, g, b) {
+    return 0xFF000000 | r << 16 | g << 8 | b;
   }
-  IS_BGI_COLOR (color) {
-    return false; // TODO
+
+  static IS_BGI_COLOR (color) {
+    return ((color >= 0) && (color < 16));
   }
-  IS_RGB_COLOR (color) {
-    return false; // TODO
+
+  static IS_RGB_COLOR (color) {
+    return ((color & 0xFF000000) !== 0);
   }
 
   // these return the color component of an RGB color
-  RED_VALUE (rgb_color) {
-    return 0; // TODO
+  static RED_VALUE (rgb_color) {
+    return (rgb_color & 0xFF0000) >> 16;
   }
-  GREEN_VALUE (rgb_color) {
-    return 0; // TODO
+
+  static GREEN_VALUE (rgb_color) {
+    return (rgb_color & 0xFF00) >> 8;
   }
-  BLUE_VALUE (rgb_color) {
-    return 0; // TODO
+
+  static BLUE_VALUE (rgb_color) {
+    return (rgb_color & 0xFF);
   }
 
   ////////////////////////////////////////////////////////////////////////////////
@@ -1025,7 +1165,7 @@ class BGI {
   }
 
   getactivepage (/* void */) {
-    unimplemented('getactivepage');
+    this.unimplemented('getactivepage');
   }
 
   getbkcolor () {
@@ -1043,7 +1183,7 @@ class BGI {
   // getch = bgi_getch
 
   getvisualpage (/* void */) {
-    unimplemented('getvisualpage');
+    this.unimplemented('getvisualpage');
     return 0; // int
   }
 
@@ -1072,7 +1212,7 @@ class BGI {
     // not really needed? Assumes multiple windows.
     // We can use multiple instances of the BGI class, one for each canvas,
     // instead of using multiple windows.
-    unimplemented('setcurrentwindow');
+    this.unimplemented('setcurrentwindow');
   }
 
   // NOT IN BGI nor WIN EXTRA, but from WinGraph (not official)
