@@ -48,7 +48,7 @@ function RIPtermJS (self) {
 	var palB = new Uint8ClampedArray(256);
 	var glob, svg, svgView;
 
-	const ASPECT_RATIO = 350.0 / 480.0 * 1.06; // = 0.7729, was 350/450 (weird aspect ratio!)
+	const ASPECT_RATIO = 371.0 / 480.0 ; // 350.0 / 480.0 * 1.06 = 0.7729, was 350/450 (weird aspect ratio!)
 
 	const paletteEGA16 = [
 		'#000', '#00a', '#0a0', '#0aa', '#a00', '#a0a', '#a50', '#aaa',
