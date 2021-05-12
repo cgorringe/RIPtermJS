@@ -10,6 +10,7 @@
  * (work in progress)
  **/
 
+//import * as BGI from './BGI.js';
 import BGI from './BGI.js';
 
 
@@ -20,14 +21,24 @@ function mainRIP (args) {
 
   const canvas = document.getElementById(args.canvasId);
   const ctx = canvas.getContext('2d');
-  const bgi = new BGI(ctx);
 
+  // tests
+  //console.log(ctx);
+  console.log(BGI);
+  //console.log(BGI.YELLOW);
+
+  //const bgi = new BGI.default(ctx);
+  const bgi = new BGI(ctx);
+  console.log(bgi);
+  //console.log(BGI.LIGHTRED);
 
   // test
-  //bgi.setcolor(BGI.YELLOW);
-  //bgi.line(10, 10, 100, 100);
+  bgi.setcolor(BGI.YELLOW);
+  bgi.line(10, 10, 100, 100);
+  bgi.setcolor(BGI.LIGHTRED);
+  bgi.circle(100, 100, 50);
 
-  //bgi.refresh(ctx);
+  bgi.refresh();
 
   return args;
 }

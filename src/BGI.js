@@ -21,43 +21,7 @@
 
 export default class BGI {
 
-  ////////////////////////////////////////////////////////////////////////////////
-  // class constants
-
-    // these static properties causing error in Safari!
-
-    // fonts
-    static DEFAULT_FONT=0; static TRIPLEX_FONT=1; static SMALL_FONT=2; static SANSSERIF_FONT=3;
-    static GOTHIC_FONT=4; static BIG_FONT=5; static SCRIPT_FONT=6; static SIMPLEX_FONT=7;
-    static TRIPLEX_SCR_FONT=8; static COMPLEX_FONT=9; static EUROPEAN_FONT=10; static BOLD_FONT=11;
-
-    // text alignment used in settextjustify()
-    static HORIZ_DIR=0; static VERT_DIR=1; // text_just enum
-    static LEFT_TEXT=0; static CENTER_TEXT=1; static RIGHT_TEXT=2;
-    static BOTTOM_TEXT=0; static TOP_TEXT=2; // or is it?? top=0 bottom=1 baseline=2
-
-    // BGI colors
-    static BLACK=0; static BLUE=1; static GREEN=2; static CYAN=3; static RED=4; static MAGENTA=5;
-    static BROWN=6; static LIGHTGRAY=7; static DARKGRAY=8; static LIGHTBLUE=9; static LIGHTGREEN=10;
-    static LIGHTCYAN=11; static LIGHTRED=12; static LIGHTMAGENTA=13; static YELLOW=14; static WHITE=15;
-    static MAXCOLORS=15;
-    static BGI_COLORS=16; // do we need this?
-
-    // line style, thickness, and drawing mode
-    static SOLID_LINE=0; static DOTTED_LINE=1; static CENTER_LINE=2;
-    static DASHED_LINE=3; static USERBIT_LINE=4; // line_styles enum
-    static NORM_WIDTH=1; static THICK_WIDTH=3;
-    static COPY_PUT=0; static XOR_PUT=1; static OR_PUT=2; static AND_PUT=3; static NOT_PUT=4; // putimage_ops enum
-
-    // fill styles
-    static EMPTY_FILL=0; static SOLID_FILL=1; static LINE_FILL=2; static LTSLASH_FILL=3;
-    static SLASH_FILL=4; static BKSLASH_FILL=5; static LTBKSLASH_FILL=6; static HATCH_FILL=7;
-    static XHATCH_FILL=8; static INTERLEAVE_FILL=9; static WIDE_DOT_FILL=10; static CLOSE_DOT_FILL=11;
-    static USER_FILL=12;
-
-    // numbers
-    static PI_CONV = (3.1415926 / 180.0);
-
+  // class static constants moved to end of file.
 
   // TODO: do I need these?
   //const bgi_palette = [
@@ -68,7 +32,7 @@ export default class BGI {
   // don't want both below...
 
   // packed ARGB values (0xAARRGGBB) in C++ style
-  static bgi_palette = [
+  static get bgi_palette () { return [
     0xFF000000, // 00 BLACK
     0xFF0000AA, // 01 BLUE
     0xFF00AA00, // 02 GREEN
@@ -85,10 +49,10 @@ export default class BGI {
     0xFFFF55FF, // 0D LIGHTMAGENTA
     0xFFFFFF55, // 0E YELLOW
     0xFFFFFFFF  // 0F WHITE
-  ];
+  ]; }
 
   // RGBA32 format: R, G, B, A
-  static ega_palette = [
+  static get ega_palette () { return [
     0x00, 0x00, 0x00, 0xFF, // 00 BLACK
     0x00, 0x00, 0xAA, 0xFF, // 01 BLUE
     0x00, 0xAA, 0x00, 0xFF, // 02 GREEN
@@ -105,17 +69,17 @@ export default class BGI {
     0xFF, 0x55, 0xFF, 0xFF, // 0D LIGHTMAGENTA
     0xFF, 0xFF, 0x55, 0xFF, // 0E YELLOW
     0xFF, 0xFF, 0xFF, 0xFF, // 0F WHITE
-  ];
+  ]; }
 
-  static line_patterns = [
+  static get line_patterns () { return [
     0xFFFF, // 00 SOLID_LINE  : 1111111111111111
     0xCCCC, // 01 DOTTED_LINE : 1100110011001100
     0xF1F8, // 02 CENTER_LINE : 1111000111111000
     0xF8F8, // 03 DASHED_LINE : 1111100011111000
     0xFFFF,
-  ];
+  ]; }
 
-  static fill_patterns = [
+  static get fill_patterns () { return [
     [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00], // 00 EMPTY_FILL
     [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF], // 01 SOLID_FILL
     [0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00], // 02 LINE_FILL
@@ -129,7 +93,7 @@ export default class BGI {
     [0x10, 0x00, 0x01, 0x00, 0x10, 0x00, 0x01, 0x00], // 0A WIDE_DOT_FILL
     [0x11, 0x00, 0x44, 0x00, 0x11, 0x00, 0x44, 0x00], // 0B CLOSE_DOT_FILL
     [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF], // 0C USER_FILL
-  ];
+  ]; }
 
   /*
   // from ripterm.js
@@ -143,37 +107,30 @@ export default class BGI {
     [0x88, 0x00, 0x22, 0x00, 0x88, 0x00, 0x22, 0x00]  // 0B
   */
 
+
   ////////////////////////////////////////////////////////////////////////////////
-  // instance properties
+  // contructor instance properties
 
   constructor (ctx, width, height) {
-
-    this.initContext(ctx, width, height);
-    // which assigns these:
-    //   this.ctx     : CanvasRenderingContext2D()
-    //   this.pixels  : Uint8ClampedArray()
-    //   this.imgData : ImageData()
 
     // public fields
     this.width = 1;
     this.height = 1;
     this.isBuffered = true; // true = copy pixels to context, false = using context data store
-    this.palette = new Uint8ClampedArray(256 * 4); // RGBA32 [r, g, b, a] same as npm's canvas
-    this.info = BGI.infoDefaults();
+    this.initContext(ctx, width, height);
+    // which assigns these:
+    //   this.ctx     : CanvasRenderingContext2D()
+    //   this.pixels  : Uint8ClampedArray()
+    //   this.imgData : ImageData()
+    //   this.width, this.height, this.isBuffered
+    this.info = this.infoDefaults();
+
+    // RGBA32 [r, g, b, a] same as npm's canvas
+    // this.palette = new Uint8ClampedArray(256 * 4);
+    this.palette = Uint8ClampedArray.from(BGI.ega_palette); // for now
 
   }
 
-
-  // properties
-
-  /*
-  // TO REMOVE
-  let _imageData;  // ImageData() used in drawing to an html canvas
-  get imageData () {
-    // TODO: do we copy the byte buffer over here, or in another method call?
-    return this._imageData;
-  }
-  */
 
   ////////////////////////////////////////////////////////////////////////////////
   // General methods
@@ -191,7 +148,7 @@ export default class BGI {
   }
   */
 
-  static infoDefaults () {
+  infoDefaults () {
     return {
       bgcolor: BGI.BLACK,
       fgcolor: BGI.WHITE,
@@ -236,7 +193,7 @@ export default class BGI {
       this.width = Math.floor(width);
       this.height = Math.floor(height);
     }
-    else if (ctx.canvas) {
+    else if (ctx && ctx.canvas) {
       // get size from browser canvas
       this.width = Math.floor(ctx.canvas.width);
       this.height = Math.floor(ctx.canvas.height);
@@ -253,19 +210,25 @@ export default class BGI {
     // Do we need to use this for 'A8' pixel format?
     // this.imgData = new ImageData(new Uint8ClampedArray(size), width, height)
 
-    // check to see if ctx is already using 8-bit indexed pixel data
-    let attr = ctx.getContextAttributes();
-    if (attr && (attr.pixelFormat === 'A8') /* && this.imgData && this.imgData.data */) {
-      // use existing context data, which may be used in node canvas [NOT TESTED]
-      // does this a reference or a copy?
-      this.pixels = this.imgData.data;
-      //this.pixels = new Uint8ClampedArray(this.width * this.height)
-      this.isBuffered = false;
+    // check to see if ctx is already using 8-bit indexed pixel data.
+    // only works in Chrome & Edge, not Firefox nor Safari.
+    if (typeof ctx.getContextAttributes === 'function') {
+      let attr = ctx.getContextAttributes();
+      this.isBuffered = (attr && (attr.pixelFormat === 'A8')) ? false : true;
+      /* && this.imgData && this.imgData.data */
     }
     else {
-      // create a new byte buffer for pixel data, which is usually the case in browsers
-      this.pixels = new Uint8ClampedArray(this.width * this.height)
       this.isBuffered = true;
+    }
+
+    if (this.isBuffered) {
+      // create a new byte buffer for pixel data, which is usually the case in browsers.
+      this.pixels = new Uint8ClampedArray(this.width * this.height)
+    }
+    else {
+      // use existing context data, which may be used in node canvas. [NOT TESTED]
+      // does this a reference or a copy?
+      this.pixels = this.imgData.data;
     }
 
   }
@@ -298,11 +261,10 @@ export default class BGI {
 
 
   // updates the screen
-  refresh (ctx) {
+  refresh () {
 
-    if (!(ctx && this.imgData && this.pixels && this.palette)) { return false; }
+    if (!(this.ctx && this.imgData && this.pixels && this.palette)) { return false; }
 
-    //const img = ctx.getImageData(0, 0, this.width, this.height);
     const img = this.imgData;
 
     // copy pixel buffer to img
@@ -329,7 +291,7 @@ export default class BGI {
       //ctx.putImageData(this.imgData, 0, 0);
     }
     */
-    ctx.putImageData(img, 0, 0);
+    this.ctx.putImageData(img, 0, 0);
     return true;
   }
 
@@ -590,7 +552,7 @@ export default class BGI {
     // TODO: must draw ellipse if aspect ratio not 1:1
     if (thickness === BGI.NORM_WIDTH) {
       // thin better-looking circle
-      circle_bresenham(x, y, radius);
+      this.circle_bresenham(x, y, radius);
     }
     else {
       // thicker circle
@@ -679,7 +641,7 @@ export default class BGI {
 
   getdefaultpalette (/* void */) {
     // return struct palettetype*
-    return this.ega_palette; // TODO: might change
+    return BGI.ega_palette; // TODO: might change
   }
 
   // not implemented (STUB)
@@ -787,7 +749,7 @@ export default class BGI {
     */
 
     // TODO: need to check & reset palette
-    this.info = BGI.infoDefaults();
+    this.info = this.infoDefaults();
 
   }
 
@@ -1234,3 +1196,40 @@ export default class BGI {
   }
 
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// class constants
+
+  // fonts
+  BGI.DEFAULT_FONT=0; BGI.TRIPLEX_FONT=1; BGI.SMALL_FONT=2; BGI.SANSSERIF_FONT=3;
+  BGI.GOTHIC_FONT=4; BGI.BIG_FONT=5; BGI.SCRIPT_FONT=6; BGI.SIMPLEX_FONT=7;
+  BGI.TRIPLEX_SCR_FONT=8; BGI.COMPLEX_FONT=9; BGI.EUROPEAN_FONT=10; BGI.BOLD_FONT=11;
+
+  // text alignment used in settextjustify()
+  BGI.HORIZ_DIR=0; BGI.VERT_DIR=1; // text_just enum
+  BGI.LEFT_TEXT=0; BGI.CENTER_TEXT=1; BGI.RIGHT_TEXT=2;
+  BGI.BOTTOM_TEXT=0; BGI.TOP_TEXT=2; // or is it?? top=0 bottom=1 baseline=2
+
+  // BGI colors
+  BGI.BLACK=0; BGI.BLUE=1; BGI.GREEN=2; BGI.CYAN=3; BGI.RED=4; BGI.MAGENTA=5;
+  BGI.BROWN=6; BGI.LIGHTGRAY=7; BGI.DARKGRAY=8; BGI.LIGHTBLUE=9; BGI.LIGHTGREEN=10;
+  BGI.LIGHTCYAN=11; BGI.LIGHTRED=12; BGI.LIGHTMAGENTA=13; BGI.YELLOW=14; BGI.WHITE=15;
+  BGI.MAXCOLORS=15; BGI.BGI_COLORS=16; // do we need this?
+
+  // line style, thickness, and drawing mode
+  BGI.SOLID_LINE=0; BGI.DOTTED_LINE=1; BGI.CENTER_LINE=2;
+  BGI.DASHED_LINE=3; BGI.USERBIT_LINE=4; // line_styles enum
+  BGI.NORM_WIDTH=1; BGI.THICK_WIDTH=3;
+  BGI.COPY_PUT=0; BGI.XOR_PUT=1; BGI.OR_PUT=2; BGI.AND_PUT=3; BGI.NOT_PUT=4; // putimage_ops enum
+
+  // fill styles
+  BGI.EMPTY_FILL=0; BGI.SOLID_FILL=1; BGI.LINE_FILL=2; BGI.LTSLASH_FILL=3;
+  BGI.SLASH_FILL=4; BGI.BKSLASH_FILL=5; BGI.LTBKSLASH_FILL=6; BGI.HATCH_FILL=7;
+  BGI.XHATCH_FILL=8; BGI.INTERLEAVE_FILL=9; BGI.WIDE_DOT_FILL=10; BGI.CLOSE_DOT_FILL=11;
+  BGI.USER_FILL=12;
+
+  // numbers
+  BGI.PI_CONV = (3.1415926 / 180.0);
+
+
+////////////////////////////////////////////////////////////////////////////////
