@@ -25,9 +25,10 @@
 					<div class="row">
 						<div class="12u">
 
-<h2>RIPtermJS</h2>
-<h6>2021 - Version 3</h6>
-<h5>NOT A WORKING VERSION, YET...</h5>
+<h2>RIPtermJS (v3)</h2>
+<h6>2021</h6>
+<h4>NOT WORKING YET...</h4>
+<br>
 <p>
   Select a RIP file to display from the dropdown list below, then <strong>Load RIP</strong> and <strong>Start</strong> to draw it.<br>
   RIP<em>scrip</em> commands are shown on the right.  <em>Blue = implemented, red = skipped.</em>
@@ -63,7 +64,7 @@
 		margin: 4px 0;
 		padding: 0px 8px;
 		width: 136px;  /* 144px */
-		height: 496px; /* 350px 496px */
+		height: 366px; /* was 496px */
 		overflow: auto;
 		background: #333;
 		font-family: monospace;
@@ -196,51 +197,25 @@
 	</div>
 
 	<a onclick="this.setAttribute('href',getCanvasPNG());" download="canvas.png" class="noline">
-		<button>Save PNG (top)</button></a>
+		<button>Save PNG</button></a>
 </div>
 
 <!-- <script src="potrace-modified.js"></script> -->
 <!-- <script type="module" src="src/ripterm3.js"></script> -->
 
 <script src="src/BGI.js"></script>
-<script>
-
-	// BGI Test
-  const canvas = document.getElementById('rip-canvas');
-  const ctx = canvas.getContext('2d');
-  const bgi = new BGI(ctx);
-  console.log(bgi); // DEBUG
-
-  // drawing test
-  bgi.setcolor(BGI.YELLOW);
-  bgi.line(10, 10, 100, 100);
-
-  bgi.setcolor(BGI.LIGHTRED);
-  bgi.circle(100, 100, 50);
-
-  bgi.setcolor(BGI.LIGHTBLUE);
-  bgi.setfillstyle(BGI.SLASH_FILL, BGI.BLUE);
-  bgi.bar3d(200, 200, 300, 300, 20, true);
-
-  bgi.refresh();
-
-</script>
-
 <script src="src/ripterm3.js"></script>
-
 <script>
-	// RIPterm
-	let rip = new RIPtermJS({ canvasId: 'rip-canvas' });
 
-</script>
+	testBGI({ canvasId: 'rip-canvas' }); // TEST
+	const rip = new RIPterm({ canvasId: 'rip-canvas' });
 
-<script>
 	function selectRIP() {
 	}
 
 	function loadRIP() {
 		let url = document.getElementById('rip-files').value;
-		//rip.readFile(url);
+		rip.readFile(url);
 	}
 
 	function text2base64(text) {

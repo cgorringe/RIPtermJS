@@ -488,6 +488,10 @@ class BGI {
   // For a border, use bar3d with depth = 0.
   bar (left, top, right, bottom, color = this.info.fill.color, wmode = this.info.writeMode) {
 
+    // swap
+    if (left > right) { let tmp = left; left = right; right = tmp; }
+    if (top > bottom) { let tmp = top; top = bottom; bottom = tmp; }
+
     const fillcolor = (this.info.fill.style === BGI.EMPTY_FILL) ? this.info.bgcolor : color;
 
     if (this.info.fill.style === BGI.SOLID_FILL) {
@@ -892,12 +896,16 @@ class BGI {
     // nothing returned
   }
 
-  rectangle (x1, y1, x2, y2, color = this.info.fgcolor) {
-    // draws in current line style, thickness, and drawing color
-    this.line(x1, y1, x2, y1, color);
-    this.line(x2, y1, x2, y2, color);
-    this.line(x2, y2, x1, y2, color);
-    this.line(x1, y2, x1, y1, color);
+  // draws in current line style, thickness, and drawing color
+  rectangle (left, top, right, bottom, color = this.info.fgcolor, wmode = this.info.writeMode) {
+
+    // swap
+    if (left > right) { let tmp = left; left = right; right = tmp; }
+    if (top > bottom) { let tmp = top; top = bottom; bottom = tmp; }
+    this.line(left, top, right, top, color, wmode);
+    this.line(right, top, right, bottom, color, wmode);
+    this.line(right, bottom, left, bottom, color, wmode);
+    this.line(left, bottom, left, top, color, wmode);
   }
 
   // don't implement these (DOS only) (STUB)
