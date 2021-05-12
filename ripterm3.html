@@ -39,13 +39,13 @@
 	#rip-canvas {
 		background-color: #000;
 		width: 640px;
-		height: 480px;
+		height: 350px; /* use this later to stretch: 480px */
 	}
 	#rip-canvas-frame {
 		float: left;
 		margin: 4px 8px 4px 0;
 		width: 656px;
-		height: 496px;
+		height: 366px; /* use this later to stretch: 496px */
 	}
 	#rip-svg {
 		background-color: #000;
@@ -200,23 +200,40 @@
 </div>
 
 <!-- <script src="potrace-modified.js"></script> -->
-<!-- <script type="module" src="src/BGI.js"></script> -->
-<script type="module" src="src/ripterm3.js"></script>
+<!-- <script type="module" src="src/ripterm3.js"></script> -->
+
+<script src="src/BGI.js"></script>
 <script>
 
-	// let rip = new RIPtermJS({ canvasId: 'rip-canvas' });
-	// mainRIP({ canvasId: 'rip-canvas' });
+	// BGI Test
+  const canvas = document.getElementById('rip-canvas');
+  const ctx = canvas.getContext('2d');
+  const bgi = new BGI(ctx);
+  console.log(bgi); // DEBUG
 
-  //const canvas = document.getElementById('rip-canvas');
-  //const ctx = canvas.getContext('2d');
-  //const bgi = new BGI(ctx, 200, 200);
+  // drawing test
+  bgi.setcolor(BGI.YELLOW);
+  bgi.line(10, 10, 100, 100);
 
-  // TEST
-  //bgi.setcolor(BGI.YELLOW);
-  //bgi.line(10, 10, 100, 100);
-  //bgi.refresh();
+  bgi.setcolor(BGI.LIGHTRED);
+  bgi.circle(100, 100, 50);
+
+  bgi.setcolor(BGI.LIGHTBLUE);
+  bgi.setfillstyle(BGI.SLASH_FILL, BGI.BLUE);
+  bgi.bar3d(200, 200, 300, 300, 20, true);
+
+  bgi.refresh();
 
 </script>
+
+<script src="src/ripterm3.js"></script>
+
+<script>
+	// RIPterm
+	let rip = new RIPtermJS({ canvasId: 'rip-canvas' });
+
+</script>
+
 <script>
 	function selectRIP() {
 	}

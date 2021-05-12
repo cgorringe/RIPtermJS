@@ -19,7 +19,10 @@
  *
  **/
 
-export default class BGI {
+// not using as a module for now, but
+// uncomment this line if you do want to use as a module:
+//export default 
+class BGI {
 
   // class static constants moved to end of file.
 
@@ -891,10 +894,10 @@ export default class BGI {
 
   rectangle (x1, y1, x2, y2, color = this.info.fgcolor) {
     // draws in current line style, thickness, and drawing color
-    line(x1, y1, x2, y1, color);
-    line(x2, y1, x2, y2, color);
-    line(x2, y2, x1, y2, color);
-    line(x1, y2, x1, y1, color);
+    this.line(x1, y1, x2, y1, color);
+    this.line(x2, y1, x2, y2, color);
+    this.line(x2, y2, x1, y2, color);
+    this.line(x1, y2, x1, y1, color);
   }
 
   // don't implement these (DOS only) (STUB)
