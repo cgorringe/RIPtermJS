@@ -44,40 +44,66 @@ function testBGI (args) {
 ////////////////////////////////////////////////////////////////////////////////
 // Main Class
 
-// DIV ids that may be set:
-//   args.canvasId  - main canvas (REQUIRED)
-//   args.ripTextId - show list of rip commands in div
-//   args.counterId - show command counter in div (e.g. '5 / 100')
-//   args.svgId     - draw to an SVG tag (experimental)
+// html ids that may be set:
+//   opts.canvasId  - main canvas (REQUIRED)
+//   opts.svgId     - draw to an SVG tag (experimental)
+//   opts.ripTextId - show list of rip commands in div
+//   opts.counterId - show command counter in div (e.g. '5 / 100')
 
 class RIPterm {
 
-  constructor (args) {
+  // class constants
+  static get paletteEGA16 () { return [
+    '#000', '#00a', '#0a0', '#0aa', '#a00', '#a0a', '#a50', '#aaa',
+    '#555', '#55f', '#5f5', '#5ff', '#f55', '#f5f', '#ff5', '#fff'
+  ]; }
 
-    if (args && ('canvasId' in args)) {
+  static get paletteEGA64 () { return [
+    '#000', '#00a', '#0a0', '#0aa', '#a00', '#a0a', '#aa0', '#aaa',
+    '#005', '#00f', '#0a5', '#0af', '#a05', '#a0f', '#aa5', '#aaf',
+    '#050', '#05a', '#0f0', '#0fa', '#a50', '#a5a', '#af0', '#afa',
+    '#055', '#05f', '#0f5', '#0ff', '#a55', '#a5f', '#af5', '#aff',
+    '#500', '#50a', '#5a0', '#5aa', '#f00', '#f0a', '#fa0', '#faa',
+    '#505', '#50f', '#5a5', '#5af', '#f05', '#f0f', '#fa5', '#faf',
+    '#550', '#55a', '#5f0', '#5fa', '#f50', '#f5a', '#ff0', '#ffa',
+    '#555', '#55f', '#5f5', '#5ff', '#f55', '#f5f', '#ff5', '#fff'
+  ]; }
 
-      // passed in args assigned to properties
-      this.canvasId = args.canvasId;
-      this.svgId    = args.svgId;
-      this.ripTextId = args.ripTextId;
-      this.counterId = args.counterId;
+  ////////////////////////////////////////////////////////////////////////////////
 
-      // set property defaults if not in args
-      this.timeInterval = ('timeInterval' in args) ? args.timeInterval : 1;
-      this.floodFill = ('floodFill' in args) ? args.floodFill : true;
-      this.svgPrevix = ('svgPrefix' in args) ? args.svgPrefix : 'rip'; // used in internal SVG ids
+  constructor (opts) {
 
-      // debug properties
-      this.debugVerbose = ('debugVerbose' in args) ? args.debugVerbose : false;
-      this.pauseOn = ('pauseOn' in args) ? args.pauseOn : [];
-      this.debugFillBuf = ('debugFillBuf' in args) ? args.debugFillBuf : false; // display flood-fill buffer
-      this.svgIncludePut = ('svgIncludePut'in args) ? args.svgIncludePut : false; // adds '1P' RIP_PUT_IMAGE to SVG (experimental)
+    if (opts && ('canvasId' in opts)) {
+
+      // init default options
+      // these options copied from prior version are not implemented yet.
+      this.opts = {
+        'timeInterval' : 1,
+        'floodFill' : true,
+        'svgPrefix' : 'rip',     // used to prefix internal SVG ids
+        'debugVerbose' : false,  // verbose flag
+        'pauseOn' : [],          // debug: pauses on RIP command, e.g. ['F'] will pause on Flood Fill.
+        'debugFillBuf' : false,  // display flood-fill buffer in canvas instead of normal drawings.
+        'svgIncludePut' : false, // adds RIP_PUT_IMAGE (1P) to SVG (experimental)
+        'iconsPath' : 'icons',
+        'fontsPath' : 'fonts',
+        'fontsFiles' : ['8x8.png', 'TRIP.CHR', 'LITT.CHR', 'SANS.CHR', 'GOTH.CHR',
+          'SCRI.CHR', 'SIMP.CHR', 'TSCR.CHR', 'LCOM.CHR', 'EURO.CHR', 'BOLD.CHR'],
+      };
+
+      // assign or overwrite opts with passed-in options
+      Object.entries(opts).forEach( ([k, v]) => { this.opts[k] = v } );
+
+      // init other vars
+      // these copied from v2 and may change
+      this.ripData = [];
+      this.cmdi = 0;
+      this.timer = null;
 
       // init canvas
-      const canvas = document.getElementById(this.canvasId);
-      this.ctx = canvas.getContext('2d');
+      this.canvas = document.getElementById(opts.canvasId);
+      this.ctx = this.canvas.getContext('2d');
       this.bgi = new BGI(this.ctx);
-
 
       // set that weird aspect ratio used in original EGA-mode RipTerm DOS version.
       this.bgi.setaspectratio(371, 480); // = 0.7729
@@ -94,39 +120,118 @@ class RIPterm {
   ////////////////////////////////////////////////////////////////////////////////
   // Public methods
 
+  // TODO: update for v3
   start () {
     console.log('RIPterm.start()');
-
+    if (this.ctx && this.ripData && (this.ripData.length > 0)) {
+      if (this.cmdi >= this.ripData.length) { this.cmdi = 0; }
+      if (this.timer) { window.clearTimeout(this.timer); }
+      this.timer = window.setTimeout(() => { this.drawNext() }, this.opts.timeInterval);
+    }
+    else {
+      console.log("Must set 'canvasId' and load a RIP first.");
+    }
   }
 
+  // TODO: update for v3
   stop () {
     console.log('RIPterm.stop()');
-
+    if (this.timer) { window.clearTimeout(this.timer); this.timer = null; }
   }
 
   reset () {
     console.log('RIPterm.reset()');
-
+    this.cmd['*']();
+    this.bgi.refresh();
   }
 
   clear () {
     console.log('RIPterm.clear()');
-
+    this.bgi.cleardevice();
+    this.bgi.refresh();
   }
-
-  // .drawNext()
-
 
   fullscreen () {
     console.log('RIPterm.fullscreen()');
-    // fullscreenchange()
+    if (this.canvas && this.canvas.requestFullscreen) {
+      this.canvas.requestFullscreen();
+      document.addEventListener("fullscreenchange", this.fullscreenchange, false);
+    }
+  }
+
+  // TODO
+  // called when entering and exiting full screen
+  fullscreenchange () {
 
   }
 
+
+  ////////////////////////////////////////////////////////////////////////////////
+  // copied from ripterm.js v2
+
+  // TODO: update for v3
+  drawNext () {
+
+    if (this.ripData && (this.cmdi < this.ripData.length)) {
+      let d = this.ripData[this.cmdi];
+      // console.log(d); // DEBUG
+      if ( this.cmd[d[0]] ) { this.cmd[d[0]](d[1]); }
+      this.bgi.refresh(); // TODO: call this less frequently to speed up animation
+      if (this.opts.pauseOn.includes(d[0])) {
+        if (!this.opts.floodFill && (d[0] == 'F')) { }
+        else { this.stop(); }
+      }
+      this.cmdi++;
+      // if (self.counterId) { counterDiv.innerHTML = cmdi + ' / ' + ripData.length; }
+      this.timer = window.setTimeout(() => { this.drawNext() }, this.opts.timeInterval);
+    }
+    else {
+      this.stop();
+    }
+  }
+
+  // TODO: update for v3
   readFile (url) {
     console.log('RIPterm.readFile(): ' + url);
 
+    this.cmdi = 0;
+    let req = new XMLHttpRequest();
+    if (req != null) {
+      req.open("GET", url, false);
+      req.overrideMimeType('text/plain; charset=x-user-defined');  // allows ASCII control chars in input
+      req.send(null);
+      if (req.status != 200) { console.log('Error downloading: ' + url); return; }
+      let text = req.responseText;
+
+      // output to ripTextDiv
+      let outText = '';
+      let c = 1;
+      this.ripData = [];
+
+      // process one line at a time
+      // FIXME: missing \r at end of lines
+      let lines = text.split("\n");
+      for (let i=0; i < lines.length; i++) {
+        let aLine = lines[i];
+        while (aLine.match( /(.*)\\$/m )) {  // works?
+          aLine = RegExp.$1 + lines[i+1];  // works?
+          i++;
+        }
+        if (aLine.charAt(0) == '!') {
+          let cmds = aLine.substr(2).split('|');
+          for (let j=0; j < cmds.length; j++) {
+            let d = this.parseRIPcmd(cmds[j]);
+            this.ripData.push(d);  // store command + args in array
+            c++;
+          }
+        } // else skip line
+      }
+    }
+    this.reset();
+
+    console.log(this.ripData); // DEBUG
   }
+
 
   ////////////////////////////////////////////////////////////////////////////////
   // Private methods
@@ -138,9 +243,45 @@ class RIPterm {
       ['0x' + hex[1] + hex[2] | 0, '0x' + hex[3] + hex[4] | 0, '0x' + hex[5] + hex[6] | 0];
   }
 
-  runCommand (cmd) {
-    // TODO
+  // Extracts command code + args from RIP instruction.
+  // TODO: not coded to work with ESC character commands
+  parseRIPcmd (inst) {
+    let args = inst;
+    const cmd = /^[0-9]*./.exec(inst)[0];
+    if (cmd) { args = inst.substr(cmd.length); } // grab everything after cmd string
+    return [cmd, args];
   }
+
+  // args = encoded string following the command.
+  // fmt = string format.
+  // e.g. args = '003PHR9P' where 'B' is command not passed in, '003PHR9P' are 4 2-digit args.
+  // e.g. fmt = '2222' means extract 4 2-digit ints, converting from base36.
+  // returns an array of numbers.
+  // still need to figure out how to parse strings out.
+  // TODO: how to handle parsing errors? throw an exception?
+  parseRIPargs (args, fmt) {
+    let pos = 0, ret = [];
+    Array.from(fmt).forEach(f => {
+      switch (f) {
+        case '1': ret.push( parseInt(args.substr(pos, 1), 36) ); pos += 1; break;
+        case '2': ret.push( parseInt(args.substr(pos, 2), 36) ); pos += 2; break;
+        case '3': ret.push( parseInt(args.substr(pos, 3), 36) ); pos += 3; break;
+        case '4': ret.push( parseInt(args.substr(pos, 4), 36) ); pos += 4; break;
+        case '*': ret.push( args.substr(pos) ); break;
+        default:
+      }
+    });
+    return ret;
+  }
+
+  // TODO
+  runCommand (inst) {
+
+    let [c, args] = parseRIPcmd(inst);
+    this.cmd[c](args);
+
+  }
+
 
   ////////////////////////////////////////////////////////////////////////////////
   // RIP commands
@@ -152,18 +293,18 @@ class RIPterm {
 
       // RIP_VIEWPORT (v)
       'v': (args) => {
-        // this.bgi.setviewport(x1, y1, x2, y2, clip);
+        if (args.length >= 8) {
+          const [x0, y0, x1, y1] = this.parseRIPargs(args, '2222');
+          this.bgi.setviewport(x0, y0, x1, y1, true);
+        }
       },
 
-      /*
       // RIP_RESET_WINDOWS (*)
       // implements: clear screen, restore default palette
       '*': (args) => {
-        // resetGlob();
-        // resetPalette();
+        this.bgi.graphdefaults();
         this.bgi.cleardevice();
       },
-      */
 
       // RIP_ERASE_WINDOW (e)
       // Clears Text Window to background color
@@ -179,47 +320,84 @@ class RIPterm {
 
       // RIP_COLOR (c)
       'c': (args) => {
-        // if (args.length >= 2) { glob.drawColor = parseRIPint(args, 0); }
-        // this.bgi.setcolor(c);
+        if (args.length >= 2) {
+          const [color] = this.parseRIPargs(args, '2');
+          this.bgi.setcolor(color);
+        }
       },
 
       // RIP_SET_PALETTE (Q)
+      'Q': (args) => {
+        if (args.length >= 32) {
+          // parse EGA palette values (0-63)
+          const palette = this.parseRIPargs(args, '2222222222222222');
+          for (let i=0; i < palette.length; i++) {
+            const c = palette[i];
+            if (c < 64) {
+              const [red, green, blue] = this.hex2rgb( RIPterm.paletteEGA64[c] );
+              this.bgi.setrgbpalette(i, red, green, blue);
+            }
+          }
+        }
+      },
+
       // RIP_ONE_PALETTE (a)
+      'a': (args) => {
+        if (args.length >= 4) {
+          // parse EGA palette values (0-63)
+          const [color, value] = this.parseRIPargs(args, '22');
+          if ((color < 16) && (value < 64)) {
+            const [red, green, blue] = this.hex2rgb( RIPterm.paletteEGA64[value] );
+            this.bgi.setrgbpalette(color, red, green, blue);
+          }
+        }
+      },
+
       // RIP_WRITE_MODE (W)
+      'W': (args) => {
+        if (args.length >= 2) {
+          const [mode] = this.parseRIPargs(args, '2');
+          this.bgi.setwritemode(mode);
+        }
+      },
+
       // RIP_MOVE (m)
+      'm': (args) => {
+        if (args.length >= 4) {
+          const [x, y] = this.parseRIPargs(args, '22');
+          this.bgi.moveto(x, y);
+        }
+      },
+
       // RIP_TEXT (T)
       // RIP_TEXT_XY (@)
       // RIP_FONT_STYLE (Y)
 
       // RIP_PIXEL (X)
-      // spec says this doesn't use writeMode
+      // spec says this doesn't use writeMode (mistake?)
       'X': (args) => {
         if (args.length >= 4) {
-          // var x = parseRIPint(args, 0);
-          // var y = parseRIPint(args, 2);
-          // this.bgi.putpixel(x, y);
+          const [x, y] = this.parseRIPargs(args, '22');
+          // this.bgi.putpixel(x, y,, BGI.COPY_PUT); // ignores writeMode
+          this.bgi.putpixel(x, y); // uses writeMode
         }
       },
 
       // RIP_LINE (L)
+      // freezing on: "L" "AK43AJ42" in DOORS.RIP (380 147 379 146) <-- infinite loop [FIXED]
       'L': (args) => {
         if (args.length >= 8) {
-          // var x0 = parseRIPint(args, 0);
-          // var y0 = parseRIPint(args, 2);
-          // var x1 = parseRIPint(args, 4);
-          // var y1 = parseRIPint(args, 6);
-          // this.bgi.line(x0, y0, x1, y1);
+          const [x0, y0, x1, y1] = this.parseRIPargs(args, '2222');
+          // console.log(`line ${x0} ${y0} ${x1} ${y1}`); // DEBUG
+          this.bgi.line(x0, y0, x1, y1);
         }
       },
 
       // RIP_RECTANGLE (R)
       'R': (args) => {
         if (args.length >= 8) {
-          // var x0 = parseRIPint(args, 0);
-          // var y0 = parseRIPint(args, 2);
-          // var x1 = parseRIPint(args, 4);
-          // var y1 = parseRIPint(args, 6);
-          // this.bgi.rectangle (x0, y0, x1, y1);
+          const [x0, y0, x1, y1] = this.parseRIPargs(args, '2222');
+          this.bgi.rectangle(x0, y0, x1, y1);
         }
       },
 
@@ -227,25 +405,19 @@ class RIPterm {
       // spec says this doesn't use writeMode (could spec be wrong??)
       'B': (args) => {
         if (args.length >= 8) {
-          // var x0 = parseRIPint(args, 0);
-          // var y0 = parseRIPint(args, 2);
-          // var x1 = parseRIPint(args, 4);
-          // var y1 = parseRIPint(args, 6);
-          // this.bgi.bar(left, top, right, bottom);
+          const [x0, y0, x1, y1] = this.parseRIPargs(args, '2222');
+          this.bgi.bar(x0, y0, x1, y1);
         }
       },
 
       // RIP_CIRCLE (C)
       'C': (args) => {
         if (args.length >= 6) {
-          /*
-          var xc = parseRIPint(args, 0);
-          var yc = parseRIPint(args, 2);
-          var xr = parseRIPint(args, 4) || 1; // 0.5
-          var yr = xr * ASPECT_RATIO;
-          drawOvalArc(xc, yc, 0, 360, xr, yr, glob.drawColor, glob.lineThick);
-          */
-          // this.bgi.circle(x, y, radius);
+          let [x, y, radius] = this.parseRIPargs(args, '222');
+          if (radius < 1) { radius = 1; }
+          // let yr = radius * ASPECT_RATIO;
+          // bgi.circle() will have to adjust aspect ratio, else draw an oval using yr.
+          this.bgi.circle(x, y, radius);
         }
       },
 
@@ -260,9 +432,30 @@ class RIPterm {
       // RIP_FILL_POLYGON (p)
       // RIP_POLYLINE (l)
       // RIP_FILL (F)
+
       // RIP_LINE_STYLE (=)
+      '=': (args) => {
+        if (args.length >= 8) {
+          const [style, user_pat, thick] = this.parseRIPargs(args, '242');
+          this.bgi.setlinestyle(style, user_pat, thick);
+        }
+      },
+
       // RIP_FILL_STYLE (S)
+      'S': (args) => {
+        if (args.length >= 4) {
+          const [pattern, color] = this.parseRIPargs(args, '22');
+          this.bgi.setfillstyle(pattern, color);
+        }
+      },
+
       // RIP_FILL_PATTERN (s)
+      's': (args) => {
+        if (args.length >= 18) {
+          const [c1, c2, c3, c4, c5, c6, c7, c8, color] = this.parseRIPargs(args, '222222222');
+          this.bgi.setfillpattern([c1, c2, c3, c4, c5, c6, c7, c8], color);
+        }
+      },
 
       // RIP_MOUSE (1M)
       // RIP_KILL_MOUSE_FIELDS (1K)
@@ -282,6 +475,8 @@ class RIPterm {
       // RIP_COPY_REGION (1G)
       // RIP_READ_SCENE (1R)
       // RIP_FILE_QUERY (1F)
+
+      // RIP_ENTER_BLOCK_MODE (9<esc>)
 
       // RIP_NO_MORE (#)
       '#': (args) => {

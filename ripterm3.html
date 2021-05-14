@@ -33,9 +33,6 @@
   Select a RIP file to display from the dropdown list below, then <strong>Load RIP</strong> and <strong>Start</strong> to draw it.<br>
   RIP<em>scrip</em> commands are shown on the right.  <em>Blue = implemented, red = skipped.</em>
 </p>
-<p>
-	<a href="https://github.com/cgorringe/RIPtermJS" target="_blank" class="animate"><img src="img/badge_github.png" alt="Source Code on Github"></a>
-</p>
 <style>
 	#rip-canvas {
 		background-color: #000;
@@ -208,7 +205,7 @@
 <script>
 
 	testBGI({ canvasId: 'rip-canvas' }); // TEST
-	const rip = new RIPterm({ canvasId: 'rip-canvas' });
+	const rip = new RIPterm({ canvasId: 'rip-canvas', timeInterval: 10 });
 
 	function selectRIP() {
 	}

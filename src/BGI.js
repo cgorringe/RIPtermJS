@@ -79,7 +79,7 @@ class BGI {
     0xCCCC, // 01 DOTTED_LINE : 1100110011001100
     0xF1F8, // 02 CENTER_LINE : 1111000111111000
     0xF8F8, // 03 DASHED_LINE : 1111100011111000
-    0xFFFF,
+    0xFFFF, // 04 USERBIT_LINE
   ]; }
 
   static get fill_patterns () { return [
@@ -126,12 +126,8 @@ class BGI {
     //   this.pixels  : Uint8ClampedArray()
     //   this.imgData : ImageData()
     //   this.width, this.height, this.isBuffered
-    this.info = this.infoDefaults();
 
-    // RGBA32 [r, g, b, a] same as npm's canvas
-    // this.palette = new Uint8ClampedArray(256 * 4);
-    this.palette = Uint8ClampedArray.from(BGI.ega_palette); // for now
-
+    this.graphdefaults();
   }
 
 
@@ -409,60 +405,42 @@ class BGI {
 
     const
       dx = Math.abs(x2 - x1),
-      sx = (x1 < x2) ? 1 : -1,
-      dy = Math.abs(y2 - y1),
-      sy = (y1 < y2) ? 1 : -1;
+      dy = Math.abs(y2 - y1);
     let
-      count = 0,
-      err = Math.floor(((dx > dy) ? dx : -dy) / 2),
-      e2;
+      xi1, xi2, yi1, yi2, den, num, numadd,
+      x = x1, y = y1, numpixels;
 
-    while (true) {
-      if ((upattern >> (count % 16)) & 1) { // TODO: Test this!
-        this.putpixel(x1, y1, color, wmode);
-      }
-      count++;
-
-      if ((x1 == x2) && (y1 == y2)) { break; }
-      e2 = err;
-      if (e2 > -dx) {
-        err -= dy;
-        x1 += sx;
-      }
-      if (e2 < dy) {
-        err += dx;
-        y1 += sy;
-      }
+    if (x2 >= x1) { xi1 = xi2 = 1; } else { xi1 = xi2 = -1; }
+    if (y2 >= y1) { yi1 = yi2 = 1; } else { yi1 = yi2 = -1; }
+    if (dx >= dy) {
+      xi1 = yi2 = 0;
+      den = dx;
+      num = dx >> 1;
+      numadd = dy;
+      numpixels = dx;
     }
-  }
-
-  // NOT USED?
-  // Bresenham's line using current fill pattern.
-  line_fill (x1, y1, x2, y2, color, wmode) {
-
-    const
-      dx = Math.abs(x2 - x1),
-      sx = (x1 < x2) ? 1 : -1,
-      dy = Math.abs(y2 - y1),
-      sy = (y1 < y2) ? 1 : -1;
-    let
-      err = Math.floor(((dx > dy) ? dx : -dy) / 2),
-      e2;
-
-    while (true) {
-      this.ff_putpixel(x1, y1, color, wmode);
-
-      if ((x1 == x2) && (y1 == y2)) { break; }
-      e2 = err;
-      if (e2 > -dx) {
-        err -= dy;
-        x1 += sx;
-      }
-      if (e2 < dy) {
-        err += dx;
-        y1 += sy;
-      }
+    else {
+      xi2 = yi1 = 0;
+      den = dy;
+      num = dy >> 1;
+      numadd = dx;
+      numpixels = dy;
     }
+
+    for (let c=0; c <= numpixels; c++) {
+      if ((upattern >> (c % 16)) & 1) { // TODO: Need to TEST line patterns!
+        this.putpixel(x, y, color, wmode);
+      }
+      num += numadd;
+      if (num >= den) {
+        num -= den;
+        x += xi1;
+        y += yi1;
+      }
+      x += xi2;
+      y += yi2;
+    }
+
   }
 
   // Returns the octant (1-8) where (x, y) lies, used by line().
@@ -755,9 +733,11 @@ class BGI {
       sets the default text font and justification.
     */
 
-    // TODO: need to check & reset palette
     this.info = this.infoDefaults();
 
+    // RGBA32 [r, g, b, a] same as npm's canvas
+    //this.palette = new Uint8ClampedArray(256 * 4);
+    this.palette = Uint8ClampedArray.from(BGI.ega_palette); // for now
   }
 
   // not implemented (STUB)
@@ -961,13 +941,14 @@ class BGI {
     this.info.fgcolor = color;
   }
 
-  // TODO
-  // fpattern is a squence of 8 bytes, each byte is 8 pixels in the pattern.
+  // fpattern is an array of 8 ints (0-255), each byte is 8 pixels in the pattern.
   setfillpattern (fpattern, color) {
     // void setfillpattern(char *upattern, int color);
-
-    this.info.fill.style = BGI.USER_FILL;
-    //this.info.fill.fpattern = []; // TODO
+    this.info.fill.color = color;
+    if (fpattern && (fpattern.length === 8)) {
+      this.info.fill.style = BGI.USER_FILL;
+      this.info.fill.fpattern = fpattern;
+    }
   }
 
   // style is index 0-11 into fill_patterns[]
@@ -975,7 +956,7 @@ class BGI {
   setfillstyle (style, color) {
 
     this.info.fill.color = color;
-    if ((style >= 0) && (style < BGI.USER_FILL)) {
+    if ((style >= 0) && (style <= BGI.USER_FILL)) {
       this.info.fill.style = style;
       this.info.fill.fpattern = BGI.fill_patterns[style];
     }
@@ -1032,10 +1013,10 @@ class BGI {
     const pi = colornum * 4;
     if (pi < this.palette.length) {
       // RGBA32 format: R, G, B, A
-      this.pallete[pi + 0] = red & 0xFF;
-      this.pallete[pi + 1] = green & 0xFF;
-      this.pallete[pi + 2] = blue & 0xFF;
-      this.pallete[pi + 3] = 255;
+      this.palette[pi + 0] = red;
+      this.palette[pi + 1] = green;
+      this.palette[pi + 2] = blue;
+      this.palette[pi + 3] = 255;
     }
     else {
       console.log(`BGI.setrgbpalette() colornum [${colornum}] out of range!`);
@@ -1085,6 +1066,7 @@ class BGI {
   // mode = COPY_PUT (0), XOR_PUT (1)
   // works only with line(), linerel(), lineto(), rectangle(), drawpoly()
   setwritemode (mode) {
+    this.info.writeMode = mode;
   }
 
   // takes current font size and multiplication factor, and determines the height of text in pixels.
@@ -1149,10 +1131,6 @@ class BGI {
 
   getactivepage (/* void */) {
     this.unimplemented('getactivepage');
-  }
-
-  getbkcolor () {
-
   }
 
   getdisplaycolor () {
