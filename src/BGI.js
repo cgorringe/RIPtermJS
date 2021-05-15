@@ -139,7 +139,7 @@ class BGI {
       writeMode: 0, // 0=COPY, 1=XOR, 2=OR, 3=AND, 4=NOT
       font: { width: 0, height: 0 }, // ??
       fontMag: { x: 1.0, y: 1.0 }, // font magnification
-      aspect: { x: 100, y: 100 }, // aspect ratio used to make circles round
+      aspect: { xasp: 371, yasp: 480 }, // aspect ratio used to make circles round // TODO: MOVE THIS?
       text: { font: 0, direction: 0, charsize: 0, horiz: 0, vert: 0 },
     };
   }
@@ -411,6 +411,10 @@ class BGI {
   // doesn't use linestyle.
   arc (x, y, stangle, endangle, radius, thickness = this.info.line.thickness) {
 
+    if ((radius < 1) || (stangle === endangle)) { return } // TODO: test against reference
+    // adjust radius based on aspect ratio
+    const yradius = radius * (this.info.aspect.xasp / this.info.aspect.yasp);
+    this.ellipse(x, y, stangle, endangle, radius, yradius, thickness)
   }
 
   // Draws and fills a rectangle, using fill style and color. Has no border. (see fillrect)
@@ -485,13 +489,13 @@ class BGI {
   // doesn't use linestyle
   circle (x, y, radius, thickness = this.info.line.thickness) {
 
-    // TODO: must draw ellipse if aspect ratio not 1:1
-    if (thickness === BGI.NORM_WIDTH) {
-      // thin better-looking circle
+    if (radius < 1) { return } // TODO: test against reference image
+    if ((this.info.aspect.xasp === this.info.aspect.yasp) && (thickness === BGI.NORM_WIDTH)) {
+      // draw better-looking circle only if thin and aspect ratio 1:1
       this.circle_bresenham(x, y, radius);
     }
     else {
-      // thicker circle
+      // draw using different algorithm
       this.arc(x, y, 0, 360, radius);
     }
   }
@@ -600,11 +604,44 @@ class BGI {
     }
   }
 
-  ellipse (x, y, stangle, endangle, xradius, yradius) {
+  // Draw an elliptical arc centered at (x, y), from stangle to endangle in degrees,
+  // counterclockwise with 0 = 3 o'clock, 90 = 12 o'clock, etc.
+  // doesn't use linestyle.
+  ellipse (x, y, stangle, endangle, xradius, yradius, thickness = this.info.line.thickness) {
+
+    // TODO: don't know if these are correct
+    if (stangle === endangle) { return }
+    if (xradius < 1) { xradius = 1; }
+    if (yradius < 1) { yradius = 1; }
+
+    // following copied from ripscript.js v2 drawOvalArc()
+    // TODO: find smoother algorithm
+
+    const twoPiD = 2 * Math.PI / 360;
+    if (stangle > endangle) { endangle += 360; }
+    let x1, y1;
+    let x0 = x + Math.round(xradius * Math.cos(stangle * twoPiD));
+    let y0 = y - Math.round(yradius * Math.sin(stangle * twoPiD));
+
+    // draw arc counter-clockwise
+    for (let n = stangle; n <= endangle; n += 3) {
+      // test with: Math.floor() .round() .trunc()
+      x1 = x + Math.round(xradius * Math.cos(n * twoPiD));
+      y1 = y - Math.round(yradius * Math.sin(n * twoPiD));
+      this.line(x0, y0, x1, y1, this.info.fgcolor, BGI.COPY_PUT, BGI.SOLID_LINE, thickness);
+      x0 = x1; y0 = y1;
+    }
 
   }
 
   fillellipse (x, y, xradius, yradius) {
+
+    // TODO: don't know if these are correct, or should we exit?
+    if (xradius < 1) { xradius = 1; }
+    if (yradius < 1) { yradius = 1; }
+
+    // TODO: should this be outlined or not?
+    // TODO: algorithm here
 
   }
 
@@ -715,7 +752,7 @@ class BGI {
     // struct arccoordstype *arccoords
   }
 
-  // returns an object {x:int, y:int}
+  // returns an object {xasp:int, yasp:int}
   getaspectratio (/* xasp, yasp */) { // ***
     // int *xasp, int *yasp
     return this.info.aspect;
@@ -980,8 +1017,14 @@ class BGI {
 
   }
 
+  // fills with fill color and pattern.
+  // outlines with fgcolor and thickness. doesn't use line style.
   pieslice (x, y, stangle, endangle, radius) {
 
+    if ((radius < 1) || (stangle === endangle)) { return } // TODO: test against reference
+    // adjust radius based on aspect ratio
+    const yradius = radius * (this.info.aspect.xasp / this.info.aspect.yasp);
+    this.sector(x, y, stangle, endangle, radius, yradius);
   }
 
   // Put byte array of image data on to pixels[]
@@ -1097,10 +1140,17 @@ class BGI {
   }
 
   // Draws and fills an elliptical pie slice centered at (x, y).
-  sector (x, y, start, stop, xradius, yradius) {
-    // Outlines using current color, filled using pattern & color 
+  sector (x, y, stangle, endangle, xradius, yradius) {
+    // Outlines using current color, filled using pattern & color.
     // from setfillstyle & setfillpattern.
     // Angles in degrees, counter-clockwise: 0=3o'clock, 90=12o'clock
+
+    // TODO: don't know if these are correct, or should we exit?
+    if (stangle === endangle) { return }
+    if (xradius < 1) { xradius = 1; }
+    if (yradius < 1) { yradius = 1; }
+
+    // TODO: algorithm here
 
   }
 
@@ -1117,8 +1167,8 @@ class BGI {
   // Used to make sure circles are round.
   // SEE getaspectratio()
   setaspectratio (xasp, yasp) {
-    this.info.aspect.x = xasp;
-    this.info.aspect.y = yasp;
+    this.info.aspect.xasp = xasp;
+    this.info.aspect.yasp = yasp;
   }
 
   // sets background to given index color.

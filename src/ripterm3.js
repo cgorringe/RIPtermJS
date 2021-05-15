@@ -242,7 +242,7 @@ class RIPterm {
     }
     this.reset();
 
-    console.log(this.ripData); // DEBUG
+    // console.log(this.ripData); // DEBUG
   }
 
 
@@ -455,19 +455,58 @@ class RIPterm {
       'C': (args) => {
         if (args.length >= 6) {
           let [x, y, radius] = this.parseRIPargs(args, '222');
-          if (radius < 1) { radius = 1; }
-          // let yr = radius * ASPECT_RATIO;
-          // bgi.circle() will have to adjust aspect ratio, else draw an oval using yr.
           this.bgi.circle(x, y, radius);
         }
       },
 
-      // RIP_OVAL (O) - same as RIP_OVAL_ARC (V)
+      // RIP_OVAL (O)
+      // does same as RIP_OVAL_ARC (V)
+      // weird that this includes start & end angles
+      'O': (args) => {
+        this.cmd['V'](args);
+      },
+
       // RIP_FILLED_OVAL (o)
+      'o': (args) => {
+        if (args.length >= 8) {
+          let [x, y, x_rad, y_rad] = this.parseRIPargs(args, '2222');
+          this.bgi.fillellipse(x, y, x_rad, y_rad);
+          this.bgi.ellipse(x, y, 0, 360, x_rad, y_rad); // may be included in fillellipse() ?
+        }
+      },
+
       // RIP_ARC (A)
+      'A': (args) => {
+        if (args.length >= 10) {
+          let [x, y, start_ang, end_ang, radius] = this.parseRIPargs(args, '22222');
+          this.bgi.arc(x, y, start_ang, end_ang, radius);
+        }
+      },
+
       // RIP_OVAL_ARC (V)
+      // does same as RIP_OVAL (O)
+      'V': (args) => {
+        if (args.length >= 12) {
+          let [x, y, st_ang, e_ang, radx, rady] = this.parseRIPargs(args, '222222');
+          this.bgi.ellipse(x, y, st_ang, e_ang, radx, rady);
+        }
+      },
+
       // RIP_PIE_SLICE (I)
+      'I': (args) => {
+        if (args.length >= 10) {
+          let [x, y, start_ang, end_ang, radius] = this.parseRIPargs(args, '22222');
+          this.bgi.pieslice(x, y, start_ang, end_ang, radius);
+        }
+      },
+
       // RIP_OVAL_PIE_SLICE (i)
+      'i': (args) => {
+        if (args.length >= 12) {
+          let [x, y, st_ang, e_ang, radx, rady] = this.parseRIPargs(args, '222222');
+          this.bgi.sector(x, y, st_ang, e_ang, radx, rady);
+        }
+      },
 
       // RIP_BEZIER (Z)
       'Z': (args) => {
