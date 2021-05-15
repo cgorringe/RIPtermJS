@@ -114,6 +114,7 @@ class BGI {
     this.width = 1;
     this.height = 1;
     this.isBuffered = true; // true = copy pixels to context, false = using context data store
+    this.colorMask = 0x0F;  // 0xF = 16-color mode, 0xFF = 256-color mode
     this.initContext(ctx, width, height);
     // which assigns these:
     //   this.ctx     : CanvasRenderingContext2D()
@@ -310,7 +311,7 @@ class BGI {
           this.pixels[y * this.width + x] &= color;
           break;
         case BGI.NOT_PUT:
-          this.pixels[y * this.width + x] = (~color & 0x0F); // FIXME: currently limited to EGA colors 0-15
+          this.pixels[y * this.width + x] = (~color & this.colorMask);
       }
     }
   }
@@ -714,8 +715,10 @@ class BGI {
     // struct arccoordstype *arccoords
   }
 
-  getaspectratio (xasp, yasp) { // ***
+  // returns an object {x:int, y:int}
+  getaspectratio (/* xasp, yasp */) { // ***
     // int *xasp, int *yasp
+    return this.info.aspect;
   }
 
   getbkcolor (/* void */) {
@@ -750,8 +753,27 @@ class BGI {
     return 0; // int
   }
 
-  getimage (x1, y1, x2, y2, bitmap) { // ***
+  // Grab and return a byte array of image data.
+  // returns this image object:
+  // { x:int, y:int, width:int, height:int, data:Uint8ClampedArray }
+  // uses this.pixels[]
+  getimage (left, top, right, bottom) {
     // void *bitmap
+
+    // swap
+    if (left > right) { let tmp = left; left = right; right = tmp; }
+    if (top > bottom) { let tmp = top; top = bottom; bottom = tmp; }
+
+    let w = (right - left + 1), h = (bottom - top + 1);
+    let data = new Uint8ClampedArray(w * h);
+    let i, o=0;
+    for (let y=top; y <= bottom; ++y) {
+      i = y * this.width + left;
+      for (let x=left; x <= right; ++x) {
+        data[o++] = this.pixels[i++];
+      }
+    }
+    return {x: left, y: top, width: w, height: h, data: data};
   }
 
   getlinesettings (/* lineinfo */) { // ***
@@ -760,7 +782,7 @@ class BGI {
   }
 
   getmaxcolor (/* void */) {
-    return 0; // int
+    return BGI.MAXCOLORS; // ok for now
   }
 
   getmaxmode (/* void */) {
@@ -858,6 +880,7 @@ class BGI {
 
   // returns size of memory in bytes required to store a bit image
   imagesize (x1, y1, x2, y2) {
+    this.unimplemented('imagesize');
     return 0; // unsigned int
   }
 
@@ -961,10 +984,77 @@ class BGI {
 
   }
 
-  putimage (x1, y1, bitmap, op) {
-    // bitmap = points to where image stored
-    // op = see putimage_ops enum (0=COPY, 1=XOR, 2=OR, 3=AND, 4=NOT)
-    // no info on whether image gets clipped by viewport ???
+  // Put byte array of image data on to pixels[]
+  // image is an object:
+  // { x:int, y:int, width:int, height:int, data:Uint8ClampedArray }
+  putimage (left, top, image, wmode) {
+
+    // OLD
+    // putimage (left, top, bitmap, op)
+    //   bitmap = points to where image stored
+    //   op = see putimage_ops enum (0=COPY, 1=XOR, 2=OR, 3=AND, 4=NOT)
+    //   no info on whether image gets clipped by viewport ???
+
+    if (!(image && image.data)) {
+      console.log('BGI.putimage() missing image!', image);
+      return;
+    }
+
+    const data = image.data; // Uint8ClampedArray
+    let right = left + image.width - 1;
+    let bottom = top + image.height - 1;
+    let i=0, o=0;
+
+    // exit if outside canvas bounds
+    if ((right >= this.width) || (bottom >= this.height)) { return false; }
+
+    switch (wmode) {
+      default:
+      case BGI.COPY_PUT:
+        for (let y=top; y <= bottom; ++y) {
+          o = y * this.width + left;
+          for (let x=left; x <= right; ++x) {
+            this.pixels[o++] = data[i++];
+          }
+        }
+        break;
+
+      case BGI.XOR_PUT:
+        for (let y=top; y <= bottom; ++y) {
+          o = y * this.width + left;
+          for (let x=left; x <= right; ++x) {
+            this.pixels[o++] ^= data[i++];
+          }
+        }
+        break;
+
+      case BGI.OR_PUT:
+        for (let y=top; y <= bottom; ++y) {
+          o = y * this.width + left;
+          for (let x=left; x <= right; ++x) {
+            this.pixels[o++] |= data[i++];
+          }
+        }
+        break;
+
+      case BGI.AND_PUT:
+        for (let y=top; y <= bottom; ++y) {
+          o = y * this.width + left;
+          for (let x=left; x <= right; ++x) {
+            this.pixels[o++] &= data[i++];
+          }
+        }
+        break;
+
+      case BGI.NOT_PUT:
+        for (let y=top; y <= bottom; ++y) {
+          o = y * this.width + left;
+          for (let x=left; x <= right; ++x) {
+            this.pixels[o++] = ~data[i++] & this.colorMask;
+          }
+        }
+    }
+    return true;
   }
 
   // NOT IN BGI

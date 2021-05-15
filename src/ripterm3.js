@@ -101,6 +101,7 @@ class RIPterm {
       this.cmdi = 0;
       this.cmdTimer = null; // commands interval timer
       this.refTimer = null; // refresh interval timer
+      this.clipboard = {};  // { x:int, y:int, width:int, height:int, data:Uint8ClampedArray }
 
       // init canvas
       this.canvas = document.getElementById(opts.canvasId);
@@ -540,7 +541,20 @@ class RIPterm {
       // RIP_END_TEXT (1R)
 
       // RIP_GET_IMAGE (1C)
+      '1C': (args) => {
+        if (args.length >= 9) {
+          const [x0, y0, x1, y1, res] = this.parseRIPargs(args, '22221');
+          this.clipboard = this.bgi.getimage(x0, y0, x1, y1)
+        }
+      },
+
       // RIP_PUT_IMAGE (1P)
+      '1P': (args) => {
+        if (args.length >= 7) {
+          const [x, y, mode, res] = this.parseRIPargs(args, '2221');
+          this.bgi.putimage(x, y, this.clipboard, mode);
+        }
+      },
 
       // RIP_WRITE_ICON (1W)
       // RIP_LOAD_ICON (1I)
