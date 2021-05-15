@@ -78,7 +78,8 @@ class RIPterm {
       // init default options
       // these options copied from prior version are not implemented yet.
       this.opts = {
-        'timeInterval' : 1,
+        'timeInterval' : 1,      // time between running commands (in miliseconds)
+        'refreshInterval' : 100, // time between display refreshes (in miliseconds)
         'floodFill' : true,
         'svgPrefix' : 'rip',     // used to prefix internal SVG ids
         'debugVerbose' : false,  // verbose flag
@@ -98,7 +99,8 @@ class RIPterm {
       // these copied from v2 and may change
       this.ripData = [];
       this.cmdi = 0;
-      this.timer = null;
+      this.cmdTimer = null; // commands interval timer
+      this.refTimer = null; // refresh interval timer
 
       // init canvas
       this.canvas = document.getElementById(opts.canvasId);
@@ -125,8 +127,11 @@ class RIPterm {
     console.log('RIPterm.start()');
     if (this.ctx && this.ripData && (this.ripData.length > 0)) {
       if (this.cmdi >= this.ripData.length) { this.cmdi = 0; }
-      if (this.timer) { window.clearTimeout(this.timer); }
-      this.timer = window.setTimeout(() => { this.drawNext() }, this.opts.timeInterval);
+      // timers
+      if (this.cmdTimer) { window.clearTimeout(this.cmdTimer); this.cmdTimer = null; }
+      if (this.refTimer) { window.clearTimeout(this.refTimer); this.refTimer = null; }
+      this.cmdTimer = window.setTimeout(() => { this.drawNext() }, this.opts.timeInterval);
+      this.refTimer = window.setTimeout(() => { this.refreshNext() }, this.opts.refreshInterval);
     }
     else {
       console.log("Must set 'canvasId' and load a RIP first.");
@@ -136,7 +141,9 @@ class RIPterm {
   // TODO: update for v3
   stop () {
     console.log('RIPterm.stop()');
-    if (this.timer) { window.clearTimeout(this.timer); this.timer = null; }
+    if (this.cmdTimer) { window.clearTimeout(this.cmdTimer); this.cmdTimer = null; }
+    if (this.refTimer) { window.clearTimeout(this.refTimer); this.refTimer = null; }
+    this.bgi.refresh();
   }
 
   reset () {
@@ -176,7 +183,7 @@ class RIPterm {
       let d = this.ripData[this.cmdi];
       // console.log(d); // DEBUG
       if ( this.cmd[d[0]] ) { this.cmd[d[0]](d[1]); }
-      this.bgi.refresh(); // TODO: call this less frequently to speed up animation
+      // this.bgi.refresh(); // TODO: call this less frequently to speed up animation
       if (this.opts.pauseOn.includes(d[0])) {
         if (!this.opts.floodFill && (d[0] == 'F')) { }
         else { this.stop(); }
@@ -188,6 +195,11 @@ class RIPterm {
     else {
       this.stop();
     }
+  }
+
+  refreshNext () {
+    this.bgi.refresh();
+    this.refTimer = window.setTimeout(() => { this.refreshNext() }, this.opts.refreshInterval);
   }
 
   // TODO: update for v3
