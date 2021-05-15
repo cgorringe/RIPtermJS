@@ -26,12 +26,6 @@ class BGI {
 
   // class static constants moved to end of file.
 
-  // TODO: do I need these?
-  //const bgi_palette = [
-  //  '#000', '#00a', '#0a0', '#0aa', '#a00', '#a0a', '#a50', '#aaa',
-  //  '#555', '#55f', '#5f5', '#5ff', '#f55', '#f5f', '#ff5', '#fff'
-  //];
-
   // don't want both below...
 
   // packed ARGB values (0xAARRGGBB) in C++ style
@@ -112,7 +106,7 @@ class BGI {
 
 
   ////////////////////////////////////////////////////////////////////////////////
-  // contructor instance properties
+  // Contructor & init methods
 
   constructor (ctx, width, height) {
 
@@ -129,23 +123,6 @@ class BGI {
 
     this.graphdefaults();
   }
-
-
-  ////////////////////////////////////////////////////////////////////////////////
-  // General methods
-
-
-  unimplemented (method) {
-    console.log('BGI.' + method + '() not implemented.')
-  }
-
-  // NOT in BGI (REMOVE)
-  /*
-  initCanvas (canvas_id) {
-    // just an idea...
-    // grab width & height from canvas
-  }
-  */
 
   infoDefaults () {
     return {
@@ -255,9 +232,13 @@ class BGI {
     return 0;
   }
 
+
   ////////////////////////////////////////////////////////////////////////////////
   // Extra methods
 
+  unimplemented (method) {
+    console.log('BGI.' + method + '() not implemented.')
+  }
 
   // updates the screen
   refresh () {
@@ -305,8 +286,9 @@ class BGI {
   putpixel (x, y, color = this.info.fgcolor, wmode = this.info.writeMode) {
 
     const vp = this.info.vp;
-    x += vp.left;
-    y += vp.top;
+    // TODO: Not sure if offsetting pixel is the right thing to do.
+    // x += vp.left;
+    // y += vp.top;
 
     if ( (x >= 0) && (x < this.width) && (y >= 0) && (y < this.height) &&
       (!vp.clip || ((x >= vp.left) && (x <= vp.right) && (y >= vp.top) && (y <= vp.bottom))) ) {
@@ -333,38 +315,6 @@ class BGI {
 
   // TODO: compare to _putpixel(x, y)
 
-  // NOT USED
-  // Draws a pixel relative to canvas, clipped by viewport.
-  putpixel_copy (x, y, pixel) {
-
-    if ((x >= 0) && (x < this.width) && (y >= 0) && (y < this.height)) {
-      const vp = this.info.vp;
-      if (!vp.clip || ((x >= vp.left) && (x <= vp.right) && (y >= vp.top) && (y <= vp.bottom))) {
-        this.pixels[y * this.width + x] = pixel;
-      }
-    }
-  }
-
-  // TODO (skip)
-  putpixel_xor (x, y, pixel) {
-
-  }
-
-  // TODO (skip)
-  putpixel_or (x, y, pixel) {
-
-  }
-
-  // TODO (skip)
-  putpixel_and (x, y, pixel) {
-
-  }
-
-  // TODO (skip)
-  putpixel_not (x, y, pixel) {
-
-  }
-
   // floodfill putpixel using fill pattern.
   // uses info.fgcolor & info.bgcolor, and info.fill.fpattern that must be pre-set.
   ff_putpixel (x, y, fgcolor = this.info.fgcolor, wmode = this.info.writeMode) {
@@ -383,8 +333,6 @@ class BGI {
       this.putpixel(x, y, bgcolor, wmode);
     }
   }
-
-  // drawbezier(numpoints, polypoints) { }
 
   circle_bresenham (x, y, radius) {
 
@@ -581,8 +529,71 @@ class BGI {
     this.unimplemented('detectgraph')
   }
 
+  // Draws a Cubic Bezier. [NOT IN BGI?]
+  // numsegments is number of segments in curve.
+  // cntpoints is an array of 8 ints (4 control points):
+  //  [x1, y1, x2, y2, x3, y3, x4, y4]
+  // (x1, y1) and (x4, y4) are on the curve, while others are not.
+  // uses line style, thickness, and write mode.
+  drawbezier (numsegments, cntpoints) {
+
+    // TODO: I don't know if this matches the one used in original RipTerm.
+    // Should test against original images.
+
+    // Cubic Bezier formula:
+    // p = (1-t)^3 *P0 + 3*t*(1-t)^2*P1 + 3*t^2*(1-t)*P2 + t^3*P3
+    // where t is 0 to 1
+
+    if (!(numsegments && cntpoints && (numsegments >= 1) && (cntpoints.length >= 8))) {
+      console.log('BGI.drawbezier() invalid args!', numsegments, cntpoints);
+      return;
+    }
+    const [x1, y1, x2, y2, x3, y3, x4, y4] = cntpoints;
+    let step = 1 / numsegments;
+    let xp = x1, yp = y1, xn, yn;
+    for (let t = step; t < 1; t += step) {
+      let t1 = 1 - t;
+      xn = Math.floor( t1*t1*t1 * x1 + 3 * t * t1*t1 * x2 + 3 * t*t * t1 * x3 + t*t*t * x4 );
+      yn = Math.floor( t1*t1*t1 * y1 + 3 * t * t1*t1 * y2 + 3 * t*t * t1 * y3 + t*t*t * y4 );
+      this.line(xp, yp, xn, yn);
+      xp = xn;
+      yp = yn;
+    }
+    this.line(xp, yp, x4, y4);
+  }
+
+  // Draws a closed polygon.
+  // polypoints is an array of ints: [x1, y1, x2, y2, ... xn, yn]
+  // where n = numpoints.
   drawpoly (numpoints, polypoints) {
     // polypoints array of ints
+
+    if (!(numpoints && polypoints && (numpoints >= 2) && (polypoints.length >= numpoints * 2))) {
+      console.log('BGI.drawpoly() invalid args!', numpoints, polypoints);
+      return;
+    }
+
+    for (let n=0; n < numpoints - 1; n++) {
+      this.line(polypoints[2*n], polypoints[2*n + 1],  polypoints[2*n + 2], polypoints[2*n + 3]);
+    }
+    // close the polygon
+    this.line(polypoints[2 * numpoints - 2], polypoints[2 * numpoints - 1], polypoints[0], polypoints[1]);
+  }
+
+  // Draws a polyline. [NOT IN BGI]
+  // polypoints is an array of ints: [x1, y1, x2, y2, ... xn, yn]
+  // where n = numpoints.
+  drawpolyline (numpoints, polypoints) {
+    // polypoints array of ints
+
+    if (!(numpoints && polypoints && (numpoints >= 2) && (polypoints.length >= numpoints * 2))) {
+      console.log('BGI.drawpolyline() invalid args!', numpoints, polypoints);
+      return;
+    }
+
+    for (let n=0; n < numpoints - 1; n++) {
+      this.line(polypoints[2*n], polypoints[2*n + 1],  polypoints[2*n + 2], polypoints[2*n + 3]);
+    }
   }
 
   ellipse (x, y, stangle, endangle, xradius, yradius) {
@@ -593,9 +604,49 @@ class BGI {
 
   }
 
-  fillpoly (numpoints, polypoints) {
+  // Draw a filled polygon, using current fill pattern, fill color and bgcolor.
+  // pp is an array of ints: [x1, y1, x2, y2, ... xn, yn]
+  // where n = numpoints.
+  fillpoly (numpoints, pp) {
     // polypoints array of ints
+
+    // code based on: http://alienryderflex.com/polygon_fill/
+    const vp = this.info.vp;
+    let i, j, x, y, xnode;
+
+    // scan thru all rows in viewport
+    for (y = vp.top; y <= vp.bottom; y++) {
+      xnode = [];
+
+      // build node list
+      j = numpoints - 1;
+      for (i=0; i < numpoints; i++) {
+        if ( ((pp[i*2+1] < y) && (pp[j*2+1] >= y)) || ((pp[j*2+1] < y) && (pp[i*2+1] >= y)) ) {
+          xnode.push( Math.round( (y-pp[i*2+1]) / (pp[j*2+1]-pp[i*2+1]) * (pp[j*2]-pp[i*2]) + pp[i*2] ));
+        }
+        j = i;
+      }
+
+      // sort nodes
+      if (xnode.length == 0) continue;
+      xnode.sort(function(a, b) { return a - b; });
+
+      // draw pixes between node pairs
+      for (i=0; i < xnode.length; i+=2) {
+        // clip to viewport edges
+        if (xnode[i] > vp.right) break;
+        if (xnode[i+1] >= vp.left) {
+          if (xnode[i+1] > vp.right) { xnode[i+1] = vp.right; }
+          if (xnode[i] < vp.left) { xnode[i] = vp.left; }
+          for (x = xnode[i]; x < xnode[i+1]; x++) {
+            this.ff_putpixel(x, y);
+          }
+        }
+      }
+    }
   }
+
+
 
   // NOT IN SDL_bgi ?
   // Draws and fills a rectangle, using fgcolor, line & fill style. Includes border.

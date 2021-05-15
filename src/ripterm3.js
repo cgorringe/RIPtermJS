@@ -274,6 +274,22 @@ class RIPterm {
     return ret;
   }
 
+  // Parses RIP_POLYGON, RIP_FILL_POLYGON, and RIP_POLYLINE
+  // which have a variable number of arguments in the form:
+  //  npoints:2, x1:2, y1:2, ... xn:2, yn:2
+  parseRIPpoly (args) {
+    let xy = 0, ret = [];
+    const npoints = parseInt(args.substr(0, 2), 36);
+    ret.push(npoints);
+    if (npoints <= 512) {
+      for (let n=0; n < npoints * 2; n++) {
+        xy = parseInt(args.substr(n * 2 + 2, 2), 36);
+        ret.push(xy);
+      }
+    }
+    return ret;
+  }
+
   // TODO
   runCommand (inst) {
 
@@ -427,10 +443,37 @@ class RIPterm {
       // RIP_OVAL_ARC (V)
       // RIP_PIE_SLICE (I)
       // RIP_OVAL_PIE_SLICE (i)
+
       // RIP_BEZIER (Z)
+      'Z': (args) => {
+        if (args.length >= 18) {
+          let points = this.parseRIPargs(args, '222222222'); // 9 ints
+          let cnt = points.pop();
+          this.bgi.drawbezier(cnt, points);
+        }
+      },
+
       // RIP_POLYGON (P)
+      'P': (args) => {
+        let pp = this.parseRIPpoly(args);
+        let npoints = pp.shift();
+        this.bgi.drawpoly(npoints, pp);
+      },
+
       // RIP_FILL_POLYGON (p)
+      'p': (args) => {
+        let pp = this.parseRIPpoly(args);
+        let npoints = pp.shift();
+        this.bgi.fillpoly(npoints, pp);
+      },
+
       // RIP_POLYLINE (l)
+      'l': (args) => {
+        let pp = this.parseRIPpoly(args);
+        let npoints = pp.shift();
+        this.bgi.drawpolyline(npoints, pp);
+      },
+
       // RIP_FILL (F)
 
       // RIP_LINE_STYLE (=)
