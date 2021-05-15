@@ -385,8 +385,18 @@ class RIPterm {
         }
       },
 
-      // RIP_TEXT (T)
-      // RIP_TEXT_XY (@)
+      // RIP_TEXT (T) [NOT DONE]
+      'T': (args) => {
+        const [text] = this.parseRIPargs(args, '*');
+        console.log('RIP_TEXT: ' + text);
+      },
+
+      // RIP_TEXT_XY (@) [NOT DONE]
+      '@': (args) => {
+        const [x, y, text] = this.parseRIPargs(args, '22*');
+        console.log('RIP_TEXT_XY: ' + text);
+      },
+
       // RIP_FONT_STYLE (Y)
 
       // RIP_PIXEL (X)
@@ -394,7 +404,7 @@ class RIPterm {
       'X': (args) => {
         if (args.length >= 4) {
           const [x, y] = this.parseRIPargs(args, '22');
-          // this.bgi.putpixel(x, y,, BGI.COPY_PUT); // ignores writeMode
+          // this.bgi.putpixel(x, y, this.bgi.getcolor(), BGI.COPY_PUT); // ignores writeMode
           this.bgi.putpixel(x, y); // uses writeMode
         }
       },
@@ -418,11 +428,13 @@ class RIPterm {
       },
 
       // RIP_BAR (B)
-      // spec says this doesn't use writeMode (could spec be wrong??)
+      // Fills a rectangle using fill color and pattern, without border.
+      // spec says this doesn't use writeMode (mistake?)
       'B': (args) => {
         if (args.length >= 8) {
           const [x0, y0, x1, y1] = this.parseRIPargs(args, '2222');
-          this.bgi.bar(x0, y0, x1, y1);
+          // this.bgi.bar(x0, y0, x1, y1, this.bgi.info.fill.color, BGI.COPY_PUT); // ignores writeMode
+          this.bgi.bar(x0, y0, x1, y1); // uses writeMode
         }
       },
 
@@ -464,7 +476,10 @@ class RIPterm {
       'p': (args) => {
         let pp = this.parseRIPpoly(args);
         let npoints = pp.shift();
+        // draw both a filled polygon using fill color & bgcolor,
+        // and polygon outline using fgcolor, line style, and thickness.
         this.bgi.fillpoly(npoints, pp);
+        this.bgi.drawpolyline(npoints, pp);
       },
 
       // RIP_POLYLINE (l)
@@ -475,6 +490,12 @@ class RIPterm {
       },
 
       // RIP_FILL (F)
+      'F': (args) => {
+        if (args.length >= 6) {
+          const [x, y, border] = this.parseRIPargs(args, '222');
+          this.bgi.floodfill(x, y, border);
+        }
+      },
 
       // RIP_LINE_STYLE (=)
       '=': (args) => {

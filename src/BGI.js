@@ -207,6 +207,8 @@ class BGI {
       this.pixels = this.imgData.data;
     }
 
+    // this temp pixel buffer is used during flood fill
+    this.tpixels = new Uint8ClampedArray(this.width * this.height)
   }
 
   // TODO: rethink this or replace
@@ -316,8 +318,8 @@ class BGI {
   // TODO: compare to _putpixel(x, y)
 
   // floodfill putpixel using fill pattern.
-  // uses info.fgcolor & info.bgcolor, and info.fill.fpattern that must be pre-set.
-  ff_putpixel (x, y, fgcolor = this.info.fgcolor, wmode = this.info.writeMode) {
+  // uses info.fill.color, info.bgcolor, and info.fill.fpattern that must be pre-set.
+  ff_putpixel (x, y, color = this.info.fill.color, wmode = this.info.writeMode) {
 
     // skip adjusting offset since putpixel() does it
     const bgcolor = this.info.bgcolor;
@@ -326,7 +328,7 @@ class BGI {
     // draw pixel if bit in pattern is 1
     if ( (fpattern[y % 8] >> (x % 8)) & 1) {
       // forground pixel
-      this.putpixel(x, y, fgcolor, wmode);
+      this.putpixel(x, y, color, wmode);
     }
     else {
       // background pixel
@@ -500,6 +502,7 @@ class BGI {
     this.info.cp.x = 0;
     this.info.cp.y = 0;
     this.pixels.fill(bgcolor);
+    this.tpixels.fill(0);
   }
 
   // Clears the viewport, filling it with the current background color.
@@ -646,17 +649,65 @@ class BGI {
     }
   }
 
-
-
   // NOT IN SDL_bgi ?
   // Draws and fills a rectangle, using fgcolor, line & fill style. Includes border.
   fillrect (left, top, right, bottom) {
-
+    this.bar(left, top, right, bottom);
+    this.rectangle(left, top, right, bottom);
   }
 
+  // Flood Fill
+  // uses info.fill.color, info.fill.fpattern, & info.bgcolor
+  // uses info.writeMode but not sure if it should
   // border or color = boundry color
-  floodfill (x, y, border) {
+  // uses this.tpixels[] temp pixel buffer
+  floodfill (x0, y0, border) {
 
+    // may not be the fastest routine
+    // copied from ripterm.js v2
+
+    if (this.getpixel(x0, y0) === border) { return }
+
+    this.tpixels.fill(0);
+    const vp = this.info.vp;
+    let stack = [];
+    stack.push([x0, y0]);
+    let popped, count = 0;
+
+    while (popped = stack.pop()) {
+      let [x, y] = popped;
+      let y1 = y, y2 = y + 1;
+
+      // find top of line (y1)
+      while ((y1 >= vp.top) && (this.getpixel(x, y1) != border)) { y1--; }
+      y1++;
+      // find bottom of line (y2)
+      while ((y2 <= vp.bottom) && (this.getpixel(x, y2) != border)) { y2++; }
+      y2--;
+
+      let spanLeft = false, spanRight = false;
+      for (y = y1; y <= y2; y++) {
+        this.ff_putpixel(x, y);
+        this.tpixels[y * this.width + x] = 0xFF;
+        count++;
+
+        if (!spanLeft && (x > vp.left) && (this.getpixel(x-1, y) != border) && (this.tpixels[y * this.width + x-1] != 0xFF)) {
+          stack.push([x-1, y]);
+          spanLeft = true;
+        }
+        else if (spanLeft && (x > vp.left) && (this.getpixel(x-1, y) == border)) {
+          spanLeft = false;
+        }
+
+        if (!spanRight && (x < vp.right) && (this.getpixel(x+1, y) != border) && (this.tpixels[y * this.width + x+1] != 0xFF)) {
+          stack.push([x+1, y]);
+          spanRight = true;
+        }
+        else if (spanRight && (x < vp.right) && (this.getpixel(x+1, y) == border)) {
+          spanRight = false;
+        }
+      }
+    }
   }
 
   getarccoords (arccoords) { // ***
@@ -745,15 +796,15 @@ class BGI {
   }
 
   // Get pixel offset by current viewport, else return 0.
-  getpixel (x, y) {
+  getpixel (x, y, buf = this.pixels) {
 
-    // offset by viewport
-    const vp = this.info.vp;
-    x += vp.left;
-    y += vp.top;
+    // offset by viewport (skip for now)
+    // const vp = this.info.vp;
+    // x += vp.left;
+    // y += vp.top;
 
     if ((x >= 0) && (x < this.width) && (y >= 0) && (y < this.height)) {
-      return this.pixels[y * this.width + x]; // int
+      return buf[y * this.width + x]; // int
     }
     return 0;
   }
