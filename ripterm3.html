@@ -27,11 +27,11 @@
 
 <h2>RIPtermJS (v3)</h2>
 <h6>2021</h6>
-<h4>NOT WORKING YET...</h4>
+<h4>WORK IN PROGRESS</h4>
 <br>
 <p>
   Select a RIP file to display from the dropdown list below, then <strong>Load RIP</strong> and <strong>Start</strong> to draw it.<br>
-  RIP<em>scrip</em> commands are shown on the right.  <em>Blue = implemented, red = skipped.</em>
+<!-- RIP<em>scrip</em> commands are shown on the right.  <em>Blue = implemented, red = skipped.</em> -->
 </p>
 <style>
 	#rip-canvas {
@@ -57,6 +57,7 @@
 		height: 496px; /* 366px */
 	}
 	#rip-text {
+		visibility: hidden; /*** TEST ***/
 		/* border:solid 1px #999; */
 		margin: 4px 0;
 		padding: 0px 8px;
@@ -78,6 +79,7 @@
 		clear: both;
 	}
 	#rip-counter {
+		visibility: hidden; /*** TEST ***/
 		float: right;
 		font-size: 12pt;
 		/* font-weight: bold; */
