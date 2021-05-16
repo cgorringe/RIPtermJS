@@ -34,35 +34,43 @@
 <!-- RIP<em>scrip</em> commands are shown on the right.  <em>Blue = implemented, red = skipped.</em> -->
 </p>
 <style>
-	#rip-canvas {
+	.rip-body {
 		background-color: #000;
 		width: 640px;
+	}
+	.rip-body-height {
 		height: 350px; /* use this later to stretch: 480px */
 	}
-	#rip-canvas-frame {
+	.rip-frame {
 		float: left;
 		margin: 4px 8px 4px 0;
 		width: 656px;
+	}
+	.rip-frame-height {
 		height: 366px; /* use this later to stretch: 496px */
 	}
+	.rip-hidden {
+		visibility: hidden;
+	}
+/*
 	#rip-svg {
 		background-color: #000;
 		width: 640px;
-		height: 480px; /* 350px */
+		height: 480px;
 	}
 	#rip-svg-frame {
 		float: left;
 		margin: 4px 8px 4px 0;
 		width: 656px;
-		height: 496px; /* 366px */
+		height: 496px;
 	}
-	#rip-text {
-		visibility: hidden; /*** TEST ***/
+*/
+	#rip-commands {
 		/* border:solid 1px #999; */
 		margin: 4px 0;
 		padding: 0px 8px;
 		width: 136px;  /* 144px */
-		height: 366px; /* was 496px */
+		/* height: 366px; */ /* was 496px */
 		overflow: auto;
 		background: #333;
 		font-family: monospace;
@@ -70,7 +78,7 @@
 		color: #fff;
 		vertical-align: top;
 	}
-	#rip-text::after {
+	#rip-commands::after {
 		/* content: "";
 		display: block;
 		clear: both; */
@@ -79,7 +87,6 @@
 		clear: both;
 	}
 	#rip-counter {
-		visibility: hidden; /*** TEST ***/
 		float: right;
 		font-size: 12pt;
 		/* font-weight: bold; */
@@ -183,20 +190,34 @@
 	<button onclick="rip.stop();">Stop</button>
 	<button onclick="rip.reset();">Reset</button>
 	<button onclick="rip.fullscreen();">Full Screen</button>
-	<span id="rip-counter"> / </span>
+	<a onclick="this.setAttribute('href',getCanvasPNG());" download="canvas.png" class="noline">
+		<button>Save PNG</button>
+	</a>
+	<span id="rip-counter" class=""></span>
 	<div class="clear"></div>
 
-	<div id="rip-canvas-frame" class="framed">
-		<canvas id="rip-canvas" width="640" height="350"></canvas>
+	<div class="rip-frame rip-frame-height framed">
+		<canvas id="rip-canvas" class="rip-body rip-body-height" width="640" height="350"></canvas>
 	</div>
 	<div>
-		<div id="rip-text" class="framed">
+		<div id="rip-commands" class="rip-frame-height framed">
 		RIPscript here...<br/>
 		</div>
 	</div>
 
-	<a onclick="this.setAttribute('href',getCanvasPNG());" download="canvas.png" class="noline">
-		<button>Save PNG</button></a>
+	<div class="clear"></div>
+	<h6>Diff</h6>
+	<div class="rip-frame rip-frame-height framed">
+		<canvas id="rip-diff-canvas" class="rip-body rip-body-height" width="640" height="350"></canvas>
+	</div>
+
+	<div class="clear"></div>
+	<h6>Screenshot</h6>
+	<div class="rip-frame rip-frame-height framed">
+		<canvas id="rip-ss-canvas" class="rip-body rip-body-height" width="640" height="350"></canvas>
+	</div>
+
+	<div class="clear"></div>
 </div>
 
 <!-- <script src="potrace-modified.js"></script> -->
@@ -207,7 +228,13 @@
 <script>
 
 	testBGI({ canvasId: 'rip-canvas' }); // TEST
-	const rip = new RIPterm({ canvasId: 'rip-canvas', timeInterval: 1, refreshInterval: 10});
+	const rip = new RIPterm({
+		canvasId: 'rip-canvas',
+		commandsId: 'rip-commands',
+		counterId: 'rip-counter',
+		timeInterval: 1,
+		refreshInterval: 10
+	});
 
 	function selectRIP() {
 	}

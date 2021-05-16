@@ -47,7 +47,7 @@ function testBGI (args) {
 // html ids that may be set:
 //   opts.canvasId  - main canvas (REQUIRED)
 //   opts.svgId     - draw to an SVG tag (experimental)
-//   opts.ripTextId - show list of rip commands in div
+//   opts.commandsId - show list of rip commands in div
 //   opts.counterId - show command counter in div (e.g. '5 / 100')
 
 class RIPterm {
@@ -107,6 +107,11 @@ class RIPterm {
       this.canvas = document.getElementById(opts.canvasId);
       this.ctx = this.canvas.getContext('2d');
       this.bgi = new BGI(this.ctx);
+      this.isRunning = false;
+
+      // debug options
+      this.commandsDiv = ('commandsId' in opts) ? document.getElementById(opts.commandsId) : null;
+      this.counterDiv = ('counterId' in opts) ? document.getElementById(opts.counterId) : null;
 
       // set that weird aspect ratio used in original EGA-mode RipTerm DOS version.
       this.bgi.setaspectratio(371, 480); // = 0.7729
@@ -127,6 +132,7 @@ class RIPterm {
   start () {
     console.log('RIPterm.start()');
     if (this.ctx && this.ripData && (this.ripData.length > 0)) {
+      this.isRunning = true;
       if (this.cmdi >= this.ripData.length) { this.cmdi = 0; }
       // timers
       if (this.cmdTimer) { window.clearTimeout(this.cmdTimer); this.cmdTimer = null; }
@@ -142,6 +148,7 @@ class RIPterm {
   // TODO: update for v3
   stop () {
     console.log('RIPterm.stop()');
+    this.isRunning = false;
     if (this.cmdTimer) { window.clearTimeout(this.cmdTimer); this.cmdTimer = null; }
     if (this.refTimer) { window.clearTimeout(this.refTimer); this.refTimer = null; }
     this.bgi.refresh();
@@ -151,6 +158,8 @@ class RIPterm {
     console.log('RIPterm.reset()');
     this.cmd['*']();
     this.bgi.refresh();
+    this.cmdi = 0;
+    if (this.counterDiv) { this.counterDiv.innerHTML = this.cmdi + ' / ' + this.ripData.length; }
   }
 
   clear () {
@@ -180,6 +189,7 @@ class RIPterm {
   // TODO: update for v3
   drawNext () {
 
+    if (!this.isRunning) { return }
     if (this.ripData && (this.cmdi < this.ripData.length)) {
       let d = this.ripData[this.cmdi];
       // console.log(d); // DEBUG
@@ -190,7 +200,7 @@ class RIPterm {
         else { this.stop(); }
       }
       this.cmdi++;
-      // if (self.counterId) { counterDiv.innerHTML = cmdi + ' / ' + ripData.length; }
+      if (this.counterDiv) { this.counterDiv.innerHTML = this.cmdi + ' / ' + this.ripData.length; }
       this.timer = window.setTimeout(() => { this.drawNext() }, this.opts.timeInterval);
     }
     else {
@@ -200,7 +210,9 @@ class RIPterm {
 
   refreshNext () {
     this.bgi.refresh();
-    this.refTimer = window.setTimeout(() => { this.refreshNext() }, this.opts.refreshInterval);
+    if (this.isRunning) {
+      this.refTimer = window.setTimeout(() => { this.refreshNext() }, this.opts.refreshInterval);
+    }
   }
 
   // TODO: update for v3
@@ -210,13 +222,16 @@ class RIPterm {
     this.cmdi = 0;
     let req = new XMLHttpRequest();
     if (req != null) {
+      if (this.commandsDiv) { this.commandsDiv.innerHTML = ''; }
+      if (this.counterDiv) { this.counterDiv.innerHTML = ''; }
+
       req.open("GET", url, false);
       req.overrideMimeType('text/plain; charset=x-user-defined');  // allows ASCII control chars in input
       req.send(null);
       if (req.status != 200) { console.log('Error downloading: ' + url); return; }
       let text = req.responseText;
 
-      // output to ripTextDiv
+      // output to commandsDiv
       let outText = '';
       let c = 1;
       this.ripData = [];
@@ -234,11 +249,27 @@ class RIPterm {
           let cmds = aLine.substr(2).split('|');
           for (let j=0; j < cmds.length; j++) {
             let d = this.parseRIPcmd(cmds[j]);
+
+            // output html to commandsDiv
+            if (this.opts.pauseOn.includes(d[0])) {
+              // RIP command paused
+              outText += '<span class="cmd-paused" title="'+ c +'">'+ d[0] + '</span>' + d[1] + '<br>';
+            }
+            else if (this.cmd[d[0]]) {
+              // RIP command supported
+              outText += '<span class="cmd-ok" title="'+ c +'">'+ d[0] + '</span>' + d[1] + '<br>';
+            }
+            else {
+              // RIP command NOT supported
+              outText += '<span class="cmd-not" title="'+ c +'">'+ d[0] + '</span>' + d[1] + '<br>';
+            }
+
             this.ripData.push(d);  // store command + args in array
             c++;
           }
         } // else skip line
       }
+      if (this.commandsDiv) { this.commandsDiv.innerHTML = outText; }
     }
     this.reset();
 
