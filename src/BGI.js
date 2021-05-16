@@ -342,6 +342,7 @@ class BGI {
   // Bresenham's line algorithm
   line_bresenham (x1, y1, x2, y2, color, wmode, upattern = 0xFFFF) {
 
+    // FIXME: example PNGs likely use slightly different algorithm
     const
       dx = Math.abs(x2 - x1),
       dy = Math.abs(y2 - y1);
@@ -667,7 +668,7 @@ class BGI {
         if (xnode[i+1] >= vp.left) {
           if (xnode[i+1] > vp.right) { xnode[i+1] = vp.right; }
           if (xnode[i] < vp.left) { xnode[i] = vp.left; }
-          for (x = xnode[i]; x < xnode[i+1]; x++) {
+          for (x = xnode[i]; x <= xnode[i+1]; x++) {
             this.ff_putpixel(x, y);
           }
         }

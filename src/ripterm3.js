@@ -639,7 +639,7 @@ class RIPterm {
         // draw both a filled polygon using fill color & bgcolor,
         // and polygon outline using fgcolor, line style, and thickness.
         this.bgi.fillpoly(npoints, pp);
-        this.bgi.drawpolyline(npoints, pp);
+        this.bgi.drawpoly(npoints, pp);
       },
 
       // RIP_POLYLINE (l)
