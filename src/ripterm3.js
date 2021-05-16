@@ -49,6 +49,8 @@ function testBGI (args) {
 //   opts.svgId     - draw to an SVG tag (experimental)
 //   opts.commandsId - show list of rip commands in div
 //   opts.counterId - show command counter in div (e.g. '5 / 100')
+//   opts.ssId      - screenshot canvas id
+//   opts.diffId    - canvas id to display diff of main & screenshot canvases
 
 class RIPterm {
 
@@ -103,15 +105,23 @@ class RIPterm {
       this.refTimer = null; // refresh interval timer
       this.clipboard = {};  // { x:int, y:int, width:int, height:int, data:Uint8ClampedArray }
 
+      // debug options
+      this.commandsDiv = ('commandsId' in opts) ? document.getElementById(opts.commandsId) : null;
+      this.counterDiv = ('counterId' in opts) ? document.getElementById(opts.counterId) : null;
+      if ('ssId' in opts) {
+        this.canvasSS = document.getElementById(opts.ssId);
+        this.ctxSS = (this.canvasSS && this.canvasSS.getContext) ? this.canvasSS.getContext('2d') : null;
+      }
+      if ('diffId' in opts) {
+        this.canvasDiff = document.getElementById(opts.diffId);
+        this.ctxDiff = (this.canvasDiff && this.canvasDiff.getContext) ? this.canvasDiff.getContext('2d') : null;
+      }
+
       // init canvas
       this.canvas = document.getElementById(opts.canvasId);
       this.ctx = this.canvas.getContext('2d');
       this.bgi = new BGI(this.ctx);
       this.isRunning = false;
-
-      // debug options
-      this.commandsDiv = ('commandsId' in opts) ? document.getElementById(opts.commandsId) : null;
-      this.counterDiv = ('counterId' in opts) ? document.getElementById(opts.counterId) : null;
 
       // set that weird aspect ratio used in original EGA-mode RipTerm DOS version.
       this.bgi.setaspectratio(371, 480); // = 0.7729
@@ -138,7 +148,7 @@ class RIPterm {
       if (this.cmdTimer) { window.clearTimeout(this.cmdTimer); this.cmdTimer = null; }
       if (this.refTimer) { window.clearTimeout(this.refTimer); this.refTimer = null; }
       this.cmdTimer = window.setTimeout(() => { this.drawNext() }, this.opts.timeInterval);
-      this.refTimer = window.setTimeout(() => { this.refreshNext() }, this.opts.refreshInterval);
+      this.refTimer = window.setTimeout(() => { this.refreshCanvas() }, this.opts.refreshInterval);
     }
     else {
       console.log("Must set 'canvasId' and load a RIP first.");
@@ -151,13 +161,13 @@ class RIPterm {
     this.isRunning = false;
     if (this.cmdTimer) { window.clearTimeout(this.cmdTimer); this.cmdTimer = null; }
     if (this.refTimer) { window.clearTimeout(this.refTimer); this.refTimer = null; }
-    this.bgi.refresh();
+    this.refreshCanvas();
   }
 
   reset () {
     console.log('RIPterm.reset()');
     this.cmd['*']();
-    this.bgi.refresh();
+    this.refreshCanvas();
     this.cmdi = 0;
     if (this.counterDiv) { this.counterDiv.innerHTML = this.cmdi + ' / ' + this.ripData.length; }
   }
@@ -165,7 +175,7 @@ class RIPterm {
   clear () {
     console.log('RIPterm.clear()');
     this.bgi.cleardevice();
-    this.bgi.refresh();
+    this.refreshCanvas();
   }
 
   fullscreen () {
@@ -194,7 +204,6 @@ class RIPterm {
       let d = this.ripData[this.cmdi];
       // console.log(d); // DEBUG
       if ( this.cmd[d[0]] ) { this.cmd[d[0]](d[1]); }
-      // this.bgi.refresh(); // TODO: call this less frequently to speed up animation
       if (this.opts.pauseOn.includes(d[0])) {
         if (!this.opts.floodFill && (d[0] == 'F')) { }
         else { this.stop(); }
@@ -208,10 +217,11 @@ class RIPterm {
     }
   }
 
-  refreshNext () {
+  refreshCanvas () {
     this.bgi.refresh();
+    this.refreshDiff();
     if (this.isRunning) {
-      this.refTimer = window.setTimeout(() => { this.refreshNext() }, this.opts.refreshInterval);
+      this.refTimer = window.setTimeout(() => { this.refreshCanvas() }, this.opts.refreshInterval);
     }
   }
 
@@ -274,6 +284,65 @@ class RIPterm {
     this.reset();
 
     // console.log(this.ripData); // DEBUG
+  }
+
+  // Load and draw a screenshot image file inside a canvas
+  // if this.ctxSS ('ssId' option) is set.
+  readScreenshot (url) {
+    console.log('RIPterm.readScreenshot(): ' + url);
+
+    if (this.canvasSS && this.ctxSS) {
+      this.ctxSS.clearRect(0, 0, this.canvasSS.width, this.canvasSS.height);
+      let img = new Image();
+      img.onload = () => {
+        this.ctxSS.drawImage(img, 0, 0);
+      }
+      img.src = url;
+    }
+  }
+
+  // Draws diff between Screenshot & Main canvas,
+  // where black pixels = match, white pixels = don't match.
+  // Both 'ssId' and 'diffId' options must be set.
+  // All 3 canvas width & heights must match!
+  // (only works in browser, not using node's 'A8' pixel format.)
+  refreshDiff () {
+
+    if ( this.canvas && this.ctx && this.canvasSS && this.ctxSS && this.canvasDiff && this.ctxDiff &&
+      (this.canvas.width === this.canvasSS.width) && (this.canvas.width === this.canvasDiff.width) &&
+      (this.canvas.height === this.canvasSS.height) && (this.canvas.height === this.canvasDiff.height) )
+    {
+      // prepare image data
+      const w = this.canvas.width, h = this.canvas.height;
+      let imgMain = this.ctx.getImageData(0, 0, w, h);
+      let imgSS = this.ctxSS.getImageData(0, 0, w, h);
+      let imgDiff = this.ctxDiff.getImageData(0, 0, w, h);
+
+      // compare image diffs
+      const dlen = imgMain.data.length; // 4 ints in array per pixel
+      for (let i=0; i < dlen; i+=4) {
+        if ( (imgMain.data[i+0] === imgSS.data[i+0])   // R
+          && (imgMain.data[i+1] === imgSS.data[i+1])   // G
+          && (imgMain.data[i+2] === imgSS.data[i+2]) ) // B
+        {
+          // pixels match: draw dark
+          imgDiff.data[i+0] = 32; // R
+          imgDiff.data[i+1] = 32; // G
+          imgDiff.data[i+2] = 32; // B
+          imgDiff.data[i+3] = 255; // A
+        }
+        else {
+          // pixels don't match: draw bright
+          imgDiff.data[i+0] = 196; // R
+          imgDiff.data[i+1] = 132; // G
+          imgDiff.data[i+2] = 96; // B
+          imgDiff.data[i+3] = 255; // A
+        }
+      }
+
+      // draw imgDiff to diff canvas
+      this.ctxDiff.putImageData(imgDiff, 0, 0);
+    }
   }
 
 
