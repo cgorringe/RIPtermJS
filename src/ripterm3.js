@@ -78,14 +78,17 @@ class RIPterm {
     if (opts && ('canvasId' in opts)) {
 
       // init default options
-      // these options copied from prior version are not implemented yet.
       this.opts = {
         'timeInterval' : 1,      // time between running commands (in miliseconds)
         'refreshInterval' : 100, // time between display refreshes (in miliseconds)
+        'pauseOn' : [],          // debug: pauses on RIP command, e.g. ['F'] will pause on Flood Fill.
+        'diffFGcolor' : '#C86',  // forground color for diff pixels that don't match.
+        'diffBGcolor' : '#222',  // background color for diff pixels that match.
+
+        // these options copied from prior version are not implemented yet.
         'floodFill' : true,
         'svgPrefix' : 'rip',     // used to prefix internal SVG ids
         'debugVerbose' : false,  // verbose flag
-        'pauseOn' : [],          // debug: pauses on RIP command, e.g. ['F'] will pause on Flood Fill.
         'debugFillBuf' : false,  // display flood-fill buffer in canvas instead of normal drawings.
         'svgIncludePut' : false, // adds RIP_PUT_IMAGE (1P) to SVG (experimental)
         'iconsPath' : 'icons',
@@ -318,25 +321,30 @@ class RIPterm {
       let imgSS = this.ctxSS.getImageData(0, 0, w, h);
       let imgDiff = this.ctxDiff.getImageData(0, 0, w, h);
 
+      // grab color options
+      const [fgR, fgG, fgB] = this.hex2rgb(this.opts.diffFGcolor);
+      const [bgR, bgG, bgB] = this.hex2rgb(this.opts.diffBGcolor);
+
       // compare image diffs
+      const delta = 40; // accounts for changes in color gamma in source images
       const dlen = imgMain.data.length; // 4 ints in array per pixel
       for (let i=0; i < dlen; i+=4) {
-        if ( (imgMain.data[i+0] === imgSS.data[i+0])   // R
-          && (imgMain.data[i+1] === imgSS.data[i+1])   // G
-          && (imgMain.data[i+2] === imgSS.data[i+2]) ) // B
+        if ( (Math.abs(imgMain.data[i+0] - imgSS.data[i+0]) < delta)   // R
+          && (Math.abs(imgMain.data[i+1] - imgSS.data[i+1]) < delta)   // G
+          && (Math.abs(imgMain.data[i+2] - imgSS.data[i+2]) < delta) ) // B
         {
           // pixels match: draw dark
-          imgDiff.data[i+0] = 32; // R
-          imgDiff.data[i+1] = 32; // G
-          imgDiff.data[i+2] = 32; // B
-          imgDiff.data[i+3] = 255; // A
+          imgDiff.data[i+0] = bgR;
+          imgDiff.data[i+1] = bgG;
+          imgDiff.data[i+2] = bgB;
+          imgDiff.data[i+3] = 255;
         }
         else {
           // pixels don't match: draw bright
-          imgDiff.data[i+0] = 196; // R
-          imgDiff.data[i+1] = 132; // G
-          imgDiff.data[i+2] = 96; // B
-          imgDiff.data[i+3] = 255; // A
+          imgDiff.data[i+0] = fgR;
+          imgDiff.data[i+1] = fgG;
+          imgDiff.data[i+2] = fgB;
+          imgDiff.data[i+3] = 255;
         }
       }
 
