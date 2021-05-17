@@ -669,7 +669,7 @@ class BGI {
           if (xnode[i+1] > vp.right) { xnode[i+1] = vp.right; }
           if (xnode[i] < vp.left) { xnode[i] = vp.left; }
           for (x = xnode[i]; x <= xnode[i+1]; x++) {
-            this.ff_putpixel(x, y);
+            this.ff_putpixel(x, y, this.info.fill.color, BGI.COPY_PUT);
           }
         }
       }
@@ -714,7 +714,7 @@ class BGI {
 
       let spanLeft = false, spanRight = false;
       for (y = y1; y <= y2; y++) {
-        this.ff_putpixel(x, y);
+        this.ff_putpixel(x, y, this.info.fill.color, BGI.COPY_PUT);
         this.tpixels[y * this.width + x] = 0xFF;
         count++;
 

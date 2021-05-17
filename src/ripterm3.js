@@ -639,10 +639,11 @@ class RIPterm {
         // draw both a filled polygon using fill color & bgcolor,
         // and polygon outline using fgcolor, line style, and thickness.
         this.bgi.fillpoly(npoints, pp);
-        this.bgi.drawpoly(npoints, pp);
+        this.bgi.drawpoly(npoints, pp); // not on KK-JJB.RIP, but do on OUT-BOBA.RIP ???
       },
 
       // RIP_POLYLINE (l)
+      // this was introduced in RIPscrip v1.54 (not present in v1.52)
       'l': (args) => {
         let pp = this.parseRIPpoly(args);
         let npoints = pp.shift();
@@ -658,6 +659,7 @@ class RIPterm {
       },
 
       // RIP_LINE_STYLE (=)
+      // pre-defined styles introduced in RIPscrip v1.54 (only custom-defined in v1.52 ??)
       '=': (args) => {
         if (args.length >= 8) {
           const [style, user_pat, thick] = this.parseRIPargs(args, '242');
