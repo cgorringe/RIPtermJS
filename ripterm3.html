@@ -30,8 +30,10 @@
 <h4>WORK IN PROGRESS</h4>
 <br>
 <p>
-  Select a RIP file to display from the dropdown list below, then <strong>Load RIP</strong> and <strong>Start</strong> to draw it.<br>
-<!-- RIP<em>scrip</em> commands are shown on the right.  <em>Blue = implemented, red = skipped.</em> -->
+	This is Version 3 of my .RIP file viewer and eventual terminal. The <a href="https://en.wikipedia.org/wiki/Remote_Imaging_Protocol" target="_blank" class="link"><i>Remote Imaging Protocol</i></a> was a vector graphics encoding used in BBS's during the 90's. This is an attempt to recreate the MS-DOS program RIP<i>term</i> v1.54 that ran in 640 x 350px EGA, but in an HTML canvas.
+</p>
+<p>
+  Select a RIP file to display from the dropdown list below, then <strong>Load RIP</strong> and <strong>Start</strong> to draw it.<br> RIP<em>scrip</em> commands are shown on the right.  <em>Blue = Implemented. Red = Skipped.</em>
 </p>
 <style>
 	.rip-body {
@@ -212,13 +214,13 @@
 	</div>
 
 	<div class="clear"></div>
-	<h6>Diff</h6>
+	<h6><b>Diff</b> - Highlights where pixels differ compared to a reference screenshot.</h6>
 	<div class="rip-frame rip-frame-height framed">
 		<canvas id="rip-diff-canvas" class="rip-body rip-body-height" width="640" height="350"></canvas>
 	</div>
 
 	<div class="clear"></div>
-	<h6>Screenshot</h6>
+	<h6><b>Screenshot</b> - .PNG from RIPterm v1.54 running in DOSbox.</h6>
 	<div class="rip-frame rip-frame-height framed">
 		<canvas id="rip-ss-canvas" class="rip-body rip-body-height" width="640" height="350"></canvas>
 	</div>
@@ -231,7 +233,7 @@
 <script src="src/ripterm3.js"></script>
 <script>
 
-	testBGI({ canvasId: 'rip-canvas' }); // TEST
+	// testBGI({ canvasId: 'rip-canvas' }); // TEST
 	const rip = new RIPterm({
 		canvasId: 'rip-canvas',
 		ssId: 'rip-ss-canvas',

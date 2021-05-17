@@ -299,6 +299,7 @@ class RIPterm {
       let img = new Image();
       img.onload = () => {
         this.ctxSS.drawImage(img, 0, 0);
+        this.refreshDiff();
       }
       img.src = url;
     }
