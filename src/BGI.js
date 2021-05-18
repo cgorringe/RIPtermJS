@@ -71,7 +71,7 @@ class BGI {
   static get line_patterns () { return [
     0xFFFF, // 00 SOLID_LINE  : 1111111111111111
     0xCCCC, // 01 DOTTED_LINE : 1100110011001100
-    0xF1F8, // 02 CENTER_LINE : 1111000111111000
+    0xFC78, // 02 CENTER_LINE : 1111110001111000
     0xF8F8, // 03 DASHED_LINE : 1111100011111000
     0xFFFF, // 04 USERBIT_LINE
   ]; }
@@ -342,7 +342,12 @@ class BGI {
   // Bresenham's line algorithm
   line_bresenham (x1, y1, x2, y2, color, wmode, upattern = 0xFFFF) {
 
-    // FIXME: example PNGs likely use slightly different algorithm
+    // if y2 < y1, swap points
+    if (y2 < y1) {
+      let tmp = y1; y1 = y2; y2 = tmp;
+      tmp = x1; x1 = x2; x2 = tmp;
+    }
+
     const
       dx = Math.abs(x2 - x1),
       dy = Math.abs(y2 - y1);
@@ -368,7 +373,7 @@ class BGI {
     }
 
     for (let c=0; c <= numpixels; c++) {
-      if ((upattern >> (c % 16)) & 1) { // TODO: Need to TEST line patterns!
+      if ((upattern >> (c % 16)) & 1) {
         this.putpixel(x, y, color, wmode);
       }
       num += numadd;
@@ -384,9 +389,10 @@ class BGI {
   }
 
   // Returns the octant (1-8) where (x, y) lies, used by line().
+  // TODO: needs further testing on edge cases ('>=' vs '>')
   octant (x, y) {
-    return (x >= 0) ? ( (y >= 0) ? (( x > y) ? 1 : 2) : (( x > -y) ? 8 : 7) )
-                    : ( (y >= 0) ? ((-x > y) ? 4 : 3) : ((-x > -y) ? 5 : 6) );
+    return (x >= 0) ? ( (y >= 0) ? (( x >= y) ? 1 : 2) : (( x >= -y) ? 8 : 7) )
+                    : ( (y >= 0) ? ((-x >= y) ? 4 : 3) : ((-x >= -y) ? 5 : 6) );
   }
 
 
