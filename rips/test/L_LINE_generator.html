@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Generating RIP</title>
+</head>
+<body>
+<style>
+  #rip-output {
+    float: left;
+    overflow: auto;
+    width: 20em;
+    height: 40em;
+    background-color: #ddd;
+    padding: 1em;
+    margin: 1em;
+    font-family: monospace;
+    font-size: 10pt;
+  }
+  #rip-canvas {
+    width: 640px;
+    height: 350px;
+    background-color: #000;
+    margin: 1em;
+  }
+</style>
+
+<h2>Generating RIP</h2>
+<p>
+  Copy &amp; Paste text below into a new file: L_LINE.RIP.<br>
+  Then modify line style (=) that follow colors 'c0D' (magenta) and 'c0E' (yellow) with custom pattern for both rows.
+</p>
+
+<pre id="rip-output">
+Output Text
+Some more text
+</pre>
+
+<canvas id="rip-canvas" width="640" height="350"></canvas>
+
+<script>
+  const palette = [
+    '#000', '#00a', '#0a0', '#0aa', '#a00', '#a0a', '#a50', '#aaa',
+    '#555', '#55f', '#5f5', '#5ff', '#f55', '#f5f', '#ff5', '#fff'
+  ];
+
+  function mega2(num) { 
+    return num.toString(36).toUpperCase().padStart(2, '0');
+  }
+
+  let output = document.getElementById('rip-output');
+  let canvas = document.getElementById('rip-canvas');
+  let ctx = canvas.getContext('2d');
+  let text = '!|*\n';
+
+  let x0, y0, x1, y1, x2, y2, t1, t2, color, thick;
+
+  // wheels
+
+  for (let ys=0; ys < 2; ys++) {
+    for (let xs=0; xs < 6; xs++) {
+
+      // color & thickness
+      color = 9 + xs;
+      thick = (ys * 2) + 1;
+      ctx.strokeStyle = palette[color];
+      ctx.lineWidth = thick;
+      text += '!|c' + mega2(color) + '\n';
+      text += '!|=' + mega2(xs) + '0000' + mega2(thick) + '\n';
+
+      // position repeats every 108 px (36 * 3)
+      x0 = 50 + (108 * xs);
+      y0 = 50 + (108 * ys);
+
+      for (let a=0; a < 360; a += 18) {
+        t1 = Math.cos(a * 2 * Math.PI / 360);
+        t2 = Math.sin(a * 2 * Math.PI / 360);
+        x1 = Math.round( x0 + (20 * t1) );
+        y1 = Math.round( y0 + (20 * t2) );
+        x2 = Math.round( x0 + (45 * t1) );
+        y2 = Math.round( y0 + (45 * t2) );
+
+        // draw in canvas
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+
+        // output line
+        text += '!|L' + mega2(x1) + mega2(y1) + mega2(x2) + mega2(y2) + '\n';
+      }
+    }
+  }
+
+  // row of lines
+  text += '!|c0F\n';
+
+  for (let ys=0; ys < 2; ys++) {
+
+    // color & thickness
+    thick = (ys * 2) + 1;
+    ctx.lineWidth = thick;
+    ctx.strokeStyle = palette[15];
+    text += '!|=000000' + mega2(thick) + '\n';
+
+    for (let xs=0; xs < 56; xs++) {
+      x1 = 10 + (10 * xs);
+      y1 = 220 + (50 * ys);
+      x2 = 10 + (10 * xs) + xs;
+      y2 = 260 + (50 * ys);
+
+      // draw in canvas
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+
+      // output line
+      text += '!|L' + mega2(x1) + mega2(y1) + mega2(x2) + mega2(y2) + '\n';
+    }
+  }
+
+  text += '!|#|#|#\n';
+  output.innerHTML = text;
+
+</script>
+</body>
+</html>
