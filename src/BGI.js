@@ -342,12 +342,6 @@ class BGI {
   // Bresenham's line algorithm
   line_bresenham (x1, y1, x2, y2, color, wmode, upattern = 0xFFFF) {
 
-    // if y2 < y1, swap points
-    if (y2 < y1) {
-      let tmp = y1; y1 = y2; y2 = tmp;
-      tmp = x1; x1 = x2; x2 = tmp;
-    }
-
     const
       dx = Math.abs(x2 - x1),
       dy = Math.abs(y2 - y1);
@@ -947,13 +941,27 @@ class BGI {
         linestyle = this.info.line.style, thickness = this.info.line.thickness) {
     // TODO: pass in 'linesettingstype' object instead?
 
-    /* REMOVE
     // already offset by viewport in putpixel()
     const vp = this.info.vp;
-    x1 += vp.left;
-    y1 += vp.top;
-    x2 += vp.left;
-    y2 += vp.top;
+
+    // if y2 < y1, swap points
+    if (y2 < y1) {
+      let tmp = y1; y1 = y2; y2 = tmp;
+      tmp = x1; x1 = x2; x2 = tmp;
+    }
+
+    // REMOVE (none of this fixes bug)
+    // trying to fix bottom edge lines in FRACTMTN.RIP
+    // if points outside viewport, move to inside. Not sure if this should be canvas bounds.
+    //if (y1 < vp.top) { y1 = vp.top; }
+    //if (y1 > vp.bottom) { return; }
+    //if (y2 < vp.top) { return; }
+    //if (y2 > vp.bottom) { y2 = vp.bottom + 1; }
+    /*
+    if (x1 < vp.left) { x1 = vp.left; }
+    if (x1 > vp.right) { x1 = vp.right; }
+    if (x2 < vp.left) { x2 = vp.left; }
+    if (x2 > vp.right) { x2 = vp.right; }
     */
 
     // set pattern
