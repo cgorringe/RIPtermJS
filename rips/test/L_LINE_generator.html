@@ -43,7 +43,7 @@ Some more text
     '#555', '#55f', '#5f5', '#5ff', '#f55', '#f5f', '#ff5', '#fff'
   ];
 
-  function mega2(num) { 
+  function mega2(num) {
     return num.toString(36).toUpperCase().padStart(2, '0');
   }
 
@@ -71,7 +71,8 @@ Some more text
       x0 = 50 + (108 * xs);
       y0 = 50 + (108 * ys);
 
-      for (let a=0; a < 360; a += 18) {
+      // for (let a=0; a < 360; a += 18) { // L_LINE.RIP
+      for (let a=0; a < 360; a += 15) { // L_LINE2.RIP
         t1 = Math.cos(a * 2 * Math.PI / 360);
         t2 = Math.sin(a * 2 * Math.PI / 360);
         x1 = Math.round( x0 + (20 * t1) );

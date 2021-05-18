@@ -640,7 +640,7 @@ class RIPterm {
         // draw both a filled polygon using fill color & bgcolor,
         // and polygon outline using fgcolor, line style, and thickness.
         this.bgi.fillpoly(npoints, pp);
-        this.bgi.drawpoly(npoints, pp); // not on KK-JJB.RIP, but do on OUT-BOBA.RIP ???
+        // drawpoly() is called in fillpoly()
       },
 
       // RIP_POLYLINE (l)

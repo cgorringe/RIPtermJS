@@ -89,7 +89,7 @@ class BGI {
     [0xCC, 0x33, 0xCC, 0x33, 0xCC, 0x33, 0xCC, 0x33], // 09 INTERLEAVE_FILL
     [0x80, 0x00, 0x08, 0x00, 0x80, 0x00, 0x08, 0x00], // 0A WIDE_DOT_FILL
     [0x88, 0x00, 0x22, 0x00, 0x88, 0x00, 0x22, 0x00], // 0B CLOSE_DOT_FILL
-    [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF], // 0C USER_FILL
+    [0xAA, 0x55, 0xAA, 0x55, 0xAA, 0x55, 0xAA, 0x55], // 0C USER_FILL / PabloDraw
   ]; }
 
 
@@ -385,8 +385,25 @@ class BGI {
   // Returns the octant (1-8) where (x, y) lies, used by line().
   // TODO: needs further testing on edge cases ('>=' vs '>')
   octant (x, y) {
-    return (x >= 0) ? ( (y >= 0) ? (( x >= y) ? 1 : 2) : (( x >= -y) ? 8 : 7) )
-                    : ( (y >= 0) ? ((-x >= y) ? 4 : 3) : ((-x >= -y) ? 5 : 6) );
+    // x=40, y=-40
+    // GARFIELD.RIP - OK
+    //return (x >= 0) ? ( (y >= 0) ? (( x > y) ? 1 : 2) : (( x > -y) ? 8 : 7) )
+    //                : ( (y >= 0) ? ((-x > y) ? 4 : 3) : ((-x > -y) ? 5 : 6) );
+
+    // Fixes L_LINE.RIP, but breaks GARFIELD.RIP floodfill!
+    //return (x >= 0) ? ( (y >= 0) ? (( x > y) ? 1 : 2) : (( x >= -y) ? 8 : 7) )
+    //                : ( (y >= 0) ? ((-x > y) ? 4 : 3) : ((-x > -y) ? 5 : 6) );
+
+    // this solves L_LINE2.RIP but still breaks GARFIELD.RIP
+    // ** BEST GUESS SO FAR **
+    return (x >= 0) ? ( (y > 0) ? (( x >= y) ? 1 : 2) : (( x >= -y) ? 8 : 7) )
+                    : ( (y >= 0) ? ((-x > y) ? 4 : 3) : ((-x >= -y) ? 5 : 6) );
+
+    // this fixes GARFIELD.RIP (see slanted black line at right edge of canvas)
+    // compare to screenshot, it looks like floodfill() is responsible for not leaking at that point.
+    // so not fixable in this function!
+    //return (x >= 0) ? ( (y > 0) ? (( x >= y) ? 1 : 2) : (( x > -y) ? 8 : 7) )
+    //                : ( (y >= 0) ? ((-x > y) ? 4 : 3) : ((-x >= -y) ? 5 : 6) );
   }
 
 
@@ -652,7 +669,11 @@ class BGI {
       j = numpoints - 1;
       for (i=0; i < numpoints; i++) {
         if ( ((pp[i*2+1] < y) && (pp[j*2+1] >= y)) || ((pp[j*2+1] < y) && (pp[i*2+1] >= y)) ) {
+          // FIXME: there are off-by-one pixels along edges of polygon.
+          // Test PLANE.RIP: ceil() & floor() work on different polygons.
+          // GARFIELD.RIP floodfill still buggy (btw lines 293-296 in .RIP) from octant() change???
           xnode.push( Math.round( (y-pp[i*2+1]) / (pp[j*2+1]-pp[i*2+1]) * (pp[j*2]-pp[i*2]) + pp[i*2] ));
+          // xnode.push( (y-pp[i*2+1]) / (pp[j*2+1]-pp[i*2+1]) * (pp[j*2]-pp[i*2]) + pp[i*2] );
         }
         j = i;
       }
@@ -661,18 +682,24 @@ class BGI {
       if (xnode.length == 0) continue;
       xnode.sort(function(a, b) { return a - b; });
 
-      // draw pixes between node pairs
+      // draw pixels between node pairs
       for (i=0; i < xnode.length; i+=2) {
         // clip to viewport edges
         if (xnode[i] > vp.right) break;
         if (xnode[i+1] >= vp.left) {
           if (xnode[i+1] > vp.right) { xnode[i+1] = vp.right; }
           if (xnode[i] < vp.left) { xnode[i] = vp.left; }
+          // for (x = Math.ceil(xnode[i]); x <= Math.floor(xnode[i+1]); x++) { // TEST
           for (x = xnode[i]; x <= xnode[i+1]; x++) {
             this.ff_putpixel(x, y, this.info.fill.color, BGI.COPY_PUT);
           }
         }
       }
+    }
+    // this fixes filled polygon border issues
+    // not sure if bgcolor should just be 0, but since bgcolor is never set != 0, it doesn't matter
+    if (this.info.fgcolor !== this.info.bgcolor) {
+      this.drawpoly(numpoints, pp);
     }
   }
 
