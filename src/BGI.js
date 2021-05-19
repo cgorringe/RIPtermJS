@@ -719,6 +719,8 @@ class BGI {
 
     // may not be the fastest routine
     // copied from ripterm.js v2
+    // TODO: Test against GARFIELD.RIP & PMID1.RIP which both have 1-pixel leaks along right & left edges.
+    // could this be solved by swapping X & Y axis?
 
     if (this.getpixel(x0, y0) === border) { return }
 

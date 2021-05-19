@@ -125,6 +125,9 @@ class RIPterm {
       this.ctx = this.canvas.getContext('2d');
       this.bgi = new BGI(this.ctx);
       this.isRunning = false;
+      this.isFullscreen = false;
+      this.backup = {};
+      this.initFullScreen(this.canvas);
 
       // set that weird aspect ratio used in original EGA-mode RipTerm DOS version.
       this.bgi.setaspectratio(371, 480); // = 0.7729
@@ -135,6 +138,15 @@ class RIPterm {
       console.error('RIPterm() missing canvasId!');
     }
 
+  }
+
+  initFullScreen (canvas) {
+    if (canvas.requestFullscreen) {
+      canvas.addEventListener("fullscreenchange", (event) => { this.fullscreenchange(event) }, false);
+    }
+    else if (canvas.webkitRequestFullscreen) {
+      canvas.addEventListener("webkitfullscreenchange", (event) => { this.fullscreenchange(event) }, false);
+    }
   }
 
 
@@ -183,16 +195,36 @@ class RIPterm {
 
   fullscreen () {
     console.log('RIPterm.fullscreen()');
-    if (this.canvas && this.canvas.requestFullscreen) {
+    if (!this.canvas) { return }
+    if (this.canvas.requestFullscreen) {
       this.canvas.requestFullscreen();
-      document.addEventListener("fullscreenchange", this.fullscreenchange, false);
+    }
+    else if (this.canvas.webkitRequestFullscreen) {
+      this.canvas.webkitRequestFullscreen();
     }
   }
 
-  // TODO
   // called when entering and exiting full screen
-  fullscreenchange () {
-
+  fullscreenchange (event) {
+    if (!this.isFullscreen) {
+      // entering fullscreen
+      console.log('entering fullscreen: '); // DEBUG
+      this.isFullscreen = true;
+      this.backup.canvasWidth = event.target.style.width;
+      this.backup.canvasHeight = event.target.style.height;
+      const winW = window.innerWidth, winH = window.innerHeight;
+      event.target.style.width = winW + 'px';
+      event.target.style.height = winH + 'px';
+      this.reset();
+      this.start();
+    }
+    else {
+      // exiting fullscreen
+      console.log('exiting fullscreen'); // DEBUG
+      this.isFullscreen = false;
+      event.target.style.width = this.backup.canvasWidth;
+      event.target.style.height = this.backup.canvasHeight;
+    }
   }
 
 
