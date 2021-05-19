@@ -579,7 +579,7 @@ class BGI {
   // Draws a closed polygon.
   // polypoints is an array of ints: [x1, y1, x2, y2, ... xn, yn]
   // where n = numpoints.
-  drawpoly (numpoints, polypoints) {
+  drawpoly (numpoints, polypoints, color = this.info.fgcolor) {
     // polypoints array of ints
 
     if (!(numpoints && polypoints && (numpoints >= 2) && (polypoints.length >= numpoints * 2))) {
@@ -588,16 +588,16 @@ class BGI {
     }
 
     for (let n=0; n < numpoints - 1; n++) {
-      this.line(polypoints[2*n], polypoints[2*n + 1],  polypoints[2*n + 2], polypoints[2*n + 3]);
+      this.line(polypoints[2*n], polypoints[2*n + 1],  polypoints[2*n + 2], polypoints[2*n + 3], color);
     }
     // close the polygon
-    this.line(polypoints[2 * numpoints - 2], polypoints[2 * numpoints - 1], polypoints[0], polypoints[1]);
+    this.line(polypoints[2 * numpoints - 2], polypoints[2 * numpoints - 1], polypoints[0], polypoints[1], color);
   }
 
   // Draws a polyline. [NOT IN BGI]
   // polypoints is an array of ints: [x1, y1, x2, y2, ... xn, yn]
   // where n = numpoints.
-  drawpolyline (numpoints, polypoints) {
+  drawpolyline (numpoints, polypoints, color = this.info.fgcolor) {
     // polypoints array of ints
 
     if (!(numpoints && polypoints && (numpoints >= 2) && (polypoints.length >= numpoints * 2))) {
@@ -606,7 +606,7 @@ class BGI {
     }
 
     for (let n=0; n < numpoints - 1; n++) {
-      this.line(polypoints[2*n], polypoints[2*n + 1],  polypoints[2*n + 2], polypoints[2*n + 3]);
+      this.line(polypoints[2*n], polypoints[2*n + 1],  polypoints[2*n + 2], polypoints[2*n + 3], color);
     }
   }
 
@@ -659,7 +659,7 @@ class BGI {
 
     // code based on: http://alienryderflex.com/polygon_fill/
     const vp = this.info.vp;
-    let i, j, x, y, xnode;
+    let i, j, x, y, xnode, xval;
 
     // scan thru all rows in viewport
     for (y = vp.top; y <= vp.bottom; y++) {
@@ -669,11 +669,36 @@ class BGI {
       j = numpoints - 1;
       for (i=0; i < numpoints; i++) {
         if ( ((pp[i*2+1] < y) && (pp[j*2+1] >= y)) || ((pp[j*2+1] < y) && (pp[i*2+1] >= y)) ) {
-          // FIXME: there are off-by-one pixels along edges of polygon.
-          // Test PLANE.RIP: ceil() & floor() work on different polygons.
-          // GARFIELD.RIP floodfill still buggy (btw lines 293-296 in .RIP) from octant() change???
-          xnode.push( Math.round( (y-pp[i*2+1]) / (pp[j*2+1]-pp[i*2+1]) * (pp[j*2]-pp[i*2]) + pp[i*2] ));
-          // xnode.push( (y-pp[i*2+1]) / (pp[j*2+1]-pp[i*2+1]) * (pp[j*2]-pp[i*2]) + pp[i*2] );
+
+          // FIXME: there are off-by-one pixels along edges of polygons.
+          // I tried lots of combinations, but could not solve it...
+
+          xval = (y - pp[i*2+1]) / (pp[j*2+1] - pp[i*2+1]) * (pp[j*2] - pp[i*2]) + pp[i*2];
+
+          /* TO REMOVE
+          // tried this, didn't solve bug
+          const tx1 = pp[j*2];
+          const ty1 = pp[j*2+1];
+          const tx2 = pp[i*2];
+          const ty2 = pp[i*2+1];
+          xval = (y - ty2) / (ty1 - ty2) * (tx1 - tx2) + tx2;
+
+          const oct = this.octant(tx2 - tx1, ty1 - ty2);
+          if ((oct === 1) || (oct === 4) || (oct ===5) || (oct === 8)) {
+            xnode.push( Math.ceil(xval) );
+          }
+          else {
+            xnode.push( Math.floor(xval) );
+          }
+          */
+
+          // tried all these (REMOVE)
+          //xnode.push( Math.ceil(xval) );
+          //xnode.push( Math.floor(xval) );
+          //xnode.push( Math.trunc(xval) );
+          //xnode.push( xval | 0 ); // same as trunc() but slightly faster?
+
+          xnode.push( Math.round(xval) );
         }
         j = i;
       }
@@ -702,6 +727,58 @@ class BGI {
       this.drawpoly(numpoints, pp);
     }
   }
+
+/*
+  // TO REMOVE
+  // TEST: FLIPPING x & y axis (SAME ISSUE AS ABOVE)
+  fillpoly2 (numpoints, pp) {
+    // polypoints array of ints
+
+    // code based on: http://alienryderflex.com/polygon_fill/
+    const vp = this.info.vp;
+    let i, j, x, y, ynode, yval;
+
+    // scan thru all rows in viewport
+    for (x = vp.left; x <= vp.right; x++) {
+      ynode = [];
+
+      // build node list
+      j = numpoints - 1;
+      for (i=0; i < numpoints; i++) {
+        if ( ((pp[i*2] < x) && (pp[j*2] >= x)) || ((pp[j*2] < x) && (pp[i*2] >= x)) ) {
+
+          yval = (x - pp[i*2]) / (pp[j*2] - pp[i*2]) * (pp[j*2+1] - pp[i*2+1]) + pp[i*2+1];
+          //ynode.push( Math.round(yval) );
+          //ynode.push( Math.floor(yval) );
+          //ynode.push( Math.trunc(yval) );
+          ynode.push( Math.ceil(yval) );
+        }
+        j = i;
+      }
+
+      // sort nodes
+      if (ynode.length == 0) continue;
+      ynode.sort(function(a, b) { return a - b; });
+
+      // draw pixels between node pairs
+      for (i=0; i < ynode.length; i+=2) {
+        // clip to viewport edges
+        if (ynode[i] > vp.bottom) break;
+        if (ynode[i+1] >= vp.top) {
+          if (ynode[i+1] > vp.bottom) { ynode[i+1] = vp.bottom; }
+          if (ynode[i] < vp.top) { ynode[i] = vp.top; }
+          for (y = ynode[i]; y <= ynode[i+1]; y++) {
+            this.ff_putpixel(x, y, this.info.fill.color, BGI.COPY_PUT);
+          }
+        }
+      }
+    }
+    // this fixes filled polygon border issues
+    if (this.info.fgcolor !== this.info.bgcolor) {
+      this.drawpoly(numpoints, pp);
+    }
+  }
+*/
 
   // NOT IN SDL_bgi ?
   // Draws and fills a rectangle, using fgcolor, line & fill style. Includes border.
