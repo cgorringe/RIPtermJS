@@ -419,7 +419,7 @@ class BGI {
 
     if ((radius < 1) || (stangle === endangle)) { return } // TODO: test against reference
     // adjust radius based on aspect ratio
-    const yradius = radius * (this.info.aspect.xasp / this.info.aspect.yasp);
+    const yradius = Math.floor( radius * (this.info.aspect.xasp / this.info.aspect.yasp) );
     this.ellipse(x, y, stangle, endangle, radius, yradius, thickness)
   }
 
@@ -565,7 +565,7 @@ class BGI {
     const [x1, y1, x2, y2, x3, y3, x4, y4] = cntpoints;
     let step = 1 / numsegments;
     let xp = x1, yp = y1, xn, yn;
-    for (let t = step; t < 1; t += step) {
+    for (let t = step; t < 1; t += step) { // TODO: TEST t <= 1
       let t1 = 1 - t;
       xn = Math.floor( t1*t1*t1 * x1 + 3 * t * t1*t1 * x2 + 3 * t*t * t1 * x3 + t*t*t * x4 );
       yn = Math.floor( t1*t1*t1 * y1 + 3 * t * t1*t1 * y2 + 3 * t*t * t1 * y3 + t*t*t * y4 );
