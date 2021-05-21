@@ -356,8 +356,8 @@ class BGI {
        this.putpixel(cx + x, cy - y);
        this.putpixel(cx - x, cy - y);
        e2 = 2 * err;
-       if (e2 >= dx) { x++; err += dx += yrad2; } // x step
-       if (e2 <= dy) { y++; err += dy += xrad2; } // y step
+       if (e2 <= dy) { y++; dy += xrad2; err += dy; } // y step
+       if (e2 >= dx || (2 * err) > dy) { x++; dx += yrad2; err += dx; } // x step
     } while (x <= 0);
 
     // finish tip of ellipse (is this needed?)
