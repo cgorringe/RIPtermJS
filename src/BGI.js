@@ -341,6 +341,29 @@ class BGI {
     } while (xx < 0);
   }
 
+  // Bresenham's ellipse algorithm
+  ellipse_bresenham (xc, yc, xradius, yradius) {
+
+    let x = -xradius, y = 0;
+    let e2 = yradius, dx = (1+2*x)*e2*e2;
+    let dy = x*x, err = dx+dy;
+
+    do {
+       this.putpixel(xc - x, yc + y);
+       this.putpixel(xc + x, yc + y);
+       this.putpixel(xc + x, yc - y);
+       this.putpixel(xc - x, yc - y);
+       e2 = 2 * err;
+       if (e2 >= dx) { x++; err += dx += 2*yradius * yradius; } // x step
+       if (e2 <= dy) { y++; err += dy += 2*xradius * xradius; } // y step
+    } while (x <= 0);
+
+    while (y++ < yradius) { // to early stop for flat ellipses with a=1,
+       this.putpixel(xc, yc + y); // finish tip of ellipse
+       this.putpixel(xc, yc - y);
+    }
+  }
+
   // Bresenham's line algorithm
   line_bresenham (x1, y1, x2, y2, color, wmode, upattern = 0xFFFF) {
 
@@ -419,10 +442,11 @@ class BGI {
   // doesn't use linestyle.
   arc (x, y, stangle, endangle, radius, thickness = this.info.line.thickness) {
 
-    if ((radius < 1) || (stangle === endangle)) { return } // TODO: test against reference
+    //if ((radius < 1) && (thickness > 1)) { return } // display if thin, not if thick
+    if (stangle === endangle) { return }
     // adjust radius based on aspect ratio
     const yradius = Math.floor( radius * (this.info.aspect.xasp / this.info.aspect.yasp) );
-    this.ellipse(x, y, stangle, endangle, radius, yradius, thickness)
+    this.ellipse(x, y, stangle, endangle, radius, yradius, thickness);
   }
 
   // Draws and fills a rectangle, using fill style and color. Has no border. (see fillrect)
@@ -497,15 +521,22 @@ class BGI {
   // doesn't use linestyle
   circle (x, y, radius, thickness = this.info.line.thickness) {
 
-    if (radius < 1) { return } // TODO: test against reference image
+    // display on zero radius if thin, but not if thick
+    if ((radius < 1) && (thickness > 1)) { return }
+
+    /* TO REMOVE
     if ((this.info.aspect.xasp === this.info.aspect.yasp) && (thickness === BGI.NORM_WIDTH)) {
       // draw better-looking circle only if thin and aspect ratio 1:1
+      // (could remove this, as arc is good enough now)
       this.circle_bresenham(x, y, radius);
     }
     else {
       // draw using different algorithm
+    */
       this.arc(x, y, 0, 360, radius);
+    /*
     }
+    */
   }
 
   // Clears the screen, filling it with the current background color.
@@ -617,10 +648,17 @@ class BGI {
   // doesn't use linestyle.
   ellipse (x, y, stangle, endangle, xradius, yradius, thickness = this.info.line.thickness) {
 
-    // TODO: don't know if these are correct
+    // need these
     if (stangle === endangle) { return }
     if (xradius < 1) { xradius = 1; }
     if (yradius < 1) { yradius = 1; }
+
+    // bresenham works well for thin lines,
+    // while still need to find a solution for thick lines.
+    if (thickness === 1) {
+      this.ellipse_bresenham(x, y, xradius, yradius);
+      return;
+    }
 
     // following copied from ripscript.js v2 drawOvalArc()
     // TODO: find smoother algorithm
