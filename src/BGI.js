@@ -344,6 +344,8 @@ class BGI {
   // Bresenham's ellipse algorithm
   ellipse_bresenham (cx, cy, xradius, yradius) {
 
+    const xrad2 = 2 * xradius * xradius;
+    const yrad2 = 2 * yradius * yradius;
     let x = -xradius, y = 0;
     let e2 = yradius, dx = (1+2*x)*e2*e2;
     let dy = x*x, err = dx+dy;
@@ -354,12 +356,13 @@ class BGI {
        this.putpixel(cx + x, cy - y);
        this.putpixel(cx - x, cy - y);
        e2 = 2 * err;
-       if (e2 >= dx) { x++; err += dx += 2*yradius * yradius; } // x step
-       if (e2 <= dy) { y++; err += dy += 2*xradius * xradius; } // y step
+       if (e2 >= dx) { x++; err += dx += yrad2; } // x step
+       if (e2 <= dy) { y++; err += dy += xrad2; } // y step
     } while (x <= 0);
 
-    while (y++ < yradius) { // early stop for flat ellipses with xradius=1,
-       this.putpixel(cx, cy + y); // finish tip of ellipse
+    // finish tip of ellipse (is this needed?)
+    while (y++ < yradius) {
+       this.putpixel(cx, cy + y);
        this.putpixel(cx, cy - y);
     }
   }
@@ -672,8 +675,8 @@ class BGI {
     // draw arc counter-clockwise
     for (let n = stangle; n <= endangle; n += 3) {
       // test with: Math.floor() .round() .trunc()
-      x2 = x + Math.round(xradius * Math.cos(n * twoPiD));
-      y2 = y - Math.round(yradius * Math.sin(n * twoPiD));
+      x2 = cx + Math.round(xradius * Math.cos(n * twoPiD));
+      y2 = cy - Math.round(yradius * Math.sin(n * twoPiD));
       this.line(x1, y1, x2, y2, this.info.fgcolor, BGI.COPY_PUT, BGI.SOLID_LINE, thickness);
       x1 = x2; y1 = y2;
     }
