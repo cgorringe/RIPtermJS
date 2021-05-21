@@ -276,6 +276,8 @@ class BGI {
   // Draws a pixel offset by and clipped by current viewport.
   putpixel (x, y, color = this.info.fgcolor, wmode = this.info.writeMode) {
 
+    x = Math.round(x);
+    y = Math.round(y);
     const vp = this.info.vp;
     // TODO: Not sure if offsetting pixel is the right thing to do.
     // x += vp.left;
@@ -952,6 +954,8 @@ class BGI {
   // Get pixel offset by current viewport, else return 0.
   getpixel (x, y, buf = this.pixels) {
 
+    x = Math.round(x);
+    y = Math.round(y);
     // offset by viewport (skip for now)
     // const vp = this.info.vp;
     // x += vp.left;
@@ -1132,7 +1136,7 @@ class BGI {
 
     if ((radius < 1) || (stangle === endangle)) { return } // TODO: test against reference
     // adjust radius based on aspect ratio
-    const yradius = radius * (this.info.aspect.xasp / this.info.aspect.yasp);
+    const yradius = Math.floor( radius * (this.info.aspect.xasp / this.info.aspect.yasp) );
     this.sector(x, y, stangle, endangle, radius, yradius);
   }
 
@@ -1260,6 +1264,7 @@ class BGI {
     if (yradius < 1) { yradius = 1; }
 
     // TODO: algorithm here
+    this.ellipse(x, y, stangle, endangle, xradius, yradius); // TEST
 
   }
 
