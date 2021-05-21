@@ -327,14 +327,14 @@ class BGI {
     }
   }
 
-  circle_bresenham (x, y, radius) {
+  circle_bresenham (cx, cy, radius) {
 
     let xx = -radius, yy = 0, err = 2 - (2 * radius);
     do {
-      this.putpixel(x - xx, y + yy);
-      this.putpixel(x - yy, y - xx);
-      this.putpixel(x + xx, y - yy);
-      this.putpixel(x + yy, y + xx);
+      this.putpixel(cx - xx, cy + yy);
+      this.putpixel(cx - yy, cy - xx);
+      this.putpixel(cx + xx, cy - yy);
+      this.putpixel(cx + yy, cy + xx);
       radius = err;
       if (radius <= yy) { err += ++yy * 2 + 1; }
       if ((radius > xx) || (err > yy)) { err += ++xx * 2 + 1; }
@@ -342,25 +342,25 @@ class BGI {
   }
 
   // Bresenham's ellipse algorithm
-  ellipse_bresenham (xc, yc, xradius, yradius) {
+  ellipse_bresenham (cx, cy, xradius, yradius) {
 
     let x = -xradius, y = 0;
     let e2 = yradius, dx = (1+2*x)*e2*e2;
     let dy = x*x, err = dx+dy;
 
     do {
-       this.putpixel(xc - x, yc + y);
-       this.putpixel(xc + x, yc + y);
-       this.putpixel(xc + x, yc - y);
-       this.putpixel(xc - x, yc - y);
+       this.putpixel(cx - x, cy + y);
+       this.putpixel(cx + x, cy + y);
+       this.putpixel(cx + x, cy - y);
+       this.putpixel(cx - x, cy - y);
        e2 = 2 * err;
        if (e2 >= dx) { x++; err += dx += 2*yradius * yradius; } // x step
        if (e2 <= dy) { y++; err += dy += 2*xradius * xradius; } // y step
     } while (x <= 0);
 
-    while (y++ < yradius) { // to early stop for flat ellipses with a=1,
-       this.putpixel(xc, yc + y); // finish tip of ellipse
-       this.putpixel(xc, yc - y);
+    while (y++ < yradius) { // early stop for flat ellipses with xradius=1,
+       this.putpixel(cx, cy + y); // finish tip of ellipse
+       this.putpixel(cx, cy - y);
     }
   }
 
@@ -440,13 +440,13 @@ class BGI {
   // Draw a circular arc centered at (x, y), from stangle to endangle in degrees,
   // counterclockwise with 0 = 3 o'clock, 90 = 12 o'clock, etc.
   // doesn't use linestyle.
-  arc (x, y, stangle, endangle, radius, thickness = this.info.line.thickness) {
+  arc (cx, cy, stangle, endangle, radius, thickness = this.info.line.thickness) {
 
     //if ((radius < 1) && (thickness > 1)) { return } // display if thin, not if thick
-    if (stangle === endangle) { return }
+
     // adjust radius based on aspect ratio
     const yradius = Math.floor( radius * (this.info.aspect.xasp / this.info.aspect.yasp) );
-    this.ellipse(x, y, stangle, endangle, radius, yradius, thickness);
+    this.ellipse(cx, cy, stangle, endangle, radius, yradius, thickness);
   }
 
   // Draws and fills a rectangle, using fill style and color. Has no border. (see fillrect)
@@ -519,7 +519,7 @@ class BGI {
   }
 
   // doesn't use linestyle
-  circle (x, y, radius, thickness = this.info.line.thickness) {
+  circle (cx, cy, radius, thickness = this.info.line.thickness) {
 
     // display on zero radius if thin, but not if thick
     if ((radius < 1) && (thickness > 1)) { return }
@@ -533,7 +533,7 @@ class BGI {
     else {
       // draw using different algorithm
     */
-      this.arc(x, y, 0, 360, radius);
+      this.arc(cx, cy, 0, 360, radius);
     /*
     }
     */
@@ -646,7 +646,7 @@ class BGI {
   // Draw an elliptical arc centered at (x, y), from stangle to endangle in degrees,
   // counterclockwise with 0 = 3 o'clock, 90 = 12 o'clock, etc.
   // doesn't use linestyle.
-  ellipse (x, y, stangle, endangle, xradius, yradius, thickness = this.info.line.thickness) {
+  ellipse (cx, cy, stangle, endangle, xradius, yradius, thickness = this.info.line.thickness) {
 
     // need these
     if (stangle === endangle) { return }
@@ -656,7 +656,7 @@ class BGI {
     // bresenham works well for thin lines,
     // while still need to find a solution for thick lines.
     if (thickness === 1) {
-      this.ellipse_bresenham(x, y, xradius, yradius);
+      this.ellipse_bresenham(cx, cy, xradius, yradius);
       return;
     }
 
@@ -665,22 +665,22 @@ class BGI {
 
     const twoPiD = 2 * Math.PI / 360;
     if (stangle > endangle) { endangle += 360; }
-    let x1, y1;
-    let x0 = x + Math.round(xradius * Math.cos(stangle * twoPiD));
-    let y0 = y - Math.round(yradius * Math.sin(stangle * twoPiD));
+    let x1 = cx + Math.round(xradius * Math.cos(stangle * twoPiD));
+    let y1 = cy - Math.round(yradius * Math.sin(stangle * twoPiD));
+    let x2, y2;
 
     // draw arc counter-clockwise
     for (let n = stangle; n <= endangle; n += 3) {
       // test with: Math.floor() .round() .trunc()
-      x1 = x + Math.round(xradius * Math.cos(n * twoPiD));
-      y1 = y - Math.round(yradius * Math.sin(n * twoPiD));
-      this.line(x0, y0, x1, y1, this.info.fgcolor, BGI.COPY_PUT, BGI.SOLID_LINE, thickness);
-      x0 = x1; y0 = y1;
+      x2 = x + Math.round(xradius * Math.cos(n * twoPiD));
+      y2 = y - Math.round(yradius * Math.sin(n * twoPiD));
+      this.line(x1, y1, x2, y2, this.info.fgcolor, BGI.COPY_PUT, BGI.SOLID_LINE, thickness);
+      x1 = x2; y1 = y2;
     }
 
   }
 
-  fillellipse (x, y, xradius, yradius) {
+  fillellipse (cx, cy, xradius, yradius) {
 
     // TODO: don't know if these are correct, or should we exit?
     if (xradius < 1) { xradius = 1; }
@@ -1170,12 +1170,12 @@ class BGI {
 
   // fills with fill color and pattern.
   // outlines with fgcolor and thickness. doesn't use line style.
-  pieslice (x, y, stangle, endangle, radius) {
+  pieslice (cx, cy, stangle, endangle, radius) {
 
     if ((radius < 1) || (stangle === endangle)) { return } // TODO: test against reference
     // adjust radius based on aspect ratio
     const yradius = Math.floor( radius * (this.info.aspect.xasp / this.info.aspect.yasp) );
-    this.sector(x, y, stangle, endangle, radius, yradius);
+    this.sector(cx, cy, stangle, endangle, radius, yradius);
   }
 
   // Put byte array of image data on to pixels[]
@@ -1291,7 +1291,7 @@ class BGI {
   }
 
   // Draws and fills an elliptical pie slice centered at (x, y).
-  sector (x, y, stangle, endangle, xradius, yradius) {
+  sector (cx, cy, stangle, endangle, xradius, yradius) {
     // Outlines using current color, filled using pattern & color.
     // from setfillstyle & setfillpattern.
     // Angles in degrees, counter-clockwise: 0=3o'clock, 90=12o'clock
@@ -1302,7 +1302,8 @@ class BGI {
     if (yradius < 1) { yradius = 1; }
 
     // TODO: algorithm here
-    this.ellipse(x, y, stangle, endangle, xradius, yradius); // TEST
+
+    this.ellipse(cx, cy, stangle, endangle, xradius, yradius); // TEST
 
   }
 
