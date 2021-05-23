@@ -327,14 +327,31 @@ class BGI {
     }
   }
 
-  circle_bresenham (cx, cy, radius) {
+  thick_putpixel (x, y, color = this.info.fgcolor, wmode = this.info.writeMode) {
+    // could be more efficient
+    //this.putpixel(x-1, y-1, color, wmode);
+    this.putpixel(x  , y-1, color, wmode);
+    //this.putpixel(x+1, y-1, color, wmode);
+    this.putpixel(x-1, y  , color, wmode);
+    this.putpixel(x  , y  , color, wmode);
+    this.putpixel(x+1, y  , color, wmode);
+    //this.putpixel(x-1, y+1, color, wmode);
+    this.putpixel(x  , y+1, color, wmode);
+    //this.putpixel(x+1, y+1, color, wmode);
+  }
 
+  // NOT USED
+  circle_bresenham (cx, cy, radius, thickness = this.info.line.thickness) {
+
+    const putpix = (thickness === 3)
+      ? (a, b) => this.thick_putpixel(a, b)
+      : (a, b) => this.putpixel(a, b);
     let xx = -radius, yy = 0, err = 2 - (2 * radius);
     do {
-      this.putpixel(cx - xx, cy + yy);
-      this.putpixel(cx - yy, cy - xx);
-      this.putpixel(cx + xx, cy - yy);
-      this.putpixel(cx + yy, cy + xx);
+      putpix(cx - xx, cy + yy);
+      putpix(cx - yy, cy - xx);
+      putpix(cx + xx, cy - yy);
+      putpix(cx + yy, cy + xx);
       radius = err;
       if (radius <= yy) { err += ++yy * 2 + 1; }
       if ((radius > xx) || (err > yy)) { err += ++xx * 2 + 1; }
@@ -342,8 +359,11 @@ class BGI {
   }
 
   // Bresenham's ellipse algorithm
-  ellipse_bresenham (cx, cy, xradius, yradius) {
+  ellipse_bresenham (cx, cy, xradius, yradius, thickness = this.info.line.thickness) {
 
+    const putpix = (thickness === 3)
+      ? (a, b) => this.thick_putpixel(a, b)
+      : (a, b) => this.putpixel(a, b);
     const xrad2 = 2 * xradius * xradius;
     const yrad2 = 2 * yradius * yradius;
     let x = -xradius, y = 0;
@@ -351,10 +371,10 @@ class BGI {
     let dy = x*x, err = dx+dy;
 
     do {
-       this.putpixel(cx - x, cy + y);
-       this.putpixel(cx + x, cy + y);
-       this.putpixel(cx + x, cy - y);
-       this.putpixel(cx - x, cy - y);
+       putpix(cx - x, cy + y);
+       putpix(cx + x, cy + y);
+       putpix(cx + x, cy - y);
+       putpix(cx - x, cy - y);
        e2 = 2 * err;
        if (e2 <= dy) { y++; dy += xrad2; err += dy; } // y step
        if (e2 >= dx || (2 * err) > dy) { x++; dx += yrad2; err += dx; } // x step
@@ -362,8 +382,56 @@ class BGI {
 
     // finish tip of ellipse (is this needed?)
     while (y++ < yradius) {
-       this.putpixel(cx, cy + y);
-       this.putpixel(cx, cy - y);
+       putpix(cx, cy + y);
+       putpix(cx, cy - y);
+    }
+  }
+
+  // TEST
+  // draws an elliptical arc using slower method of trig and lines
+  arc_lines (cx, cy, stangle, endangle, xradius, yradius, thickness = this.info.line.thickness) {
+
+    // following copied from ripscript.js v2 drawOvalArc()
+    // TODO: find smoother algorithm
+
+    const twoPiD = 2 * Math.PI / 360;
+    if (stangle > endangle) { endangle += 360; }
+    let x1 = cx + Math.round(xradius * Math.cos(stangle * twoPiD));
+    let y1 = cy - Math.round(yradius * Math.sin(stangle * twoPiD));
+    let x2, y2;
+
+    // draw arc counter-clockwise
+    for (let n = stangle; n <= endangle; n += 1) {
+      // test with: Math.floor() .round() .trunc()
+      x2 = cx + Math.round(xradius * Math.cos(n * twoPiD));
+      y2 = cy - Math.round(yradius * Math.sin(n * twoPiD));
+      this.line(x1, y1, x2, y2, this.info.fgcolor, BGI.COPY_PUT, BGI.SOLID_LINE, thickness);
+      x1 = x2; y1 = y2;
+    }
+  }
+
+  // TEST
+  // draws an elliptical arc using slower method of trig and pixels
+  arc_pixels (cx, cy, stangle, endangle, xradius, yradius, thickness = this.info.line.thickness) {
+
+    // following copied from ripscript.js v2 drawOvalArc()
+    // TODO: find smoother algorithm
+
+    const putpix = (thickness === 3)
+      ? (a, b) => this.thick_putpixel(a, b)
+      : (a, b) => this.putpixel(a, b);
+    const twoPiD = 2 * Math.PI / 360;
+    if (stangle > endangle) { endangle += 360; }
+    let x, y;
+    // calculate a single pixel step along the circumference
+    let step = 1 / (twoPiD * Math.max(xradius, yradius));
+
+    // draw arc counter-clockwise
+    for (let n = stangle; n <= endangle; n += step) {
+      // test with: Math.floor() .round() .trunc()
+      x = cx + Math.round(xradius * Math.cos(n * twoPiD));
+      y = cy - Math.round(yradius * Math.sin(n * twoPiD));
+      putpix(x, y);
     }
   }
 
@@ -653,34 +721,21 @@ class BGI {
 
     // need these
     if (stangle === endangle) { return }
+    //if ((xradius === 0) && (yradius === 0)) { return } // only when thickness == 1
     if (xradius < 1) { xradius = 1; }
     if (yradius < 1) { yradius = 1; }
 
     // bresenham works well for thin lines,
     // while still need to find a solution for thick lines.
-    if (thickness === 1) {
-      this.ellipse_bresenham(cx, cy, xradius, yradius);
-      return;
+    //if (thickness === 1) {
+    //if ((thickness === 1) && (stangle === 0) && (endangle === 360)) {
+    if ((stangle === 0) && (endangle === 360)) {
+      this.ellipse_bresenham(cx, cy, xradius, yradius, thickness);
     }
-
-    // following copied from ripscript.js v2 drawOvalArc()
-    // TODO: find smoother algorithm
-
-    const twoPiD = 2 * Math.PI / 360;
-    if (stangle > endangle) { endangle += 360; }
-    let x1 = cx + Math.round(xradius * Math.cos(stangle * twoPiD));
-    let y1 = cy - Math.round(yradius * Math.sin(stangle * twoPiD));
-    let x2, y2;
-
-    // draw arc counter-clockwise
-    for (let n = stangle; n <= endangle; n += 3) {
-      // test with: Math.floor() .round() .trunc()
-      x2 = cx + Math.round(xradius * Math.cos(n * twoPiD));
-      y2 = cy - Math.round(yradius * Math.sin(n * twoPiD));
-      this.line(x1, y1, x2, y2, this.info.fgcolor, BGI.COPY_PUT, BGI.SOLID_LINE, thickness);
-      x1 = x2; y1 = y2;
+    else {
+      //this.arc_lines(cx, cy, stangle, endangle, xradius, yradius, thickness);
+      this.arc_pixels(cx, cy, stangle, endangle, xradius, yradius, thickness);
     }
-
   }
 
   fillellipse (cx, cy, xradius, yradius) {
