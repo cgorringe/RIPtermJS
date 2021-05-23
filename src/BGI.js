@@ -538,8 +538,6 @@ class BGI {
   // doesn't use linestyle.
   arc (cx, cy, stangle, endangle, radius, thickness = this.info.line.thickness) {
 
-    //if ((radius < 1) && (thickness > 1)) { return } // display if thin, not if thick
-
     // adjust radius based on aspect ratio
     const yradius = Math.floor( radius * (this.info.aspect.xasp / this.info.aspect.yasp) );
     this.ellipse(cx, cy, stangle, endangle, radius, yradius, thickness);
@@ -617,22 +615,7 @@ class BGI {
   // doesn't use linestyle
   circle (cx, cy, radius, thickness = this.info.line.thickness) {
 
-    // display on zero radius if thin, but not if thick
-    if ((radius < 1) && (thickness > 1)) { return }
-
-    /* TO REMOVE
-    if ((this.info.aspect.xasp === this.info.aspect.yasp) && (thickness === BGI.NORM_WIDTH)) {
-      // draw better-looking circle only if thin and aspect ratio 1:1
-      // (could remove this, as arc is good enough now)
-      this.circle_bresenham(x, y, radius);
-    }
-    else {
-      // draw using different algorithm
-    */
-      this.arc(cx, cy, 0, 360, radius);
-    /*
-    }
-    */
+    this.arc(cx, cy, 0, 360, radius);
   }
 
   // Clears the screen, filling it with the current background color.
@@ -746,7 +729,7 @@ class BGI {
 
     // need these
     if (stangle === endangle) { return }
-    //if ((xradius === 0) && (yradius === 0)) { return } // only when thickness == 1
+    if ((xradius === 0) && (yradius === 0) && (thickness > 1)) { return }
     if (xradius < 1) { xradius = 1; }
     if (yradius < 1) { yradius = 1; }
 
@@ -765,10 +748,12 @@ class BGI {
   fillellipse (cx, cy, xradius, yradius) {
 
     // TODO: don't know if these are correct, or should we exit?
+    if (stangle === endangle) { return }
+    if ((xradius === 0) && (yradius === 0) && (thickness > 1)) { return }
     if (xradius < 1) { xradius = 1; }
     if (yradius < 1) { yradius = 1; }
 
-    // TODO: should this be outlined or not?
+    // TODO: should this be outlined here or in ripterm code?
     this.fillellipse_bresenham(cx, cy, xradius, yradius)
   }
 
