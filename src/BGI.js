@@ -371,23 +371,49 @@ class BGI {
     let dy = x*x, err = dx+dy;
 
     do {
-       putpix(cx - x, cy + y);
-       putpix(cx + x, cy + y);
-       putpix(cx + x, cy - y);
-       putpix(cx - x, cy - y);
-       e2 = 2 * err;
-       if (e2 <= dy) { y++; dy += xrad2; err += dy; } // y step
-       if (e2 >= dx || (2 * err) > dy) { x++; dx += yrad2; err += dx; } // x step
+      putpix(cx - x, cy + y);
+      putpix(cx + x, cy + y);
+      putpix(cx + x, cy - y);
+      putpix(cx - x, cy - y);
+      e2 = 2 * err;
+      if (e2 <= dy) { y++; dy += xrad2; err += dy; } // y step
+      if (e2 >= dx || (2 * err) > dy) { x++; dx += yrad2; err += dx; } // x step
     } while (x <= 0);
 
     // finish tip of ellipse (is this needed?)
     while (y++ < yradius) {
-       putpix(cx, cy + y);
-       putpix(cx, cy - y);
+      putpix(cx, cy + y);
+      putpix(cx, cy - y);
     }
   }
 
-  // TEST
+  // Bresenham's ellipse algorithm modified for filling
+  fillellipse_bresenham (cx, cy, xradius, yradius) {
+
+    const xrad2 = 2 * xradius * xradius;
+    const yrad2 = 2 * yradius * yradius;
+    let x = -xradius, y = 0;
+    let e2 = yradius, dx = (1+2*x)*e2*e2;
+    let dy = x*x, err = dx+dy;
+
+    do {
+      for (let px = x; px <= -x; px++) {
+        this.ff_putpixel(cx + px, cy - y);
+        this.ff_putpixel(cx + px, cy + y);
+      }
+      e2 = 2 * err;
+      if (e2 <= dy) { y++; dy += xrad2; err += dy; } // y step
+      if (e2 >= dx || (2 * err) > dy) { x++; dx += yrad2; err += dx; } // x step
+    } while (x <= 0);
+
+    // finish tip of ellipse (is this needed?)
+    //while (y++ < yradius) {
+    //  this.putpixel(cx, cy + y);
+    //  this.putpixel(cx, cy - y);
+    //}
+  }
+
+  // TEST, NOT USED
   // draws an elliptical arc using slower method of trig and lines
   arc_lines (cx, cy, stangle, endangle, xradius, yradius, thickness = this.info.line.thickness) {
 
@@ -414,7 +440,6 @@ class BGI {
   // draws an elliptical arc using slower method of trig and pixels
   arc_pixels (cx, cy, stangle, endangle, xradius, yradius, thickness = this.info.line.thickness) {
 
-    // following copied from ripscript.js v2 drawOvalArc()
     // TODO: find smoother algorithm
 
     const putpix = (thickness === 3)
@@ -733,7 +758,6 @@ class BGI {
       this.ellipse_bresenham(cx, cy, xradius, yradius, thickness);
     }
     else {
-      //this.arc_lines(cx, cy, stangle, endangle, xradius, yradius, thickness);
       this.arc_pixels(cx, cy, stangle, endangle, xradius, yradius, thickness);
     }
   }
@@ -745,8 +769,7 @@ class BGI {
     if (yradius < 1) { yradius = 1; }
 
     // TODO: should this be outlined or not?
-    // TODO: algorithm here
-
+    this.fillellipse_bresenham(cx, cy, xradius, yradius)
   }
 
   // Draw a filled polygon, using current fill pattern, fill color and bgcolor.
