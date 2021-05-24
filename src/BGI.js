@@ -276,8 +276,10 @@ class BGI {
   // Draws a pixel offset by and clipped by current viewport.
   putpixel (x, y, color = this.info.fgcolor, wmode = this.info.writeMode) {
 
+    // should these be using .floor() ?
     x = Math.round(x);
     y = Math.round(y);
+
     const vp = this.info.vp;
     // TODO: Not sure if offsetting pixel is the right thing to do.
     // x += vp.left;
@@ -361,6 +363,8 @@ class BGI {
   // Bresenham's ellipse algorithm
   ellipse_bresenham (cx, cy, xradius, yradius, thickness = this.info.line.thickness) {
 
+    if (xradius < 1) { xradius = 1; }
+    if (yradius < 1) { yradius = 1; }
     const putpix = (thickness === 3)
       ? (a, b) => this.thick_putpixel(a, b)
       : (a, b) => this.putpixel(a, b);
@@ -739,6 +743,18 @@ class BGI {
     //if ((thickness === 1) && (stangle === 0) && (endangle === 360)) {
     if ((stangle === 0) && (endangle === 360)) {
       this.ellipse_bresenham(cx, cy, xradius, yradius, thickness);
+
+      /*
+      // TEST: trying alternate for thick ovals
+      // can't quite get this right!
+      if (thickness === 3) {
+        // need left x:-1 & +1, right -1 & -2
+        // need top y:+1 & +2, bottom -1 & +1
+        //this.ellipse_bresenham(cx, cy, xradius + 0.5, yradius + 0.5, 1); // tip on top
+        this.ellipse_bresenham(cx     , cy     , xradius -1  , yradius -1  , 1);
+        this.ellipse_bresenham(cx -1.5, cy +1.5, xradius -0.5, yradius -0.5 , 1);
+      }
+      */
     }
     else {
       this.arc_pixels(cx, cy, stangle, endangle, xradius, yradius, thickness);
@@ -748,8 +764,6 @@ class BGI {
   fillellipse (cx, cy, xradius, yradius) {
 
     // TODO: don't know if these are correct, or should we exit?
-    if (stangle === endangle) { return }
-    if ((xradius === 0) && (yradius === 0) && (thickness > 1)) { return }
     if (xradius < 1) { xradius = 1; }
     if (yradius < 1) { yradius = 1; }
 
