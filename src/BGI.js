@@ -1381,10 +1381,39 @@ class BGI {
     if (xradius < 1) { xradius = 1; }
     if (yradius < 1) { yradius = 1; }
 
-    // TODO: algorithm here
+    // swap if start > end (unlike elliptical arcs!)
+    // some pies may not be represented if angles > 360 aren't allowed!
+    if (stangle > endangle) { let t = stangle; stangle = endangle; endangle = t; }
 
-    this.ellipse(cx, cy, stangle, endangle, xradius, yradius); // TEST
+    // draw outline
+    this.ellipse(cx, cy, stangle, endangle, xradius, yradius);
 
+    // calculate start and end pixels for pie wedge
+    const twoPiD = 2 * Math.PI / 360;
+    let x1 = cx + Math.round(xradius * Math.cos(stangle * twoPiD));
+    let y1 = cy - Math.round(yradius * Math.sin(stangle * twoPiD));
+    let x2 = cx + Math.round(xradius * Math.cos(endangle * twoPiD));
+    let y2 = cy - Math.round(yradius * Math.sin(endangle * twoPiD));
+
+    // draw pie wedge lines to center
+    this.line(cx, cy, x1, y1);
+    this.line(cx, cy, x2, y2);
+
+    // TODO: Pie filling
+    // May need something like a modified fillellipse_bresenham()
+    // which I haven't figured out how to do yet...
+
+    // Alternately use floodfill, which is not perfect.
+
+    // To pick a point for the floodfill, take the angle
+    // halfway between the start & end, find that point
+    // along ellipse, then take midpoint to center.
+
+    // fill pie using floodfill
+    let half_angle = (endangle - stangle) / 2 + stangle; // assuming stangle < endangle
+    let fx = Math.round((xradius * Math.cos(half_angle * twoPiD)) / 2 + cx);
+    let fy = Math.round((yradius * -Math.sin(half_angle * twoPiD)) / 2 + cy);
+    this.floodfill (fx, fy, this.info.fgcolor);
   }
 
   // active page where all subsequent graphics output goes
