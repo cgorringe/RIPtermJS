@@ -1,0 +1,40 @@
+!|*
+!|w0000000000
+!|c0F
+!|=00000001
+!|!No Holes
+!|L2000209P
+!|!Mid Hole
+!|L40004041
+!|L4043409P
+!|!Top Hole
+!|L6001609P
+!|!Bottom Hole
+!|L8000809O
+!|=00000003
+!|!Top Hole
+!|LA001A09P
+!|!Bottom Hole
+!|LC000C09O
+!|!Fill Blue
+!|S0101
+!|F10100F
+!|!Fill Green
+!|S0102
+!|F30300F
+!|!Fill Cyan
+!|S0103
+!|F50500F
+!|!Fill Red
+!|S0104
+!|F70700F
+!|!Fill Mag
+!|S0105
+!|F90900F
+!|!Fill Brown
+!|S0106
+!|FB0100F
+!|!Fill White
+!|S0107
+!|FD0100F
+!|#|#|#
