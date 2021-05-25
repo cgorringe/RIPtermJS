@@ -196,8 +196,8 @@ class BGI {
       this.pixels = this.imgData.data;
     }
 
-    // this temp pixel buffer is used during flood fill
-    this.tpixels = new Uint8ClampedArray(this.width * this.height)
+    // this pixel buffer is used during flood fill
+    this.fillpixels = new Uint8ClampedArray(this.width * this.height)
   }
 
   // TODO: rethink this or replace
@@ -629,7 +629,7 @@ class BGI {
     this.info.cp.x = 0;
     this.info.cp.y = 0;
     this.pixels.fill(bgcolor);
-    this.tpixels.fill(0);
+    this.fillpixels.fill(0);
   }
 
   // Clears the viewport, filling it with the current background color.
@@ -908,60 +908,72 @@ class BGI {
   }
 
   // Flood Fill
-  // uses info.fill.color, info.fill.fpattern, & info.bgcolor
-  // uses info.writeMode but not sure if it should
-  // border or color = boundry color
-  // uses this.tpixels[] temp pixel buffer
+  // uses info.fill.color, info.fill.fpattern, & info.bgcolor.
+  // uses info.writeMode but not sure if it should.
+  // border or color = boundry color.
+  // Returns if (x0, y0) is outside current viewport, or is already border color.
+  // Clears then writes pixels of color 0xFF to this.fillpixels[]
+  // which can be read after return to find out the fill area.
+  // This floods horizontally before vertically in order to support a bug.
+
   floodfill (x0, y0, border) {
 
-    // may not be the fastest routine
-    // copied from ripterm.js v2
-    // TODO: Test against GARFIELD.RIP & PMID1.RIP which both have 1-pixel leaks along right & left edges.
-    // could this be solved by swapping X & Y axis?
+    const vp = this.info.vp;
+    this.fillpixels.fill(0);
 
+    if ((x0 < vp.left) || (x0 > vp.right) || (y0 < vp.top) || (y0 > vp.bottom)) { return }
     if (this.getpixel(x0, y0) === border) { return }
 
-    this.tpixels.fill(0);
-    const vp = this.info.vp;
     let stack = [];
     stack.push([x0, y0]);
     let popped, count = 0;
 
     while (popped = stack.pop()) {
       let [x, y] = popped;
-      let y1 = y, y2 = y + 1;
+      let x1 = x, x2 = x + 1;
 
-      // find top of line (y1)
-      while ((y1 >= vp.top) && (this.getpixel(x, y1) != border)) { y1--; }
-      y1++;
-      // find bottom of line (y2)
-      while ((y2 <= vp.bottom) && (this.getpixel(x, y2) != border)) { y2++; }
-      y2--;
+      // find left end of line (x1)
+      while ((x1 >= vp.left) && (this.getpixel(x1, y) != border)) { x1--; }
+      x1++;
+      // find right end of line (x2)
+      while ((x2 <= vp.right) && (this.getpixel(x2, y) != border)) { x2++; }
+      x2--;
 
-      let spanLeft = false, spanRight = false;
-      for (y = y1; y <= y2; y++) {
+      let spanUp = false, spanDown = false;
+      let row = y * this.width;
+      for (x = x1; x <= x2; x++) {
         this.ff_putpixel(x, y, this.info.fill.color, BGI.COPY_PUT);
-        this.tpixels[y * this.width + x] = 0xFF;
+        this.fillpixels[row + x] = 0xFF;
         count++;
 
-        if (!spanLeft && (x > vp.left) && (this.getpixel(x-1, y) != border) && (this.tpixels[y * this.width + x-1] != 0xFF)) {
-          stack.push([x-1, y]);
-          spanLeft = true;
+        // intentional bug to prevent flooding up or down
+        // through pixels along edges of viewport.
+        if ((x >= vp.right) || (x <= vp.left)) { continue }
+
+        if (!spanUp && (y > vp.top)
+          && (this.getpixel(x, y-1) != border)
+          && (this.getpixel(x, y-1, this.fillpixels) != 0xFF)) {
+          stack.push([x, y-1]);
+          spanUp = true;
         }
-        else if (spanLeft && (x > vp.left) && (this.getpixel(x-1, y) == border)) {
-          spanLeft = false;
+        else if (spanUp && (y > vp.top) && (this.getpixel(x, y-1) === border)) {
+          spanUp = false;
         }
 
-        if (!spanRight && (x < vp.right) && (this.getpixel(x+1, y) != border) && (this.tpixels[y * this.width + x+1] != 0xFF)) {
-          stack.push([x+1, y]);
-          spanRight = true;
+        if (!spanDown && (y < vp.bottom)
+          && (this.getpixel(x, y+1) != border)
+          && (this.getpixel(x, y+1, this.fillpixels) != 0xFF)) {
+          stack.push([x, y+1]);
+          spanDown = true;
         }
-        else if (spanRight && (x < vp.right) && (this.getpixel(x+1, y) == border)) {
-          spanRight = false;
+        else if (spanDown && (y < vp.bottom) && (this.getpixel(x, y+1) == border)) {
+          spanDown = false;
         }
       }
     }
   }
+
+
 
   getarccoords (arccoords) { // ***
     // struct arccoordstype *arccoords
@@ -1070,19 +1082,23 @@ class BGI {
   }
 
   // Get pixel NOT offset by current viewport, else return 0.
+  // (if changed to offset, remember to fix it in floodfill().)
   getpixel (x, y, buf = this.pixels) {
 
-    x = Math.round(x);
-    y = Math.round(y);
+    // since this is only called from floodfill(), we know they're already ints
+    // x = Math.round(x);
+    // y = Math.round(y);
+
     // offset by viewport (skip for now)
     // const vp = this.info.vp;
     // x += vp.left;
     // y += vp.top;
 
-    if ((x >= 0) && (x < this.width) && (y >= 0) && (y < this.height)) {
-      return buf[y * this.width + x]; // int
-    }
-    return 0;
+    // commented out for speed
+    //if ((x >= 0) && (x < this.width) && (y >= 0) && (y < this.height)) {
+    return buf[y * this.width + x]; // int
+    //}
+    //return 0;
   }
 
   gettextsettings (texttypeinfo) { // ***
