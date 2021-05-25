@@ -1069,7 +1069,7 @@ class BGI {
     return Math.floor(this.palette.length / 4); // int
   }
 
-  // Get pixel offset by current viewport, else return 0.
+  // Get pixel NOT offset by current viewport, else return 0.
   getpixel (x, y, buf = this.pixels) {
 
     x = Math.round(x);

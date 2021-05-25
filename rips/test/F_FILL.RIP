@@ -1,0 +1,29 @@
+!|*
+!|w0000000000
+!|c0F
+!|=00000001
+!|!No Holes
+!|L0020HR20
+!|!Mid Hole
+!|L0040C040
+!|LC240HR40
+!|!Left Hole
+!|L0160HR60
+!|!Right Hole
+!|L0080HQ80
+!|!Fill Blue
+!|S0101
+!|F90100F
+!|!Fill Green
+!|S0102
+!|F90300F
+!|!Fill Cyan
+!|S0103
+!|F90500F
+!|!Fill Red
+!|S0104
+!|F90700F
+!|!Fill Mag
+!|S0105
+!|F90900F
+!|#|#|#

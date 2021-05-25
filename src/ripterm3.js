@@ -564,7 +564,6 @@ class RIPterm {
       },
 
       // RIP_LINE (L)
-      // freezing on: "L" "AK43AJ42" in DOORS.RIP (380 147 379 146) <-- infinite loop [FIXED]
       'L': (args) => {
         if (args.length >= 8) {
           const [x0, y0, x1, y1] = this.parseRIPargs(args, '2222');
@@ -749,6 +748,16 @@ class RIPterm {
       // RIP_FILE_QUERY (1F)
 
       // RIP_ENTER_BLOCK_MODE (9<esc>)
+
+      // RIP_HEADER (h) - RIPscrip v2.0
+      'h': (args) => {
+        if (args.length >= 8) {
+          const [revision, flags, res] = this.parseRIPargs(args, '242');
+          if (revision > 0) {
+            console.log('RIPscrip 2.0 or above NOT SUPPORTED at this time!');
+          }
+        }
+      },
 
       // RIP_NO_MORE (#)
       '#': (args) => {
