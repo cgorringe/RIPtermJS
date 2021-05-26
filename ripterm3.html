@@ -1,297 +1,308 @@
 <!DOCTYPE html>
 <html>
 <head>
-	<title id="path1"></title>
-	<meta charset="utf-8" />
-	<meta name="viewport" content="width=device-width, initial-scale=1" />
-	<!--[if lte IE 8]><script src="/ass/js/ie/html5shiv.js"></script><![endif]-->
-	<link rel="stylesheet" href="/ass/css/main.css" />
-	<link rel="stylesheet" href="/ass/css/magnific-popup.css" />
-	<link rel="stylesheet" href="/ass/js/highlight/styles/default.css" />
-	<noscript><link rel="stylesheet" href="/ass/css/noscript.css" /></noscript>
-	<!--[if lte IE 8]><link rel="stylesheet" href="/ass/css/ie8.css" /><![endif]-->
+  <title id="path1"></title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!--[if lte IE 8]><script src="/ass/js/ie/html5shiv.js"></script><![endif]-->
+  <link rel="stylesheet" href="/ass/css/main.css" />
+  <link rel="stylesheet" href="/ass/css/magnific-popup.css" />
+  <link rel="stylesheet" href="/ass/js/highlight/styles/default.css" />
+  <noscript><link rel="stylesheet" href="/ass/css/noscript.css" /></noscript>
+  <!--[if lte IE 8]><link rel="stylesheet" href="/ass/css/ie8.css" /><![endif]-->
 </head>
 <body>
-	<!-- Wrapper-->
-	<div id="wrapper">
+  <!-- Wrapper-->
+  <div id="wrapper">
 
-		<!-- Main -->
-		<div id="main">
+    <!-- Main -->
+    <div id="main">
 
-			<article id="pub" class="panel">
-				<header>
-				</header>
-				<section>
-					<div class="row">
-						<div class="12u">
+      <article id="pub" class="panel">
+        <header>
+        </header>
+        <section>
+          <div class="row">
+            <div class="12u">
 
 <h2>RIPtermJS (v3)</h2>
 <h6>2021</h6>
 <h4>WORK IN PROGRESS</h4>
 <br>
 <p>
-	This is Version 3 of my .RIP file viewer and eventual terminal. The <a href="https://en.wikipedia.org/wiki/Remote_Imaging_Protocol" target="_blank" class="link"><i>Remote Imaging Protocol</i></a> was a vector graphics encoding used in BBS's during the 90's. This is an attempt to recreate the MS-DOS program RIP<i>term</i> v1.54 that ran in 640 x 350px EGA, but in an HTML canvas.
+  This is Version 3 of my .RIP file viewer and eventual terminal. The <a href="https://en.wikipedia.org/wiki/Remote_Imaging_Protocol" target="_blank" class="link"><i>Remote Imaging Protocol</i></a> was a vector graphics encoding used in BBS's during the 90's. This is an attempt to recreate the MS-DOS program RIP<i>term</i> v1.54 that ran in 640 x 350px EGA, but in an HTML canvas.
 </p>
 <p>
   Select a RIP file to display from the dropdown list below, then <strong>Load RIP</strong> and <strong>Start</strong> to draw it.<br> RIP<em>scrip</em> commands are shown on the right.  <em>Blue = Implemented. Red = Skipped.</em>
 </p>
 <style>
-	.rip-body {
-		background-color: #000;
-		width: 640px;
-	}
-	.rip-body-height {
-		height: 350px; /* use this later to stretch: 480px */
-	}
-	.rip-frame {
-		float: left;
-		margin: 4px 8px 4px 0;
-		width: 656px;
-	}
-	.rip-frame-height {
-		height: 366px; /* use this later to stretch: 496px */
-	}
-	.rip-hidden {
-		visibility: hidden;
-	}
+  .rip-body {
+    background-color: #000;
+    width: 640px;
+  }
+  .rip-body-height {
+    height: 350px; /* use this later to stretch: 480px */
+  }
+  .rip-frame {
+    float: left;
+    margin: 4px 8px 4px 0;
+    width: 656px;
+  }
+  .rip-frame-height {
+    height: 366px; /* use this later to stretch: 496px */
+  }
+  .rip-hidden {
+    visibility: hidden;
+  }
 /*
-	#rip-svg {
-		background-color: #000;
-		width: 640px;
-		height: 480px;
-	}
-	#rip-svg-frame {
-		float: left;
-		margin: 4px 8px 4px 0;
-		width: 656px;
-		height: 496px;
-	}
+  #rip-svg {
+    background-color: #000;
+    width: 640px;
+    height: 480px;
+  }
+  #rip-svg-frame {
+    float: left;
+    margin: 4px 8px 4px 0;
+    width: 656px;
+    height: 496px;
+  }
 */
-	#rip-commands {
-		/* border:solid 1px #999; */
-		margin: 4px 0;
-		padding: 0px 8px;
-		width: 136px;  /* 144px */
-		/* height: 366px; */ /* was 496px */
-		overflow: auto;
-		background: #333;
-		font-family: monospace;
-		font-size: 12px;
-		color: #fff;
-		vertical-align: top;
-	}
-	#rip-commands::after {
-		/* content: "";
-		display: block;
-		clear: both; */
-	}
-	.clear {
-		clear: both;
-	}
-	#rip-counter {
-		float: right;
-		font-size: 12pt;
-		/* font-weight: bold; */
-		line-height: 30px;
-		/* clear: both; */
-	}
-	.debugOptions {
-		padding-left: 0.5em;
-		font-size: 12pt;
-	}
-	.debugOptions * {
-		padding-right: 0.5em;
-		font-weight: 400;
-	}
-	.cmd-ok  { color: #88f; }
-	.cmd-not { color: #f88; }
-	.cmd-paused { color: #ff8; }
+  #rip-commands {
+    /* border:solid 1px #999; */
+    margin: 4px 0;
+    padding: 0px 8px;
+    width: 136px;  /* 144px */
+    /* height: 366px; */ /* was 496px */
+    overflow: auto;
+    background: #333;
+    font-family: monospace;
+    font-size: 12px;
+    color: #fff;
+    vertical-align: top;
+  }
+  #rip-commands::after {
+    /* content: "";
+    display: block;
+    clear: both; */
+  }
+  .clear {
+    clear: both;
+  }
+  #rip-counter {
+    float: right;
+    font-size: 12pt;
+    /* font-weight: bold; */
+    line-height: 30px;
+    /* clear: both; */
+  }
+  .debugOptions {
+    padding-left: 0.5em;
+    font-size: 12pt;
+  }
+  .debugOptions * {
+    padding-right: 0.5em;
+    font-weight: 400;
+  }
+  .cmd-ok  { color: #88f; }
+  .cmd-not { color: #f88; }
+  .cmd-paused { color: #ff8; }
 </style>
 <div>
 
-	<select id="rip-files" onchange="selectRIP()">
-		<option value="rips/set1/BEAR">Bear</option>
-		<option value="rips/set1/BILL">Bill</option>
-		<option value="rips/set1/BULLETIN">Bulletin</option>
-		<option value="rips/set1/BUTFLY">Butterfly</option>
-		<option value="rips/set1/CAPITOL">Capitol</option>
-		<option value="rips/set1/CARN">Carnivores</option>
-		<option value="rips/set1/DOORS">Doors</option>
-		<option value="rips/set1/DRAGON01">Dragon #1</option>
-		<option value="rips/set1/DRAGON02">Dragon #2</option>
-		<option value="rips/set1/FIERO">Fiero</option>
-		<option value="rips/set1/FILE5">File 5</option>
-		<option value="rips/set1/FINISHLN">Finish Line</option>
-		<option value="rips/set1/FLIGHT">Flight</option>
-		<option value="rips/set1/FS7_SHUT">FS7 Shuttle</option>
-		<option value="rips/set1/GARFIELD">Garfield #1</option>
-		<option value="rips/set1/GFIELD2">Garfield #2</option>
-		<option value="rips/set1/GOODBYE">Goodbye</option>
-		<option value="rips/set1/HELLO2">Hello 2</option>
-		<option value="rips/set1/JULY493">July 4, 1993</option>
-		<option value="rips/set1/LTHOUSE">Lighthouse</option>
-		<option value="rips/set1/MAIN5">Main 5</option>
-		<option value="rips/set1/MSG5">Msg 5</option>
-		<option value="rips/set1/NEWMOUNT">New mount</option>
-		<option value="rips/set1/PLANE">Plane</option>
-		<option value="rips/set1/PMID1">Pyramid 1</option>
-		<option value="rips/set1/POSTRIP">POSTRIP</option>
-		<option value="rips/set1/PRELOG">PRELOG</option>
-		<option value="rips/set1/QUESTION">Question</option>
-		<option value="rips/set1/SBBS2">SBBS2</option>
-		<option value="rips/set1/SURFER1">Surfer 1</option>
-		<option value="rips/set1/SYSOP9">Sysop 9</option>
-		<option value="rips/set1/TWEED_AD">Tweed</option>
-		<option value="rips/set1/ZIGPARTY">Zig Party</option>
-		<option value="rips/set1/11FV">11FV</option>
-		<option value="rips/set1/184">184</option>
-		<option value="rips/set1/ACOMA">ACOMA</option>
-		<option value="rips/set1/ANGEL">Angel</option>
-		<option value="rips/set1/BAKER">Baker</option>
-		<option value="rips/set1/BIMBO">Bimbo</option>
-		<option value="rips/set1/CAVE2">Cave 2</option>
-		<option value="rips/set1/FELIX">Felix</option>
-		<option value="rips/set1/GHOST">Ghost</option>
-		<option value="rips/set1/HOLLY">Holly</option>
-		<option value="rips/set1/HOUND">Hound</option>
-		<option value="rips/set1/IRIS">Iris</option>
-		<option value="rips/set1/JDRAW">JDraw</option>
-		<option value="rips/set1/LEAVES">Leaves</option>
-		<option value="rips/set1/MAMA">Mama</option>
-		<option value="rips/set1/NO-L">NO-L</option>
-		<option value="rips/set1/NOSHIT">No Shit</option>
-		<option value="rips/set1/NOUVEAU">Nouveau</option>
-		<option value="rips/set1/OPUS">Opus</option>
-		<option value="rips/set1/PAPERCUT">Papercut</option>
-		<option value="rips/set1/PERSEID">Perseid</option>
-		<option value="rips/set1/PISANKI">Pisanki</option>
-		<option value="rips/set1/POSADA">Posada</option>
-		<option value="rips/set1/PUMPKIN">Pumpkin</option>
-		<option value="rips/set1/RIPDELIC">RIPedelic</option>
-		<option value="rips/set1/SH">SH</option>
-		<option value="rips/set1/SKATE">Skate</option>
-		<option value="rips/set1/SOCCER">Soccer</option>
-		<option value="rips/set1/SPRING">Spring</option>
-		<option value="rips/set1/STEREO1">Stereo #1</option>
-		<option value="rips/set1/STEREO2">Stereo #2</option>
-		<option value="rips/set1/STPATS95">STPATS95</option>
-		<option value="rips/set1/UKIYOE">Ukiyoe</option>
-		<option value="rips/set1/VAL94">VAL94</option>
-		<option value="rips/set1/VOTE">Vote</option>
-		<option value="rips/set1/WW02">Wishing Well</option>
-		<option value="rips/set1/XMAS-94">XMAS-94</option>
-		<option value="rips/set1/CITY" selected>City</option>
-		<option value="rips/set1/MOTION">Motion</option>
-		<option value="rips/set1/FRACTMTN">Fractal Mountain</option>
-		<option value="rips/test/S_FILL">Test Fill Patterns (S)(s)</option>
-		<option value="rips/test/F_FILL1">Test Flood Fill Leaks #1 (F)</option>
-		<option value="rips/test/F_FILL2">Test Flood Fill Leaks #2 (F)</option>
-		<option value="rips/test/L_LINE">Test Line Styles #1 (L)(=)</option>
-		<option value="rips/test/L_LINE2">Test Line Styles #2 (L)(=)</option>
-		<option value="rips/test/COVAI">Test Circ/Oval/Arc/Pie (COVAIoi)</option>
-		<option value="rips/set2/K!LIGHT">K!LIGHT.RIP</option>
-		<option value="rips/set2/KT-JJB">KT-JJB.RIP</option>
-		<option value="rips/set2/OUT-AD">OUT-AD.RIP</option>
-		<option value="rips/set2/OUT-BOBA">OUT-BOBA.RIP</option>
-		<option value="rips/set2/OUT-EXCL">OUT-EXCL.RIP</option>
-		<option value="rips/set2/PL-ORC">PL-ORC.RIP</option>
-	</select>
+  <select id="rip-files" onchange="selectRIP()">
+    <option value="rips/set1/BEAR">Bear</option>
+    <option value="rips/set1/BILL">Bill</option>
+    <option value="rips/set1/BULLETIN">Bulletin</option>
+    <option value="rips/set1/BUTFLY">Butterfly</option>
+    <option value="rips/set1/CAPITOL">Capitol</option>
+    <option value="rips/set1/CARN">Carnivores</option>
+    <option value="rips/set1/DOORS">Doors</option>
+    <option value="rips/set1/DRAGON01">Dragon #1</option>
+    <option value="rips/set1/DRAGON02">Dragon #2</option>
+    <option value="rips/set1/FIERO">Fiero</option>
+    <option value="rips/set1/FILE5">File 5</option>
+    <option value="rips/set1/FINISHLN">Finish Line</option>
+    <option value="rips/set1/FLIGHT">Flight</option>
+    <option value="rips/set1/FS7_SHUT">FS7 Shuttle</option>
+    <option value="rips/set1/GARFIELD">Garfield #1</option>
+    <option value="rips/set1/GFIELD2">Garfield #2</option>
+    <option value="rips/set1/GOODBYE">Goodbye</option>
+    <option value="rips/set1/HELLO2">Hello 2</option>
+    <option value="rips/set1/JULY493">July 4, 1993</option>
+    <option value="rips/set1/LTHOUSE">Lighthouse</option>
+    <option value="rips/set1/MAIN5">Main 5</option>
+    <option value="rips/set1/MSG5">Msg 5</option>
+    <option value="rips/set1/NEWMOUNT">New mount</option>
+    <option value="rips/set1/PLANE">Plane</option>
+    <option value="rips/set1/PMID1">Pyramid 1</option>
+    <option value="rips/set1/POSTRIP">POSTRIP</option>
+    <option value="rips/set1/PRELOG">PRELOG</option>
+    <option value="rips/set1/QUESTION">Question</option>
+    <option value="rips/set1/SBBS2">SBBS2</option>
+    <option value="rips/set1/SURFER1">Surfer 1</option>
+    <option value="rips/set1/SYSOP9">Sysop 9</option>
+    <option value="rips/set1/TWEED_AD">Tweed</option>
+    <option value="rips/set1/ZIGPARTY">Zig Party</option>
+    <option value="rips/set1/11FV">11FV</option>
+    <option value="rips/set1/184">184</option>
+    <option value="rips/set1/ACOMA">ACOMA</option>
+    <option value="rips/set1/ANGEL">Angel</option>
+    <option value="rips/set1/BAKER">Baker</option>
+    <option value="rips/set1/BIMBO">Bimbo</option>
+    <option value="rips/set1/CAVE2">Cave 2</option>
+    <option value="rips/set1/FELIX">Felix</option>
+    <option value="rips/set1/GHOST">Ghost</option>
+    <option value="rips/set1/HOLLY">Holly</option>
+    <option value="rips/set1/HOUND">Hound</option>
+    <option value="rips/set1/IRIS">Iris</option>
+    <option value="rips/set1/JDRAW">JDraw</option>
+    <option value="rips/set1/LEAVES">Leaves</option>
+    <option value="rips/set1/MAMA">Mama</option>
+    <option value="rips/set1/NO-L">NO-L</option>
+    <option value="rips/set1/NOSHIT">No Shit</option>
+    <option value="rips/set1/NOUVEAU">Nouveau</option>
+    <option value="rips/set1/OPUS">Opus</option>
+    <option value="rips/set1/PAPERCUT">Papercut</option>
+    <option value="rips/set1/PERSEID">Perseid</option>
+    <option value="rips/set1/PISANKI">Pisanki</option>
+    <option value="rips/set1/POSADA">Posada</option>
+    <option value="rips/set1/PUMPKIN">Pumpkin</option>
+    <option value="rips/set1/RIPDELIC">RIPedelic</option>
+    <option value="rips/set1/SH">SH</option>
+    <option value="rips/set1/SKATE">Skate</option>
+    <option value="rips/set1/SOCCER">Soccer</option>
+    <option value="rips/set1/SPRING">Spring</option>
+    <option value="rips/set1/STEREO1">Stereo #1</option>
+    <option value="rips/set1/STEREO2">Stereo #2</option>
+    <option value="rips/set1/STPATS95">STPATS95</option>
+    <option value="rips/set1/UKIYOE">Ukiyoe</option>
+    <option value="rips/set1/VAL94">VAL94</option>
+    <option value="rips/set1/VOTE">Vote</option>
+    <option value="rips/set1/WW02">Wishing Well</option>
+    <option value="rips/set1/XMAS-94">XMAS-94</option>
+    <option value="rips/set1/CITY" selected>City</option>
+    <option value="rips/set1/MOTION">Motion</option>
+    <option value="rips/set1/FRACTMTN">Fractal Mountain</option>
+    <option value="rips/test/S_FILL">Test Fill Patterns (S)(s)</option>
+    <option value="rips/test/F_FILL1">Test Flood Fill Leaks #1 (F)</option>
+    <option value="rips/test/F_FILL2">Test Flood Fill Leaks #2 (F)</option>
+    <option value="rips/test/L_LINE">Test Line Styles #1 (L)(=)</option>
+    <option value="rips/test/L_LINE2">Test Line Styles #2 (L)(=)</option>
+    <option value="rips/test/COVAI">Test Circ/Oval/Arc/Pie (COVAIoi)</option>
+    <option value="rips/set2/K!LIGHT">K!LIGHT.RIP</option>
+    <option value="rips/set2/KT-JJB">KT-JJB.RIP</option>
+    <option value="rips/set2/OUT-AD">OUT-AD.RIP</option>
+    <option value="rips/set2/OUT-BOBA">OUT-BOBA.RIP</option>
+    <option value="rips/set2/OUT-EXCL">OUT-EXCL.RIP</option>
+    <option value="rips/set2/PL-ORC">PL-ORC.RIP</option>
+  </select>
 
-	<!-- <button onclick="rip.clear();">Clear</button> -->
-	<button onclick="loadRIP()">Load RIP</button>
-	<button onclick="rip.start();">Start</button>
-	<button onclick="rip.stop();">Stop</button>
-	<button onclick="rip.reset();">Reset</button>
-	<button onclick="rip.fullscreen();">Full Screen</button>
-	<a onclick="this.setAttribute('href',getCanvasPNG());" download="canvas.png" class="noline">
-		<button>Save PNG</button>
-	</a>
-	<span id="rip-counter" class=""></span>
-	<div class="clear"></div>
+  <!-- <button onclick="ripterm.clear();">Clear</button> -->
+  <button onclick="loadRIP()">Load RIP</button>
+  <button onclick="ripterm.start();">Start</button>
+  <button onclick="ripterm.stop();">Stop</button>
+  <button onclick="ripterm.reset();">Reset</button>
+  <button onclick="ripterm.fullscreen();">Full Screen</button>
+  <a onclick="this.setAttribute('href',getCanvasPNG());" download="canvas.png" class="noline">
+    <button>Save PNG</button>
+  </a>
+  <span id="rip-counter" class=""></span>
+  <div class="clear"></div>
 
-	<div class="rip-frame rip-frame-height framed">
-		<canvas id="rip-canvas" class="rip-body rip-body-height" width="640" height="350"></canvas>
-	</div>
-	<div>
-		<div id="rip-commands" class="rip-frame-height framed">
-		RIPscript here...<br/>
-		</div>
-	</div>
+  <div class="rip-frame rip-frame-height framed">
+    <canvas id="rip-canvas" class="rip-body rip-body-height" width="640" height="350"></canvas>
+  </div>
+  <div>
+    <div id="rip-commands" class="rip-frame-height framed">
+    RIPscript here...<br/>
+    </div>
+  </div>
 
-	<div class="clear"></div>
-	<h6><b>Diff</b> - Highlights where pixels differ compared to a reference screenshot.</h6>
-	<div class="rip-frame rip-frame-height framed">
-		<canvas id="rip-diff-canvas" class="rip-body rip-body-height" width="640" height="350"></canvas>
-	</div>
+  <div class="clear"></div>
+  <h6><b>Diff</b> - Highlights where pixels differ compared to a reference screenshot.</h6>
+  <div class="rip-frame rip-frame-height framed">
+    <canvas id="rip-diff-canvas" class="rip-body rip-body-height" width="640" height="350"></canvas>
+  </div>
 
-	<div class="clear"></div>
-	<h6><b>Screenshot</b> - .PNG from RIPterm v1.54 running in DOSbox.</h6>
-	<div class="rip-frame rip-frame-height framed">
-		<canvas id="rip-ss-canvas" class="rip-body rip-body-height" width="640" height="350"></canvas>
-	</div>
+  <div class="clear"></div>
+  <h6><b>Screenshot</b> - .PNG from RIPterm v1.54 running in DOSbox.</h6>
+  <div class="rip-frame rip-frame-height framed">
+    <canvas id="rip-ss-canvas" class="rip-body rip-body-height" width="640" height="350"></canvas>
+  </div>
 
-	<div class="clear"></div>
+  <div class="clear"></div>
+  <h6><b>SVG</b> - Experimental SVG support.</h6>
+  <div class="rip-frame rip-frame-height framed">
+    <svg id="rip-svg" class="rip-body rip-body-height" width="640" height="350"
+      viewBox="0 0 640 350" preserveAspectRatio="none" enable-background="new"
+      xmlns="http://www.w3.org/2000/svg">
+    </svg>
+  </div>
+
+  <div class="clear"></div>
 </div>
 
-<!-- <script src="potrace-modified.js"></script> -->
+<script src="potrace-modified.js"></script>
 <script src="src/BGI.js"></script>
+<script src="src/BGIsvg.js"></script>
 <script src="src/ripterm3.js"></script>
 <script>
 
-	// testBGI({ canvasId: 'rip-canvas' }); // TEST
-	const rip = new RIPterm({
-		canvasId: 'rip-canvas',
-		ssId: 'rip-ss-canvas',
-		diffId: 'rip-diff-canvas',
-		commandsId: 'rip-commands',
-		counterId: 'rip-counter',
-		timeInterval: 1,
-		refreshInterval: 10
-	});
+  // testBGI({ canvasId: 'rip-canvas' }); // TEST
+  const ripterm = new RIPterm({
+    canvasId: 'rip-canvas',
+    ssId: 'rip-ss-canvas',
+    diffId: 'rip-diff-canvas',
+    svgId: 'rip-svg',
+    commandsId: 'rip-commands',
+    counterId: 'rip-counter',
+    timeInterval: 1,
+    refreshInterval: 10
+  });
 
-	function selectRIP() {
-	}
+  function selectRIP() {
+  }
 
-	function loadRIP() {
-		let url = document.getElementById('rip-files').value;
-		rip.readScreenshot(url + '.png');
-		rip.readFile(url + '.RIP');
-	}
+  function loadRIP() {
+    let url = document.getElementById('rip-files').value;
+    ripterm.readScreenshot(url + '.png');
+    ripterm.readFile(url + '.RIP');
+  }
 
-	function text2base64(text) {
-		//return window.btoa(unescape(encodeURIComponent(text)));
-	}
-	function getCanvasPNG() {
-		return document.getElementById('rip-canvas').toDataURL("image/png").replace("image/png", "image/octet-stream");
-	}
+  function text2base64(text) {
+    //return window.btoa(unescape(encodeURIComponent(text)));
+  }
+  function getCanvasPNG() {
+    return document.getElementById('rip-canvas').toDataURL("image/png").replace("image/png", "image/octet-stream");
+  }
 
 </script>
 <br><br>
 
 
 
-							</div>
-						</div>
-					</section>
-				</article>
-		</div><!-- END Main -->
+              </div>
+            </div>
+          </section>
+        </article>
+    </div><!-- END Main -->
 
-		<!-- Footer -->
-		<div id="footer">
-			<ul class="copyright">
-				<li>&copy; 2021 Carl Gorringe</li>
-			</ul>
-		</div>
+    <!-- Footer -->
+    <div id="footer">
+      <ul class="copyright">
+        <li>&copy; 2021 Carl Gorringe</li>
+      </ul>
+    </div>
 
-	</div>
+  </div>
 
-	<!-- Scripts -->
-	<script src="/ass/js/jquery.min.js"></script>
-	<script src="/ass/js/skel.min.js"></script>
-	<script src="/ass/js/skel-viewport.min.js"></script>
-	<script src="/ass/js/util.js"></script>
-	<script src="/ass/js/jquery.magnific-popup.min.js"></script>
-	<!--[if lte IE 8]><script src="/ass/js/ie/respond.min.js"></script><![endif]-->
-	<script src="/ass/js/main.js"></script>
+  <!-- Scripts -->
+  <script src="/ass/js/jquery.min.js"></script>
+  <script src="/ass/js/skel.min.js"></script>
+  <script src="/ass/js/skel-viewport.min.js"></script>
+  <script src="/ass/js/util.js"></script>
+  <script src="/ass/js/jquery.magnific-popup.min.js"></script>
+  <!--[if lte IE 8]><script src="/ass/js/ie/respond.min.js"></script><![endif]-->
+  <script src="/ass/js/main.js"></script>
 </body>
 </html>

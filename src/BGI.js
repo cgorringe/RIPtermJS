@@ -96,14 +96,19 @@ class BGI {
   ////////////////////////////////////////////////////////////////////////////////
   // Contructor & init methods
 
-  constructor (ctx, width, height) {
+  // Pass an object to constructor with these keys:
+  //   ctx: CanvasRenderingContext2D() - required
+  //   width: int - optional if ctx derived from a <canvas>
+  //   height: int - optional if ctx derived from a <canvas>
+
+  constructor (args) {
 
     // public fields
     this.width = 1;
     this.height = 1;
     this.isBuffered = true; // true = copy pixels to context, false = using context data store
     this.colorMask = 0x0F;  // 0xF = 16-color mode, 0xFF = 256-color mode
-    this.initContext(ctx, width, height);
+    this.initContext(args.ctx, args.width, args.height);
     // which assigns these:
     //   this.ctx     : CanvasRenderingContext2D()
     //   this.pixels  : Uint8ClampedArray()
@@ -164,7 +169,7 @@ class BGI {
       this.height = Math.floor(ctx.canvas.height);
     }
     else {
-      console.error('Missing width or height in context passed to BGI()!');
+      console.error('Missing "ctx" canvas context passed to BGI()!');
       return;
     }
 
@@ -274,7 +279,7 @@ class BGI {
 
   // (see line 3225 & 3362 of SDL_bgi.c)
   // Draws a pixel offset by and clipped by current viewport.
-  putpixel (x, y, color = this.info.fgcolor, wmode = this.info.writeMode) {
+  _putpixel (x, y, color = this.info.fgcolor, wmode = this.info.writeMode) {
 
     // should these be using .floor() ?
     x = Math.round(x);
@@ -308,6 +313,11 @@ class BGI {
     }
   }
 
+  // public version
+  putpixel (x, y, color = this.info.fgcolor, wmode = this.info.writeMode) {
+    this._putpixel(x, y, color, wmode);
+  }
+
   // TODO: compare to _putpixel(x, y)
 
   // floodfill putpixel using fill pattern.
@@ -321,25 +331,25 @@ class BGI {
     // draw pixel if bit in pattern is 1
     if ( (fpattern[y % 8] >> (7 - (x % 8))) & 1) {
       // forground pixel
-      this.putpixel(x, y, color, wmode);
+      this._putpixel(x, y, color, wmode);
     }
     else {
       // background pixel
-      this.putpixel(x, y, bgcolor, wmode);
+      this._putpixel(x, y, bgcolor, wmode);
     }
   }
 
   thick_putpixel (x, y, color = this.info.fgcolor, wmode = this.info.writeMode) {
     // could be more efficient
-    //this.putpixel(x-1, y-1, color, wmode);
-    this.putpixel(x  , y-1, color, wmode);
-    //this.putpixel(x+1, y-1, color, wmode);
-    this.putpixel(x-1, y  , color, wmode);
-    this.putpixel(x  , y  , color, wmode);
-    this.putpixel(x+1, y  , color, wmode);
-    //this.putpixel(x-1, y+1, color, wmode);
-    this.putpixel(x  , y+1, color, wmode);
-    //this.putpixel(x+1, y+1, color, wmode);
+    //this._putpixel(x-1, y-1, color, wmode);
+    this._putpixel(x  , y-1, color, wmode);
+    //this._putpixel(x+1, y-1, color, wmode);
+    this._putpixel(x-1, y  , color, wmode);
+    this._putpixel(x  , y  , color, wmode);
+    this._putpixel(x+1, y  , color, wmode);
+    //this._putpixel(x-1, y+1, color, wmode);
+    this._putpixel(x  , y+1, color, wmode);
+    //this._putpixel(x+1, y+1, color, wmode);
   }
 
   // NOT USED
@@ -347,7 +357,7 @@ class BGI {
 
     const putpix = (thickness === 3)
       ? (a, b) => this.thick_putpixel(a, b)
-      : (a, b) => this.putpixel(a, b);
+      : (a, b) => this._putpixel(a, b);
     let xx = -radius, yy = 0, err = 2 - (2 * radius);
     do {
       putpix(cx - xx, cy + yy);
@@ -367,7 +377,7 @@ class BGI {
     if (yradius < 1) { yradius = 1; }
     const putpix = (thickness === 3)
       ? (a, b) => this.thick_putpixel(a, b)
-      : (a, b) => this.putpixel(a, b);
+      : (a, b) => this._putpixel(a, b);
     const xrad2 = 2 * xradius * xradius;
     const yrad2 = 2 * yradius * yradius;
     let x = -xradius, y = 0;
@@ -412,8 +422,8 @@ class BGI {
 
     // finish tip of ellipse (is this needed?)
     //while (y++ < yradius) {
-    //  this.putpixel(cx, cy + y);
-    //  this.putpixel(cx, cy - y);
+    //  this._putpixel(cx, cy + y);
+    //  this._putpixel(cx, cy - y);
     //}
   }
 
@@ -435,7 +445,7 @@ class BGI {
       // test with: Math.floor() .round() .trunc()
       x2 = cx + Math.round(xradius * Math.cos(n * twoPiD));
       y2 = cy - Math.round(yradius * Math.sin(n * twoPiD));
-      this.line(x1, y1, x2, y2, this.info.fgcolor, BGI.COPY_PUT, BGI.SOLID_LINE, thickness);
+      this._line(x1, y1, x2, y2, this.info.fgcolor, BGI.COPY_PUT, BGI.SOLID_LINE, thickness);
       x1 = x2; y1 = y2;
     }
   }
@@ -448,7 +458,7 @@ class BGI {
 
     const putpix = (thickness === 3)
       ? (a, b) => this.thick_putpixel(a, b)
-      : (a, b) => this.putpixel(a, b);
+      : (a, b) => this._putpixel(a, b);
     const twoPiD = 2 * Math.PI / 360;
     if (stangle > endangle) { endangle += 360; }
     let x, y;
@@ -493,7 +503,7 @@ class BGI {
 
     for (let c=0; c <= numpixels; c++) {
       if ((upattern >> (c % 16)) & 1) {
-        this.putpixel(x, y, color, wmode);
+        this._putpixel(x, y, color, wmode);
       }
       num += numadd;
       if (num >= den) {
@@ -561,7 +571,7 @@ class BGI {
       // draw filled solid bar
       for (let y = top; y <= bottom; y++) {
         for (let x = left; x <= right; x++) {
-          this.putpixel(x, y, fillcolor, wmode);
+          this._putpixel(x, y, fillcolor, wmode);
         }
       }
     }
@@ -606,12 +616,12 @@ class BGI {
       // TODO: doesn't seem to fill in 3d part, only draws an outline?
       // also calling line() would have thickness and line pattern
       if (topflag) {
-        this.line(left, top, left + depth, top - depth);
-        this.line(left + depth, top - depth, right + depth, top - depth);
+        this._line(left, top, left + depth, top - depth);
+        this._line(left + depth, top - depth, right + depth, top - depth);
       }
-      this.line(right, top, right + depth, top - depth);
-      this.line(right, bottom, right + depth, bottom - depth);
-      this.line(right + depth, bottom - depth, right + depth, top - depth);
+      this._line(right, top, right + depth, top - depth);
+      this._line(right, bottom, right + depth, bottom - depth);
+      this._line(right + depth, bottom - depth, right + depth, top - depth);
     }
     this.rectangle(left, top, right, bottom);
   }
@@ -685,11 +695,11 @@ class BGI {
       let t1 = 1 - t;
       xn = Math.floor( t1*t1*t1 * x1 + 3 * t * t1*t1 * x2 + 3 * t*t * t1 * x3 + t*t*t * x4 );
       yn = Math.floor( t1*t1*t1 * y1 + 3 * t * t1*t1 * y2 + 3 * t*t * t1 * y3 + t*t*t * y4 );
-      this.line(xp, yp, xn, yn);
+      this._line(xp, yp, xn, yn);
       xp = xn;
       yp = yn;
     }
-    this.line(xp, yp, x4, y4);
+    this._line(xp, yp, x4, y4);
   }
 
   // Draws a closed polygon.
@@ -704,10 +714,10 @@ class BGI {
     }
 
     for (let n=0; n < numpoints - 1; n++) {
-      this.line(polypoints[2*n], polypoints[2*n + 1],  polypoints[2*n + 2], polypoints[2*n + 3], color);
+      this._line(polypoints[2*n], polypoints[2*n + 1],  polypoints[2*n + 2], polypoints[2*n + 3], color);
     }
     // close the polygon
-    this.line(polypoints[2 * numpoints - 2], polypoints[2 * numpoints - 1], polypoints[0], polypoints[1], color);
+    this._line(polypoints[2 * numpoints - 2], polypoints[2 * numpoints - 1], polypoints[0], polypoints[1], color);
   }
 
   // Draws a polyline. [NOT IN BGI]
@@ -722,7 +732,7 @@ class BGI {
     }
 
     for (let n=0; n < numpoints - 1; n++) {
-      this.line(polypoints[2*n], polypoints[2*n + 1],  polypoints[2*n + 2], polypoints[2*n + 3], color);
+      this._line(polypoints[2*n], polypoints[2*n + 1],  polypoints[2*n + 2], polypoints[2*n + 3], color);
     }
   }
 
@@ -1181,7 +1191,7 @@ class BGI {
 
   // Draws a line in the current color, using the current write mode, line style, and thickness
   // between the two points without updating the current position (info.cp).
-  line (x1, y1, x2, y2, color = this.info.fgcolor, wmode = this.info.writeMode,
+  _line (x1, y1, x2, y2, color = this.info.fgcolor, wmode = this.info.writeMode,
         linestyle = this.info.line.style, thickness = this.info.line.thickness) {
     // TODO: pass in 'linesettingstype' object instead?
 
@@ -1227,6 +1237,13 @@ class BGI {
         this.line_bresenham(x1 + 1, y1, x2 + 1, y2, color, wmode, upattern);
       }
     }
+  }
+
+  // public version
+  line (x1, y1, x2, y2, color = this.info.fgcolor, wmode = this.info.writeMode,
+        linestyle = this.info.line.style, thickness = this.info.line.thickness) {
+
+    this._line(x1, y1, x2, y2, color, wmode, linestyle, thickness);
   }
 
   // Draws a line from the CP (current position) to a point that is a relative distance (dx,dy)
@@ -1364,10 +1381,10 @@ class BGI {
     // swap
     if (left > right) { let tmp = left; left = right; right = tmp; }
     if (top > bottom) { let tmp = top; top = bottom; bottom = tmp; }
-    this.line(left, top, right, top, color, wmode);
-    this.line(right, top, right, bottom, color, wmode);
-    this.line(right, bottom, left, bottom, color, wmode);
-    this.line(left, bottom, left, top, color, wmode);
+    this._line(left, top, right, top, color, wmode);
+    this._line(right, top, right, bottom, color, wmode);
+    this._line(right, bottom, left, bottom, color, wmode);
+    this._line(left, bottom, left, top, color, wmode);
   }
 
   // don't implement these (DOS only) (STUB)
@@ -1412,8 +1429,8 @@ class BGI {
     let y2 = cy - Math.round(yradius * Math.sin(endangle * twoPiD));
 
     // draw pie wedge lines to center
-    this.line(cx, cy, x1, y1);
-    this.line(cx, cy, x2, y2);
+    this._line(cx, cy, x1, y1);
+    this._line(cx, cy, x2, y2);
 
     // TODO: Pie filling
     // May need something like a modified fillellipse_bresenham()

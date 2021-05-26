@@ -24,7 +24,7 @@ function testBGI (args) {
 
   const canvas = document.getElementById(args.canvasId);
   const ctx = canvas.getContext('2d');
-  const bgi = new BGI(ctx);
+  const bgi = new BGI({ ctx });
 
   // drawing test
   bgi.setcolor(BGI.YELLOW);
@@ -123,12 +123,17 @@ class RIPterm {
       // init canvas
       this.canvas = document.getElementById(opts.canvasId);
       this.ctx = this.canvas.getContext('2d');
-      this.bgi = new BGI(this.ctx);
+
       this.isRunning = false;
       this.isFullscreen = false;
       this.backup = {};
       this.initFullScreen(this.canvas);
 
+      // init SVG & BGI
+      this.svg = ('svgId' in opts) ? document.getElementById(opts.svgId) : null;
+      this.bgi = (this.svg && (this.svg instanceof SVGElement))
+        ? new BGIsvg({ ctx: this.ctx, svg: this.svg })
+        : new BGI({ ctx: this.ctx });
       // set that weird aspect ratio used in original EGA-mode RipTerm DOS version.
       this.bgi.setaspectratio(371, 480); // = 0.7729
 
