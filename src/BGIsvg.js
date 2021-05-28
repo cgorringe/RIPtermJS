@@ -272,7 +272,8 @@ class BGIsvg extends BGI {
     if (cntpoints && (cntpoints.length >= 8) && this.svgView) {
       const [x1, y1, x2, y2, x3, y3, x4, y4] = cntpoints;
       this.svgView.appendChild( this.svgNode('path', {
-        'd': 'M'+(x1+0.5)+','+(y1+0.5)+' C '+(x2+0.5)+','+(y2+0.5)+' '+(x3+0.5)+','+(y3+0.5) +' '+(x4+0.5)+','+(y4+0.5),
+        // 'd': 'M'+(x1+0.5)+','+(y1+0.5)+' C '+(x2+0.5)+','+(y2+0.5)+' '+(x3+0.5)+','+(y3+0.5) +' '+(x4+0.5)+','+(y4+0.5),
+        'd': 'M'+x1+','+y1+' C '+x2+','+y2+' '+x3+','+y3+' '+x4+','+y4,
         'stroke': this.pal2hex(this.info.fgcolor), 'stroke-width': this.info.line.thickness, 'stroke-linecap': 'round',
         //'fill': 'transparent', 'style': 'fill:none'
         'fill': 'none', 'fill-rule': 'evenodd'
@@ -288,8 +289,8 @@ class BGIsvg extends BGI {
 
     if (this.svgView) {
       this.svgView.appendChild( this.svgNode('polygon', {
-        //"points": polypoints.map(x => [x[0] + 0.5, x[1] + 0.5]).join(' '), // REMOVE
-        'points': polypoints.join(' '),
+        // 'points': polypoints.join(' '),
+        'points': polypoints.map(x => x + 0.5).join(' '),
         'stroke': this.pal2hex(color), 'stroke-width': this.info.line.thickness,
         'stroke-dasharray': this.svgDashArray.join(','),
         'fill': 'none' //, 'fill-rule': 'evenodd' // not necessary?
@@ -302,8 +303,8 @@ class BGIsvg extends BGI {
 
     if (this.svgView) {
       this.svgView.appendChild( this.svgNode('polyline', {
-        // "points":poly.map(x => [x[0] + svgOff, x[1] + svgOff]).join(' '), // REMOVE
-        'points': polypoints.join(' '),
+        // 'points': polypoints.join(' '),
+        'points': polypoints.map(x => x + 0.5).join(' '),
         'stroke': this.pal2hex(color), 'stroke-width': this.info.line.thickness,
         'stroke-dasharray': this.svgDashArray.join(','),
         'fill': 'none' //, 'fill-rule': 'evenodd' // not necessary?
@@ -315,10 +316,14 @@ class BGIsvg extends BGI {
     super.ellipse(cx, cy, stangle, endangle, xradius, yradius, thickness);
 
     if (this.svgView) {
+      if (thickness === 1) {
+        if (xradius < 1) { xradius = 1; }
+        if (yradius < 1) { yradius = 1; }
+      }
       if ((stangle === 0) && (endangle === 360)) {
         // draw ellipse
         this.svgView.appendChild( this.svgNode('ellipse', {
-          'cx': (cx + 1), 'cy': (cy + 1), 'rx': xradius, 'ry': yradius,
+          'cx': (cx + 0.5), 'cy': (cy + 0.5), 'rx': xradius, 'ry': yradius,
           'stroke': this.pal2hex(this.info.fgcolor), 'stroke-width': thickness, 'fill': 'none'
         }));
       }
@@ -356,8 +361,8 @@ class BGIsvg extends BGI {
       const fillcolor = (this.info.fill.style === BGI.EMPTY_FILL) ? this.info.bgcolor : this.info.fill.color;
       const fill = (this.info.fill.style === BGI.SOLID_FILL) ? this.pal2hex(fillcolor) : `url(#${this.svgFillId})`;
       this.svgView.appendChild( this.svgNode('polygon', {
-        //"points": polypoints.map(x => [x[0] + 0.5, x[1] + 0.5]).join(' '), // REMOVE
-        'points': pp.join(' '),
+        //'points': pp.join(' '),
+        'points': pp.map(x => x + 0.5).join(' '),
         // 'stroke': this.pal2hex(this.info.fgcolor), 'stroke-width': this.info.line.thickness,
         // 'stroke-dasharray': this.svgDashArray.join(','),
         // 'stroke': 'transparent', // ??

@@ -1268,7 +1268,7 @@ var Potrace = (function() {
   function getPathD(size) {
 
     const fixedDigits = 1;
-    const pxOffset = 0.5;  // 0.5 - this doesn't work?
+    const pxOffset = 0;  // 0.5 - this doesn't work?
 
     function path(curve) {
 

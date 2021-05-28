@@ -106,6 +106,7 @@ class BGI {
     // public fields
     this.width = 1;
     this.height = 1;
+    this.aspect = { xasp: 1, yasp: 1 }; // use 372, 480 for RipTerm
     this.isBuffered = true; // true = copy pixels to context, false = using context data store
     this.colorMask = 0x0F;  // 0xF = 16-color mode, 0xFF = 256-color mode
     this.initContext(args.ctx, args.width, args.height);
@@ -132,7 +133,6 @@ class BGI {
       writeMode: 0, // 0=COPY, 1=XOR, 2=OR, 3=AND, 4=NOT
       font: { width: 0, height: 0 }, // ??
       fontMag: { x: 1.0, y: 1.0 }, // font magnification
-      aspect: { xasp: 371, yasp: 480 }, // aspect ratio used to make circles round // TODO: MOVE THIS?
       text: { font: 0, direction: 0, charsize: 0, horiz: 0, vert: 0 },
     };
   }
@@ -553,7 +553,7 @@ class BGI {
   arc (cx, cy, stangle, endangle, radius, thickness = this.info.line.thickness) {
 
     // adjust radius based on aspect ratio
-    const yradius = Math.floor( radius * (this.info.aspect.xasp / this.info.aspect.yasp) );
+    const yradius = Math.floor( radius * (this.aspect.xasp / this.aspect.yasp) );
     this.ellipse(cx, cy, stangle, endangle, radius, yradius, thickness);
   }
 
@@ -802,6 +802,7 @@ class BGI {
 
           // FIXME: there are off-by-one pixels along edges of polygons.
           // I tried lots of combinations, but could not solve it...
+          // (see CAPITOL.RIP)
 
           xval = (y - pp[i*2+1]) / (pp[j*2+1] - pp[i*2+1]) * (pp[j*2] - pp[i*2]) + pp[i*2];
 
@@ -847,6 +848,7 @@ class BGI {
           // for (x = Math.ceil(xnode[i]); x <= Math.floor(xnode[i+1]); x++) { // TEST
           for (x = xnode[i]; x <= xnode[i+1]; x++) {
             this.ff_putpixel(x, y, this.info.fill.color, BGI.COPY_PUT);
+            //this.ff_putpixel(x, y-1, this.info.fill.color, BGI.COPY_PUT); // TEST
           }
         }
       }
@@ -992,7 +994,7 @@ class BGI {
   // returns an object {xasp:int, yasp:int}
   getaspectratio (/* xasp, yasp */) { // ***
     // int *xasp, int *yasp
-    return this.info.aspect;
+    return this.aspect;
   }
 
   getbkcolor (/* void */) {
@@ -1287,7 +1289,7 @@ class BGI {
 
     if ((radius < 1) || (stangle === endangle)) { return } // TODO: test against reference
     // adjust radius based on aspect ratio
-    const yradius = Math.floor( radius * (this.info.aspect.xasp / this.info.aspect.yasp) );
+    const yradius = Math.floor( radius * (this.aspect.xasp / this.aspect.yasp) );
     this.sector(cx, cy, stangle, endangle, radius, yradius);
   }
 
@@ -1462,8 +1464,7 @@ class BGI {
   // Used to make sure circles are round.
   // SEE getaspectratio()
   setaspectratio (xasp, yasp) {
-    this.info.aspect.xasp = xasp;
-    this.info.aspect.yasp = yasp;
+    this.aspect = { xasp: xasp, yasp: yasp };
   }
 
   // sets background to given index color.

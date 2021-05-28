@@ -135,7 +135,8 @@ class RIPterm {
         ? new BGIsvg({ ctx: this.ctx, svg: this.svg })
         : new BGI({ ctx: this.ctx });
       // set that weird aspect ratio used in original EGA-mode RipTerm DOS version.
-      this.bgi.setaspectratio(371, 480); // = 0.7729
+      //this.bgi.setaspectratio(371, 480); // = 0.7729
+      this.bgi.setaspectratio(372, 480); // better
 
       this.initCommands();
     }
