@@ -239,7 +239,6 @@ class RIPterm {
 
   // TODO: update for v3
   drawNext () {
-
     if (!this.isRunning) { return }
     if (this.ripData && (this.cmdi < this.ripData.length)) {
       let d = this.ripData[this.cmdi];
@@ -250,7 +249,6 @@ class RIPterm {
         else { this.stop(); }
       }
       this.cmdi++;
-      if (this.counterDiv) { this.counterDiv.innerHTML = this.cmdi + ' / ' + this.ripData.length; }
       this.timer = window.setTimeout(() => { this.drawNext() }, this.opts.timeInterval);
     }
     else {
@@ -259,6 +257,7 @@ class RIPterm {
   }
 
   refreshCanvas () {
+    if (this.counterDiv) { this.counterDiv.innerHTML = this.cmdi + ' / ' + this.ripData.length; }
     this.bgi.refresh();
     this.refreshDiff();
     if (this.isRunning) {

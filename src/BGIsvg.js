@@ -293,6 +293,7 @@ class BGIsvg extends BGI {
         'points': polypoints.map(x => x + 0.5).join(' '),
         'stroke': this.pal2hex(color), 'stroke-width': this.info.line.thickness,
         'stroke-dasharray': this.svgDashArray.join(','),
+        'stroke-linejoin': 'bevel', 'stroke-linecap': 'round',
         'fill': 'none' //, 'fill-rule': 'evenodd' // not necessary?
       }));
     }
@@ -307,6 +308,7 @@ class BGIsvg extends BGI {
         'points': polypoints.map(x => x + 0.5).join(' '),
         'stroke': this.pal2hex(color), 'stroke-width': this.info.line.thickness,
         'stroke-dasharray': this.svgDashArray.join(','),
+        'stroke-linejoin': 'bevel', 'stroke-linecap': 'round',
         'fill': 'none' //, 'fill-rule': 'evenodd' // not necessary?
       }));
     }
@@ -331,7 +333,8 @@ class BGIsvg extends BGI {
         // draw oval arc
         this.svgView.appendChild( this.svgNode('path', {
           'd': this.svgArcPathD((cx + 0.5), (cy + 0.5), stangle, endangle, xradius, yradius, false),
-          'stroke': this.pal2hex(this.info.fgcolor), 'stroke-width': thickness, 'fill': 'none'
+          'stroke': this.pal2hex(this.info.fgcolor), 'stroke-width': thickness,
+          'stroke-linecap': 'round', 'fill': 'none'
         }));
       }
     }
@@ -416,18 +419,29 @@ class BGIsvg extends BGI {
     }
   }
 
-  // TODO: some pies render full circle incorrectly
   // Draws and fills an elliptical pie slice centered at (x, y).
   sector (cx, cy, stangle, endangle, xradius, yradius) {
     super.sector(cx, cy, stangle, endangle, xradius, yradius);
 
     if (this.svgView) {
+      // don't draw if start & end angles the same.
+      // (single pixel at center drawn in BGI)
+      if (stangle === endangle) { return }
+
+      // swap if start > end (unlike elliptical arcs!)
+      if (stangle > endangle) { let t = stangle; stangle = endangle; endangle = t; }
+
+      // handles case where start & end angles are 360 deg apart.
+      // SVG normally won't display the whole pie, so we tweak it a little.
+      if (endangle === (stangle + 360)) { endangle--; }
+
       // draw filled elliptical pie slice with outline
       const fillcolor = (this.info.fill.style === BGI.EMPTY_FILL) ? this.info.bgcolor : this.info.fill.color;
       const fill = (this.info.fill.style === BGI.SOLID_FILL) ? this.pal2hex(fillcolor) : `url(#${this.svgFillId})`;
       this.svgView.appendChild( this.svgNode('path', {
         'd': this.svgArcPathD((cx + 0.5), (cy + 0.5), stangle, endangle, xradius, yradius, true),
-        'stroke': this.pal2hex(this.info.fgcolor), 'stroke-width': this.info.line.thickness, 'fill': fill
+        'stroke': this.pal2hex(this.info.fgcolor), 'stroke-width': this.info.line.thickness, 
+        'stroke-linejoin': 'bevel', 'fill': fill
       }));
     }
   }

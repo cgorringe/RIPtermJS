@@ -279,6 +279,9 @@ class BGI {
 
   // (see line 3225 & 3362 of SDL_bgi.c)
   // Draws a pixel offset by and clipped by current viewport.
+  putpixel (x, y, color = this.info.fgcolor, wmode = this.info.writeMode) {
+    this._putpixel(x, y, color, wmode);
+  }
   _putpixel (x, y, color = this.info.fgcolor, wmode = this.info.writeMode) {
 
     // should these be using .floor() ?
@@ -311,11 +314,6 @@ class BGI {
           this.pixels[y * this.width + x] = (~color & this.colorMask);
       }
     }
-  }
-
-  // public version
-  putpixel (x, y, color = this.info.fgcolor, wmode = this.info.writeMode) {
-    this._putpixel(x, y, color, wmode);
   }
 
   // TODO: compare to _putpixel(x, y)
@@ -551,7 +549,9 @@ class BGI {
   // counterclockwise with 0 = 3 o'clock, 90 = 12 o'clock, etc.
   // doesn't use linestyle.
   arc (cx, cy, stangle, endangle, radius, thickness = this.info.line.thickness) {
-
+    this._arc(cx, cy, stangle, endangle, radius, thickness);
+  }
+  _arc (cx, cy, stangle, endangle, radius, thickness = this.info.line.thickness) {
     // adjust radius based on aspect ratio
     const yradius = Math.floor( radius * (this.aspect.xasp / this.aspect.yasp) );
     this.ellipse(cx, cy, stangle, endangle, radius, yradius, thickness);
@@ -560,6 +560,9 @@ class BGI {
   // Draws and fills a rectangle, using fill style and color. Has no border. (see fillrect)
   // For a border, use bar3d with depth = 0.
   bar (left, top, right, bottom, color = this.info.fill.color, wmode = this.info.writeMode) {
+    this._bar(left, top, right, bottom, color, wmode);
+  }
+  _bar (left, top, right, bottom, color = this.info.fill.color, wmode = this.info.writeMode) {
 
     // swap
     if (left > right) { let tmp = left; left = right; right = tmp; }
@@ -628,7 +631,6 @@ class BGI {
 
   // doesn't use linestyle
   circle (cx, cy, radius, thickness = this.info.line.thickness) {
-
     this.arc(cx, cy, 0, 360, radius);
   }
 
@@ -740,6 +742,9 @@ class BGI {
   // counterclockwise with 0 = 3 o'clock, 90 = 12 o'clock, etc.
   // doesn't use linestyle.
   ellipse (cx, cy, stangle, endangle, xradius, yradius, thickness = this.info.line.thickness) {
+    this._ellipse(cx, cy, stangle, endangle, xradius, yradius, thickness);
+  }
+  _ellipse (cx, cy, stangle, endangle, xradius, yradius, thickness = this.info.line.thickness) {
 
     // need these
     if (stangle === endangle) { return }
@@ -929,6 +934,9 @@ class BGI {
   // This floods horizontally before vertically in order to support a bug.
 
   floodfill (x0, y0, border) {
+    this._floodfill(x0, y0, border);
+  }
+  _floodfill (x0, y0, border) {
 
     const vp = this.info.vp;
     this.fillpixels.fill(0);
@@ -984,8 +992,6 @@ class BGI {
       }
     }
   }
-
-
 
   getarccoords (arccoords) { // ***
     // struct arccoordstype *arccoords
@@ -1411,8 +1417,13 @@ class BGI {
     // from setfillstyle & setfillpattern.
     // Angles in degrees, counter-clockwise: 0=3o'clock, 90=12o'clock
 
+    // draw a single pixel at center instead
+    if (stangle === endangle) {
+      this.putpixel(cx, cy);
+      return;
+    }
+
     // TODO: don't know if these are correct, or should we exit?
-    if (stangle === endangle) { return }
     if (xradius < 1) { xradius = 1; }
     if (yradius < 1) { yradius = 1; }
 
@@ -1421,7 +1432,7 @@ class BGI {
     if (stangle > endangle) { let t = stangle; stangle = endangle; endangle = t; }
 
     // draw outline
-    this.ellipse(cx, cy, stangle, endangle, xradius, yradius);
+    this._ellipse(cx, cy, stangle, endangle, xradius, yradius);
 
     // calculate start and end pixels for pie wedge
     const twoPiD = 2 * Math.PI / 360;
@@ -1448,7 +1459,7 @@ class BGI {
     let half_angle = (endangle - stangle) / 2 + stangle; // assuming stangle < endangle
     let fx = Math.round((xradius * Math.cos(half_angle * twoPiD)) / 2 + cx);
     let fy = Math.round((yradius * -Math.sin(half_angle * twoPiD)) / 2 + cy);
-    this.floodfill (fx, fy, this.info.fgcolor);
+    this._floodfill (fx, fy, this.info.fgcolor);
   }
 
   // active page where all subsequent graphics output goes
