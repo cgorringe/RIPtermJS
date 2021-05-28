@@ -292,7 +292,7 @@ class BGIsvg extends BGI {
         'points': polypoints.join(' '),
         'stroke': this.pal2hex(color), 'stroke-width': this.info.line.thickness,
         'stroke-dasharray': this.svgDashArray.join(','),
-        'fill': 'none', 'fill-rule': 'evenodd'
+        'fill': 'none' //, 'fill-rule': 'evenodd' // not necessary?
       }));
     }
   }
@@ -306,7 +306,7 @@ class BGIsvg extends BGI {
         'points': polypoints.join(' '),
         'stroke': this.pal2hex(color), 'stroke-width': this.info.line.thickness,
         'stroke-dasharray': this.svgDashArray.join(','),
-        'fill': 'none', 'fill-rule': 'evenodd'
+        'fill': 'none' //, 'fill-rule': 'evenodd' // not necessary?
       }));
     }
   }
@@ -318,7 +318,7 @@ class BGIsvg extends BGI {
       if ((stangle === 0) && (endangle === 360)) {
         // draw ellipse
         this.svgView.appendChild( this.svgNode('ellipse', {
-          'cx': (cx + 0.5), 'cy': (cy + 0.5), 'rx': xradius, 'ry': yradius,
+          'cx': (cx + 1), 'cy': (cy + 1), 'rx': xradius, 'ry': yradius,
           'stroke': this.pal2hex(this.info.fgcolor), 'stroke-width': thickness, 'fill': 'none'
         }));
       }
@@ -360,6 +360,7 @@ class BGIsvg extends BGI {
         'points': pp.join(' '),
         // 'stroke': this.pal2hex(this.info.fgcolor), 'stroke-width': this.info.line.thickness,
         // 'stroke-dasharray': this.svgDashArray.join(','),
+        // 'stroke': 'transparent', // ??
         'fill': fill, 'fill-rule': 'evenodd'
       }));
     }
@@ -405,7 +406,7 @@ class BGIsvg extends BGI {
         'x': (left + 0.5), 'y': (top + 0.5), 'width': (right - left), 'height': (bottom - top),
         'stroke': this.pal2hex(color), 'stroke-width': this.info.line.thickness,
         'stroke-dasharray': this.svgDashArray.join(','),
-        'fill': 'none', 'fill-rule': 'evenodd'
+        'fill': 'none' //, 'fill-rule': 'evenodd' // not necessary?
       }));
     }
   }
