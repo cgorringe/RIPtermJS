@@ -43,7 +43,7 @@ class BGIsvg extends BGI {
         Potrace.setParameter({ turdsize: 0, turnpolicy: "minority" });
       }
       else {
-        this.log('err', 'Potrace() missing! Need to load potrace-modified.js before BGIsvg.js!');
+        this.log('err', 'Potrace() missing! Need to load BGIpotrace.js before BGIsvg.js!');
       }
     }
     else {

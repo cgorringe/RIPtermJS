@@ -86,6 +86,7 @@ class RIPterm {
         'diffFGcolor' : '#C86',  // forground color for diff pixels that don't match.
         'diffBGcolor' : '#222',  // background color for diff pixels that match.
         'svgPrefix' : 'rip',     // used to prefix internal SVG ids
+        'logQuiet' : false,      // set to true to stop logging to console
 
         // these options copied from prior version are not implemented yet.
         'floodFill' : true,
@@ -131,25 +132,32 @@ class RIPterm {
       this.backup = {};
       this.initFullScreen(this.canvas);
 
-      // init SVG & BGI
+      // init BGI & SVG
       this.svg = ('svgId' in opts) ? document.getElementById(opts.svgId) : null;
-      this.bgi = (this.svg && (this.svg instanceof SVGElement))
-        ? new BGIsvg({
-          ctx: this.ctx,
-          svg: this.svg,
-          prefix: this.opts.svgPrefix,
-          log: (type, msg) => { this.log(type, msg) }
-        })
-        : new BGI({
-          ctx: this.ctx,
-          log: (type, msg) => { this.log(type, msg) }
-        });
+      if (typeof BGI === 'undefined') {
+        this.log('err', 'BGI() missing! Need to load BGI.js!');
+      }
+      else if (this.svg && (typeof BGIsvg === 'undefined')) {
+        this.log('err', 'BGIsvg() missing! Need to load BGIsvg.js after BGI.js when using "svgId" option!');
+      }
+      else {
+        this.bgi = (this.svg && (this.svg instanceof SVGElement))
+          ? new BGIsvg({
+            ctx: this.ctx,
+            svg: this.svg,
+            prefix: this.opts.svgPrefix,
+            log: (type, msg) => { this.log(type, msg) }
+          })
+          : new BGI({
+            ctx: this.ctx,
+            log: (type, msg) => { this.log(type, msg) }
+          });
 
-      // set that weird aspect ratio used in original EGA-mode RipTerm DOS version.
-      //this.bgi.setaspectratio(371, 480); // = 0.7729
-      this.bgi.setaspectratio(372, 480); // better
-
-      this.initCommands();
+        // set that weird aspect ratio used in original EGA-mode RipTerm DOS version.
+        //this.bgi.setaspectratio(371, 480); // = 0.7729
+        this.bgi.setaspectratio(372, 480); // better
+        this.initCommands();
+      }
     }
     else {
       console.error('RIPterm() missing canvasId!');
@@ -173,7 +181,12 @@ class RIPterm {
       const out = typeStrings[type] || '???';
       this.logDiv.innerHTML += `<span class="rip-log-${type}">${out}</span> ${msg}<br>`;
     }
-    console.log(msg);
+    if (type === 'err') {
+      console.error(msg);
+    }
+    else if (this.opts.logQuiet === false) {
+      console.log(msg);
+    }
   }
 
   ////////////////////////////////////////////////////////////////////////////////

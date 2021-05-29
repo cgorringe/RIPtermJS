@@ -25,9 +25,8 @@
           <div class="row">
             <div class="12u">
 
-<h2>RIPtermJS (v3)</h2>
-<h6>2021</h6>
-<h4>WORK IN PROGRESS</h4>
+<h2>RIPtermJS</h2>
+<h6>2011 (v1), 2018 (v2), 2021 (v3)</h6>
 <br>
 <p>
   This is Version 3 of my .RIP file viewer and eventual terminal. The <a href="https://en.wikipedia.org/wiki/Remote_Imaging_Protocol" target="_blank" class="link"><i>Remote Imaging Protocol</i></a> was a vector graphics encoding used in BBS's during the 90's. This is an attempt to recreate the MS-DOS program RIP<i>term</i> v1.54 that ran in 640 x 350px EGA, but in an HTML canvas.
@@ -35,6 +34,7 @@
 <p>
   Select a RIP file to display from the dropdown list below, then <strong>Load RIP</strong> and <strong>Start</strong> to draw it.<br> RIP<em>scrip</em> commands are shown on the right.  <em>Blue = Implemented. Red = Skipped.</em>
 </p>
+
 <style>
   .rip-body {
     background-color: #000;
@@ -302,8 +302,8 @@
 
 </div>
 
-<script src="src/potrace-modified.js"></script>
 <script src="src/BGI.js"></script>
+<script src="src/BGIpotrace.js"></script>
 <script src="src/BGIsvg.js"></script>
 <script src="src/ripterm.js"></script>
 <script>
@@ -317,7 +317,8 @@
     commandsId: 'rip-commands',
     counterId: 'rip-counter',
     timeInterval: 1,
-    refreshInterval: 20
+    refreshInterval: 20,
+    logQuiet: true
   });
 
   function selectRIP() {
