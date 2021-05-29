@@ -51,6 +51,7 @@ function testBGI (args) {
 //   opts.counterId - show command counter in div (e.g. '5 / 100')
 //   opts.ssId      - screenshot canvas id
 //   opts.diffId    - canvas id to display diff of main & screenshot canvases
+//   opts.logId     - div id to display a debug log
 
 class RIPterm {
 
@@ -84,10 +85,10 @@ class RIPterm {
         'pauseOn' : [],          // debug: pauses on RIP command, e.g. ['F'] will pause on Flood Fill.
         'diffFGcolor' : '#C86',  // forground color for diff pixels that don't match.
         'diffBGcolor' : '#222',  // background color for diff pixels that match.
+        'svgPrefix' : 'rip',     // used to prefix internal SVG ids
 
         // these options copied from prior version are not implemented yet.
         'floodFill' : true,
-        'svgPrefix' : 'rip',     // used to prefix internal SVG ids
         'debugVerbose' : false,  // verbose flag
         'debugFillBuf' : false,  // display flood-fill buffer in canvas instead of normal drawings.
         'svgIncludePut' : false, // adds RIP_PUT_IMAGE (1P) to SVG (experimental)
@@ -111,6 +112,7 @@ class RIPterm {
       // debug options
       this.commandsDiv = ('commandsId' in opts) ? document.getElementById(opts.commandsId) : null;
       this.counterDiv = ('counterId' in opts) ? document.getElementById(opts.counterId) : null;
+      this.logDiv = ('logId' in opts) ? document.getElementById(opts.logId) : null;
       if ('ssId' in opts) {
         this.canvasSS = document.getElementById(opts.ssId);
         this.ctxSS = (this.canvasSS && this.canvasSS.getContext) ? this.canvasSS.getContext('2d') : null;
@@ -132,8 +134,17 @@ class RIPterm {
       // init SVG & BGI
       this.svg = ('svgId' in opts) ? document.getElementById(opts.svgId) : null;
       this.bgi = (this.svg && (this.svg instanceof SVGElement))
-        ? new BGIsvg({ ctx: this.ctx, svg: this.svg })
-        : new BGI({ ctx: this.ctx });
+        ? new BGIsvg({
+          ctx: this.ctx,
+          svg: this.svg,
+          prefix: this.opts.svgPrefix,
+          log: (type, msg) => { this.log(type, msg) }
+        })
+        : new BGI({
+          ctx: this.ctx,
+          log: (type, msg) => { this.log(type, msg) }
+        });
+
       // set that weird aspect ratio used in original EGA-mode RipTerm DOS version.
       //this.bgi.setaspectratio(371, 480); // = 0.7729
       this.bgi.setaspectratio(372, 480); // better
@@ -155,13 +166,22 @@ class RIPterm {
     }
   }
 
+  // send log messages to a div, if given logId option.
+  log (type, msg) {
+    if (this.logDiv) {
+      const typeStrings = { 'term':'trm', 'rip':'rip', 'bgi':'bgi', 'svg':'svg', 'err':'!!!' }
+      const out = typeStrings[type] || '???';
+      this.logDiv.innerHTML += `<span class="rip-log-${type}">${out}</span> ${msg}<br>`;
+    }
+    console.log(msg);
+  }
 
   ////////////////////////////////////////////////////////////////////////////////
   // Public methods
 
   // TODO: update for v3
   start () {
-    console.log('RIPterm.start()');
+    this.log('term', 'start()');
     if (this.ctx && this.ripData && (this.ripData.length > 0)) {
       this.isRunning = true;
       if (this.cmdi >= this.ripData.length) { this.cmdi = 0; }
@@ -172,13 +192,13 @@ class RIPterm {
       this.refTimer = window.setTimeout(() => { this.refreshCanvas() }, this.opts.refreshInterval);
     }
     else {
-      console.log("Must set 'canvasId' and load a RIP first.");
+      this.log('term', 'Must set "canvasId" and load a RIP first.');
     }
   }
 
   // TODO: update for v3
   stop () {
-    console.log('RIPterm.stop()');
+    this.log('term', 'stop()');
     this.isRunning = false;
     if (this.cmdTimer) { window.clearTimeout(this.cmdTimer); this.cmdTimer = null; }
     if (this.refTimer) { window.clearTimeout(this.refTimer); this.refTimer = null; }
@@ -186,7 +206,7 @@ class RIPterm {
   }
 
   reset () {
-    console.log('RIPterm.reset()');
+    this.log('term', 'reset()');
     this.cmd['*']();
     this.refreshCanvas();
     this.cmdi = 0;
@@ -194,13 +214,13 @@ class RIPterm {
   }
 
   clear () {
-    console.log('RIPterm.clear()');
+    this.log('term', 'clear()');
     this.bgi.cleardevice();
     this.refreshCanvas();
   }
 
   fullscreen () {
-    console.log('RIPterm.fullscreen()');
+    this.log('term', 'fullscreen()');
     if (!this.canvas) { return }
     if (this.canvas.requestFullscreen) {
       this.canvas.requestFullscreen();
@@ -214,7 +234,7 @@ class RIPterm {
   fullscreenchange (event) {
     if (!this.isFullscreen) {
       // entering fullscreen
-      console.log('entering fullscreen: '); // DEBUG
+      this.log('term', 'Entering Fullscreen'); // DEBUG
       this.isFullscreen = true;
       this.backup.canvasWidth = event.target.style.width;
       this.backup.canvasHeight = event.target.style.height;
@@ -226,7 +246,7 @@ class RIPterm {
     }
     else {
       // exiting fullscreen
-      console.log('exiting fullscreen'); // DEBUG
+      this.log('term', 'Exiting Fullscreen'); // DEBUG
       this.isFullscreen = false;
       event.target.style.width = this.backup.canvasWidth;
       event.target.style.height = this.backup.canvasHeight;
@@ -267,7 +287,7 @@ class RIPterm {
 
   // TODO: update for v3
   readFile (url) {
-    console.log('RIPterm.readFile(): ' + url);
+    this.log('term', 'readFile(): ' + url);
 
     this.cmdi = 0;
     let req = new XMLHttpRequest();
@@ -278,7 +298,7 @@ class RIPterm {
       req.open("GET", url, false);
       req.overrideMimeType('text/plain; charset=x-user-defined');  // allows ASCII control chars in input
       req.send(null);
-      if (req.status != 200) { console.log('Error downloading: ' + url); return; }
+      if (req.status != 200) { this.log('term', 'Error downloading: ' + url); return; }
       let text = req.responseText;
 
       // output to commandsDiv
@@ -300,6 +320,7 @@ class RIPterm {
           for (let j=0; j < cmds.length; j++) {
             let d = this.parseRIPcmd(cmds[j]);
 
+            // TODO: take this out into another function
             // output html to commandsDiv
             if (this.opts.pauseOn.includes(d[0])) {
               // RIP command paused
@@ -329,7 +350,7 @@ class RIPterm {
   // Load and draw a screenshot image file inside a canvas
   // if this.ctxSS ('ssId' option) is set.
   readScreenshot (url) {
-    console.log('RIPterm.readScreenshot(): ' + url);
+    this.log('term', 'readScreenshot(): ' + url);
 
     if (this.canvasSS && this.ctxSS) {
       this.ctxSS.clearRect(0, 0, this.canvasSS.width, this.canvasSS.height);
@@ -547,13 +568,13 @@ class RIPterm {
       // RIP_TEXT (T) [NOT DONE]
       'T': (args) => {
         const [text] = this.parseRIPargs(args, '*');
-        console.log('RIP_TEXT: ' + text);
+        this.log('rip', 'RIP_TEXT: ' + text);
       },
 
       // RIP_TEXT_XY (@) [NOT DONE]
       '@': (args) => {
         const [x, y, text] = this.parseRIPargs(args, '22*');
-        console.log('RIP_TEXT_XY: ' + text);
+        this.log('rip', 'RIP_TEXT_XY: ' + text);
       },
 
       // RIP_FONT_STYLE (Y)
@@ -572,7 +593,6 @@ class RIPterm {
       'L': (args) => {
         if (args.length >= 8) {
           const [x0, y0, x1, y1] = this.parseRIPargs(args, '2222');
-          // console.log(`line ${x0} ${y0} ${x1} ${y1}`); // DEBUG
           this.bgi.line(x0, y0, x1, y1);
         }
       },
@@ -759,7 +779,7 @@ class RIPterm {
         if (args.length >= 8) {
           const [revision, flags, res] = this.parseRIPargs(args, '242');
           if (revision > 0) {
-            console.log('RIPscrip 2.0 or above NOT SUPPORTED at this time!');
+            this.log('rip', 'RIPscrip 2.0 or above NOT SUPPORTED at this time!');
           }
         }
       },

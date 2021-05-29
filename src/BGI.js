@@ -100,6 +100,7 @@ class BGI {
   //   ctx: CanvasRenderingContext2D() - required
   //   width: int - optional if ctx derived from a <canvas>
   //   height: int - optional if ctx derived from a <canvas>
+  //   log: function (type, msg) - optional callback function with 2 arguments.
 
   constructor (args) {
 
@@ -109,12 +110,18 @@ class BGI {
     this.aspect = { xasp: 1, yasp: 1 }; // use 372, 480 for RipTerm
     this.isBuffered = true; // true = copy pixels to context, false = using context data store
     this.colorMask = 0x0F;  // 0xF = 16-color mode, 0xFF = 256-color mode
+
     this.initContext(args.ctx, args.width, args.height);
     // which assigns these:
     //   this.ctx     : CanvasRenderingContext2D()
     //   this.pixels  : Uint8ClampedArray()
     //   this.imgData : ImageData()
     //   this.width, this.height, this.isBuffered
+
+    // log callback function
+    if ('log' in args) {
+      this.logFunc = args.log;
+    }
 
     this.graphdefaults();
   }
@@ -169,7 +176,7 @@ class BGI {
       this.height = Math.floor(ctx.canvas.height);
     }
     else {
-      console.error('Missing "ctx" canvas context passed to BGI()!');
+      this.log('err', 'Missing "ctx" canvas context passed to BGI() constructor!');
       return;
     }
 
@@ -232,8 +239,18 @@ class BGI {
   ////////////////////////////////////////////////////////////////////////////////
   // Extra methods
 
+  // sends msg to provided log function, else send to console if none provided.
+  log (type, msg) {
+    if (this.logFunc) {
+      this.logFunc(type, msg);
+    }
+    else {
+      console.log(msg);
+    }
+  }
+
   unimplemented (method) {
-    console.log('BGI.' + method + '() not implemented.')
+    this.log('bgi', method + '() not implemented.');
   }
 
   // updates the screen
@@ -687,7 +704,7 @@ class BGI {
     // where t is 0 to 1
 
     if (!(numsegments && cntpoints && (numsegments >= 1) && (cntpoints.length >= 8))) {
-      console.log('BGI.drawbezier() invalid args!', numsegments, cntpoints);
+      this.log('bgi', `drawbezier() invalid args! numsegments: ${numsegments}, cntpoints: ${cntpoints}`);
       return;
     }
     const [x1, y1, x2, y2, x3, y3, x4, y4] = cntpoints;
@@ -711,7 +728,7 @@ class BGI {
     // polypoints array of ints
 
     if (!(numpoints && polypoints && (numpoints >= 2) && (polypoints.length >= numpoints * 2))) {
-      console.log('BGI.drawpoly() invalid args!', numpoints, polypoints);
+      this.log('bgi', `drawpoly() invalid args! numpoints: ${numpoints}, polypoints: ${polypoints}`);
       return;
     }
 
@@ -729,7 +746,7 @@ class BGI {
     // polypoints array of ints
 
     if (!(numpoints && polypoints && (numpoints >= 2) && (polypoints.length >= numpoints * 2))) {
-      console.log('BGI.drawpolyline() invalid args!', numpoints, polypoints);
+      this.log('bgi', `drawpolyline() invalid args! numpoints: ${numpoints}, polypoints: ${polypoints}`);
       return;
     }
 
@@ -1311,7 +1328,7 @@ class BGI {
     //   no info on whether image gets clipped by viewport ???
 
     if (!(image && image.data)) {
-      console.log('BGI.putimage() missing image!', image);
+      this.log('err', 'putimage() missing image!');
       return;
     }
 
@@ -1550,7 +1567,7 @@ class BGI {
       this.setrgbpalette(colornum, BGI.RED_VALUE(c), BGI.GREEN_VALUE(c), BGI.BLUE_VALUE(c));
     }
     else {
-      console.log(`BGI.setpalette() color [${color}] not supported!`);
+      this.log('bgi', `setpalette() color [${color}] not supported!`);
     }
   }
 
@@ -1568,7 +1585,7 @@ class BGI {
       this.palette[pi + 3] = 255;
     }
     else {
-      console.log(`BGI.setrgbpalette() colornum [${colornum}] out of range!`);
+      this.log('bgi', `setrgbpalette() colornum [${colornum}] out of range!`);
     }
   }
 

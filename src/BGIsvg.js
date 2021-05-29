@@ -12,20 +12,19 @@ class BGIsvg extends BGI {
   // Contructor & init methods
 
   // Pass an object to constructor with these keys:
-  //   svg: SVGElement()
+  //   svg: SVGElement() - required
   //   ctx: CanvasRenderingContext2D() - required
   //   width: int - optional if ctx derived from a <canvas>
   //   height: int - optional if ctx derived from a <canvas>
 
   constructor (args) {
-    console.log('inside BGIsvg constructor'); // DEBUG
 
     // init SVG
     if (args && (typeof BGI !== 'undefined') && ('svg' in args)) {
       super(args);
 
       // public vars
-      this.svgPrefix = ('svgPrefix' in args) ? args.svgPrefix : 'rip';
+      this.svgPrefix = ('prefix' in args) ? args.prefix : 'rip';
       this.svgViewCount = 0;
       this.svgFillCount = 0;
       this.svgFillId = this.svgPrefix + '-fill0';
@@ -36,21 +35,21 @@ class BGIsvg extends BGI {
         this.resetSVG();
       }
       else {
-        console.error('svg passed in to BGIsvg needs to be an SVGElement!');
+        this.log('err', 'svg passed in to BGIsvg() needs to be an SVGElement!');
+      }
+
+      if (typeof Potrace !== 'undefined') {
+        // turnpolicy ("black" / "white" / "left" / "right" / "minority" / "majority")
+        Potrace.setParameter({ turdsize: 0, turnpolicy: "minority" });
+      }
+      else {
+        this.log('err', 'Potrace() missing! Need to load potrace-modified.js before BGIsvg.js!');
       }
     }
     else {
+      // can't use this.log()
       console.error('BGIsvg() could not be initialized!');
     }
-
-    if (typeof Potrace !== 'undefined') {
-      // turnpolicy ("black" / "white" / "left" / "right" / "minority" / "majority")
-      Potrace.setParameter({ turdsize: 0, turnpolicy: "minority" });
-    }
-    else {
-      console.error('Potrace() missing! Need to load potrace-modified.js before BGIsvg.js!');
-    }
-
   }
 
 
@@ -403,6 +402,11 @@ class BGIsvg extends BGI {
         'stroke-dasharray': this.svgDashArray.join(',')
       }));
     }
+  }
+
+  getimage (left, top, right, bottom) {
+    this.log('svg', 'RIP_GET_IMAGE (1C) not supported in SVGs.');
+    return super.getimage(left, top, right, bottom);
   }
 
   // draws in current line style, thickness, and drawing color
