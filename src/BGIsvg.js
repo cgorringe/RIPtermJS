@@ -202,7 +202,6 @@ class BGIsvg extends BGI {
   // Standard BGI functions
 
   putpixel (x, y, color = this.info.fgcolor, wmode = this.info.writeMode) {
-
     super.putpixel(x, y, color, wmode);
 
     if (this.svgView) {
@@ -211,13 +210,6 @@ class BGIsvg extends BGI {
       }));
     }
   }
-
-  /*
-  arc (cx, cy, stangle, endangle, radius, thickness = this.info.line.thickness) {
-    super.arc(cx, cy, stangle, endangle, radius, thickness);
-    // calls ellipse()
-  }
-  */
 
   // Draws and fills a rectangle, using fill style and color. Has no border. (see fillrect)
   bar (left, top, right, bottom, color = this.info.fill.color, wmode = this.info.writeMode) {
@@ -339,7 +331,6 @@ class BGIsvg extends BGI {
     }
   }
 
-  // TODO: implement fill pattern
   fillellipse (cx, cy, xradius, yradius) {
     super.fillellipse(cx, cy, xradius, yradius);
 

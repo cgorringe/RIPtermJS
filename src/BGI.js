@@ -134,9 +134,11 @@ class BGI {
       fill: { style: BGI.SOLID_FILL, color: BGI.WHITE, fpattern: BGI.fill_patterns[BGI.SOLID_FILL] },
       line: { style: BGI.SOLID_LINE, upattern: 0xFFFF, thickness: 1 },
       cp: { x: 0, y: 0 }, // current position
-      vp: { left: 0, top: 0, right: (this.width - 1), bottom: (this.height - 1), clip: 0 }, // viewport / visual page?
+      vp: { left: 0, top: 0, // viewport
+            right: (this.width - 1), bottom: (this.height - 1),
+            width: this.width, height: this.height,
+            clip: false },
       // ap: { left: 0, top: 0, right: (this.width - 1), bottom: (this.height - 1), clip: 0 }, // active port / page?
-      // max: { x: (this.width - 1), y: (this.height - 1) }, // just use width & height?
       writeMode: 0, // 0=COPY, 1=XOR, 2=OR, 3=AND, 4=NOT
       font: { width: 0, height: 0 }, // ??
       fontMag: { x: 1.0, y: 1.0 }, // font magnification
@@ -299,36 +301,36 @@ class BGI {
   putpixel (x, y, color = this.info.fgcolor, wmode = this.info.writeMode) {
     this._putpixel(x, y, color, wmode);
   }
-  _putpixel (x, y, color = this.info.fgcolor, wmode = this.info.writeMode) {
+  _putpixel (x, y, color = this.info.fgcolor, wmode = this.info.writeMode, buf = this.pixels) {
 
     // should these be using .floor() ?
     x = Math.round(x);
     y = Math.round(y);
 
     const vp = this.info.vp;
-    // TODO: Not sure if offsetting pixel is the right thing to do.
-    // x += vp.left;
-    // y += vp.top;
+    x += vp.left;
+    y += vp.top;
 
     if ( (x >= 0) && (x < this.width) && (y >= 0) && (y < this.height) &&
       (!vp.clip || ((x >= vp.left) && (x <= vp.right) && (y >= vp.top) && (y <= vp.bottom))) ) {
+      //(!vp.clip || ((x < vp.width) && (y < vp.height))) ) {
 
       switch (wmode) {
         default:
         case BGI.COPY_PUT:
-          this.pixels[y * this.width + x] = color;
+          buf[y * this.width + x] = color;
           break;
         case BGI.XOR_PUT:
-          this.pixels[y * this.width + x] ^= color;
+          buf[y * this.width + x] ^= color;
           break;
         case BGI.OR_PUT:
-          this.pixels[y * this.width + x] |= color;
+          buf[y * this.width + x] |= color;
           break;
         case BGI.AND_PUT:
-          this.pixels[y * this.width + x] &= color;
+          buf[y * this.width + x] &= color;
           break;
         case BGI.NOT_PUT:
-          this.pixels[y * this.width + x] = (~color & this.colorMask);
+          buf[y * this.width + x] = (~color & this.colorMask);
       }
     }
   }
@@ -958,7 +960,7 @@ class BGI {
     const vp = this.info.vp;
     this.fillpixels.fill(0);
 
-    if ((x0 < vp.left) || (x0 > vp.right) || (y0 < vp.top) || (y0 > vp.bottom)) { return }
+    if ((x0 < 0) || (x0 >= vp.width ) || (y0 < 0) || (y0 >= vp.height)) { return }
     if (this.getpixel(x0, y0) === border) { return }
 
     let stack = [];
@@ -970,40 +972,39 @@ class BGI {
       let x1 = x, x2 = x + 1;
 
       // find left end of line (x1)
-      while ((x1 >= vp.left) && (this.getpixel(x1, y) != border)) { x1--; }
+      while ((x1 >= 0) && (this.getpixel(x1, y) != border)) { x1--; }
       x1++;
       // find right end of line (x2)
-      while ((x2 <= vp.right) && (this.getpixel(x2, y) != border)) { x2++; }
+      while ((x2 < vp.width) && (this.getpixel(x2, y) != border)) { x2++; }
       x2--;
 
       let spanUp = false, spanDown = false;
-      let row = y * this.width;
       for (x = x1; x <= x2; x++) {
         this.ff_putpixel(x, y, this.info.fill.color, BGI.COPY_PUT);
-        this.fillpixels[row + x] = 0xFF;
+        this._putpixel(x, y, BGI.WHITE, BGI.COPY_PUT, this.fillpixels);
         count++;
 
         // intentional bug to prevent flooding up or down
         // through pixels along edges of viewport.
-        if ((x >= vp.right) || (x <= vp.left)) { continue }
+        if ((x <= 0) || (x >= vp.width - 1)) { continue }
 
-        if (!spanUp && (y > vp.top)
-          && (this.getpixel(x, y-1) != border)
-          && (this.getpixel(x, y-1, this.fillpixels) != 0xFF)) {
+        if (!spanUp && (y > 0)
+          && (this.getpixel(x, y-1) !== border)
+          && (this.getpixel(x, y-1, this.fillpixels) !== BGI.WHITE)) {
           stack.push([x, y-1]);
           spanUp = true;
         }
-        else if (spanUp && (y > vp.top) && (this.getpixel(x, y-1) === border)) {
+        else if (spanUp && (y > 0) && (this.getpixel(x, y-1) === border)) {
           spanUp = false;
         }
 
-        if (!spanDown && (y < vp.bottom)
+        if (!spanDown && (y < vp.height - 1)
           && (this.getpixel(x, y+1) != border)
-          && (this.getpixel(x, y+1, this.fillpixels) != 0xFF)) {
+          && (this.getpixel(x, y+1, this.fillpixels) !== BGI.WHITE)) {
           stack.push([x, y+1]);
           spanDown = true;
         }
-        else if (spanDown && (y < vp.bottom) && (this.getpixel(x, y+1) == border)) {
+        else if (spanDown && (y < vp.height - 1) && (this.getpixel(x, y+1) === border)) {
           spanDown = false;
         }
       }
@@ -1124,16 +1125,15 @@ class BGI {
     // x = Math.round(x);
     // y = Math.round(y);
 
-    // offset by viewport (skip for now)
-    // const vp = this.info.vp;
-    // x += vp.left;
-    // y += vp.top;
+    // offset by viewport
+    const vp = this.info.vp;
+    x += vp.left;
+    y += vp.top;
 
-    // commented out for speed
-    //if ((x >= 0) && (x < this.width) && (y >= 0) && (y < this.height)) {
-    return buf[y * this.width + x]; // int
-    //}
-    //return 0;
+    if ((x >= 0) && (x < this.width) && (y >= 0) && (y < this.height)) {
+      return buf[y * this.width + x]; // int
+    }
+    return 0; // ???
   }
 
   gettextsettings (texttypeinfo) { // ***
@@ -1216,12 +1216,13 @@ class BGI {
 
   // Draws a line in the current color, using the current write mode, line style, and thickness
   // between the two points without updating the current position (info.cp).
+  line (x1, y1, x2, y2, color = this.info.fgcolor, wmode = this.info.writeMode,
+        linestyle = this.info.line.style, thickness = this.info.line.thickness) {
+    this._line(x1, y1, x2, y2, color, wmode, linestyle, thickness);
+  }
   _line (x1, y1, x2, y2, color = this.info.fgcolor, wmode = this.info.writeMode,
         linestyle = this.info.line.style, thickness = this.info.line.thickness) {
     // TODO: pass in 'linesettingstype' object instead?
-
-    // already offset by viewport in putpixel()
-    const vp = this.info.vp;
 
     // if y2 < y1, swap points
     if (y2 < y1) {
@@ -1262,13 +1263,6 @@ class BGI {
         this.line_bresenham(x1 + 1, y1, x2 + 1, y2, color, wmode, upattern);
       }
     }
-  }
-
-  // public version
-  line (x1, y1, x2, y2, color = this.info.fgcolor, wmode = this.info.writeMode,
-        linestyle = this.info.line.style, thickness = this.info.line.thickness) {
-
-    this._line(x1, y1, x2, y2, color, wmode, linestyle, thickness);
   }
 
   // Draws a line from the CP (current position) to a point that is a relative distance (dx,dy)
@@ -1332,12 +1326,18 @@ class BGI {
       return;
     }
 
+    // offset by viewport
+    const vp = this.info.vp;
+    left += vp.left;
+    top += vp.top;
+
     const data = image.data; // Uint8ClampedArray
     let right = left + image.width - 1;
     let bottom = top + image.height - 1;
     let i=0, o=0;
 
     // exit if outside canvas bounds
+    // TODO: what about viewport bounds?
     if ((right >= this.width) || (bottom >= this.height)) { return false; }
 
     switch (wmode) {
@@ -1389,9 +1389,12 @@ class BGI {
     return true;
   }
 
-  // NOT IN BGI
-  // random (range) { return (rand() % (range)) }
+  // returns a non-uniform random integer >= 0 and < range.
+  random (range) {
+    return Math.floor(Math.random() * range);
+  }
 
+  // TODO
   readimagefile (filename, x1, y1, x2, y2) {
     // const char* filename=NULL, int left=0, int top=0, int right=INT_MAX, int bottom=INT_MAX
     // reads a BMP, GIF, JPG, ICON, EMF, or WMF image file.
@@ -1589,6 +1592,7 @@ class BGI {
     }
   }
 
+  // TODO
   // affects text written
   settextjustify (horiz, vert) {
     // SEE text_just enums
@@ -1599,10 +1603,12 @@ class BGI {
     // x component is advanced after a call to outtext(string) by textwidth(string).
   }
 
+  // TODO
   settextstyle (font, direction, charsize) {
     // SEE https://www.cs.colorado.edu/~main/bgi/doc/settextstyle.html
   }
 
+  // TODO
   setusercharsize (multx, divx, multy, divy) {
     // setusercharsize gives finer control over the size of text from stroked fonts.
     // SEE https://www.cs.colorado.edu/~main/bgi/doc/setusercharsize.html
@@ -1612,14 +1618,22 @@ class BGI {
   // Current position (CP) is moved to (0,0) in the new window. (so coords change??)
   // If clip is true, all drawings will be clipped to the current viewport.
   setviewport (x1, y1, x2, y2, clip) {
+
+    // swap
+    if (x1 > x2) { let tmp = x1; x1 = x2; x2 = tmp; }
+    if (y1 > y2) { let tmp = y1; y1 = y2; y2 = tmp; }
+
     if ((x1 >= 0) && (x2 < this.width) && (y1 >= 0) && (y2 < this.height)) {
       this.info.vp.left = x1;
       this.info.vp.top = y1;
       this.info.vp.right = x2;
       this.info.vp.bottom = y2;
+      this.info.vp.width = x2 - x1 + 1;
+      this.info.vp.height = y2 - y1 + 1;
       this.info.vp.clip = clip;
       this.info.cp.x = 0;
       this.info.cp.y = 0;
+      this.log('bgi', `viewport set to (${x1},${y1})-(${x2},${y2})`);
     }
   }
 
@@ -1635,11 +1649,13 @@ class BGI {
     this.info.writeMode = mode;
   }
 
+  // TODO
   // takes current font size and multiplication factor, and determines the height of text in pixels.
   textheight (text) {
     return 0;
   }
   
+  // TODO
   // takes the string length, current font size, and multiplication factor, and determines the width of text in pixels.
   textwidth (text) {
 
