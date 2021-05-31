@@ -870,16 +870,8 @@ class BGI {
 
       // draw pixels between node pairs
       for (i=0; i < xnode.length; i+=2) {
-        // clip to viewport edges
-        if (xnode[i] > vp.right) break;
-        if (xnode[i+1] >= vp.left) {
-          if (xnode[i+1] > vp.right) { xnode[i+1] = vp.right; }
-          if (xnode[i] < vp.left) { xnode[i] = vp.left; }
-          // for (x = Math.ceil(xnode[i]); x <= Math.floor(xnode[i+1]); x++) { // TEST
-          for (x = xnode[i]; x <= xnode[i+1]; x++) {
-            this.ff_putpixel(x, y, this.info.fill.color, BGI.COPY_PUT);
-            //this.ff_putpixel(x, y-1, this.info.fill.color, BGI.COPY_PUT); // TEST
-          }
+        for (x = xnode[i]; x <= xnode[i+1]; x++) {
+          this.ff_putpixel(x, y, this.info.fill.color, BGI.COPY_PUT);
         }
       }
     }
