@@ -296,8 +296,7 @@ class BGI {
     this.refresh();
   }
 
-  // (see line 3225 & 3362 of SDL_bgi.c)
-  // Draws a pixel offset by and clipped by current viewport.
+  // Draws a pixel offset and clipped by current viewport.
   putpixel (x, y, color = this.info.fgcolor, wmode = this.info.writeMode) {
     this._putpixel(x, y, color, wmode);
   }
@@ -311,10 +310,14 @@ class BGI {
     x += vp.left;
     y += vp.top;
 
-    if ( (x >= 0) && (x < this.width) && (y >= 0) && (y < this.height) &&
-      (!vp.clip || ((x >= vp.left) && (x <= vp.right) && (y >= vp.top) && (y <= vp.bottom))) ) {
-      //(!vp.clip || ((x < vp.width) && (y < vp.height))) ) {
+    if (!vp.clip || ((x >= vp.left) && (x <= vp.right) && (y >= vp.top) && (y <= vp.bottom))) {
+      this._putpixel_abs(x, y, color, wmode, buf);
+    }
+  }
 
+  // x,y in absolute coordinates
+  _putpixel_abs (x, y, color = this.info.fgcolor, wmode = this.info.writeMode, buf = this.pixels) {
+    if ((x >= 0) && (x < this.width) && (y >= 0) && (y < this.height)) {
       switch (wmode) {
         default:
         case BGI.COPY_PUT:
@@ -335,24 +338,27 @@ class BGI {
     }
   }
 
-  // TODO: compare to _putpixel(x, y)
-
   // floodfill putpixel using fill pattern.
   // uses info.fill.color, info.bgcolor, and info.fill.fpattern that must be pre-set.
+  // pixel will be offset and clipped by current viewport.
   ff_putpixel (x, y, color = this.info.fill.color, wmode = this.info.writeMode) {
 
-    // skip adjusting offset since putpixel() does it
     const bgcolor = this.info.bgcolor;
     const fpattern = this.info.fill.fpattern; // array
+    const vp = this.info.vp;
+    x += vp.left;
+    y += vp.top;
 
-    // draw pixel if bit in pattern is 1
-    if ( (fpattern[y % 8] >> (7 - (x % 8))) & 1) {
-      // forground pixel
-      this._putpixel(x, y, color, wmode);
-    }
-    else {
-      // background pixel
-      this._putpixel(x, y, bgcolor, wmode);
+    if (!vp.clip || ((x >= vp.left) && (x <= vp.right) && (y >= vp.top) && (y <= vp.bottom))) {
+      // draw pixel if bit in pattern is 1
+      if ( (fpattern[y % 8] >> (7 - (x % 8))) & 1) {
+        // forground pixel
+        this._putpixel_abs(x, y, color, wmode);
+      }
+      else {
+        // background pixel
+        this._putpixel_abs(x, y, bgcolor, wmode);
+      }
     }
   }
 
