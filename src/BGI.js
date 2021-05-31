@@ -733,6 +733,9 @@ class BGI {
   // polypoints is an array of ints: [x1, y1, x2, y2, ... xn, yn]
   // where n = numpoints.
   drawpoly (numpoints, polypoints, color = this.info.fgcolor) {
+    this._drawpoly(numpoints, polypoints, color);
+  }
+  _drawpoly (numpoints, polypoints, color = this.info.fgcolor) {
     // polypoints array of ints
 
     if (!(numpoints && polypoints && (numpoints >= 2) && (polypoints.length >= numpoints * 2))) {
@@ -878,7 +881,7 @@ class BGI {
     // this fixes filled polygon border issues
     // not sure if bgcolor should just be 0, but since bgcolor is never set != 0, it doesn't matter
     if (this.info.fgcolor !== this.info.bgcolor) {
-      this.drawpoly(numpoints, pp);
+      this._drawpoly(numpoints, pp);
     }
   }
 

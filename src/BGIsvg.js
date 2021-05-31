@@ -376,12 +376,13 @@ class BGIsvg extends BGI {
       pp = this.offsetPoints(this.info.vp.left, this.info.vp.top, pp);
       const fillcolor = (this.info.fill.style === BGI.EMPTY_FILL) ? this.info.bgcolor : this.info.fill.color;
       const fill = (this.info.fill.style === BGI.SOLID_FILL) ? this.pal2hex(fillcolor) : `url(#${this.svgFillId})`;
+      const stroke = (this.info.fgcolor === this.info.bgcolor) ? 'transparent' : this.pal2hex(this.info.fgcolor);
       this.svgView.appendChild( this.svgNode('polygon', {
         //'points': pp.join(' '),
         'points': pp.map(x => x + 0.5).join(' '),
-        // 'stroke': this.pal2hex(this.info.fgcolor), 'stroke-width': this.info.line.thickness,
-        // 'stroke-dasharray': this.svgDashArray.join(','),
-        // 'stroke': 'transparent', // ??
+        'stroke': stroke, 'stroke-width': this.info.line.thickness,
+        'stroke-dasharray': this.svgDashArray.join(','),
+        'stroke-linejoin': 'bevel', 'stroke-linecap': 'round',
         'fill': fill, 'fill-rule': 'evenodd'
       }));
     }
