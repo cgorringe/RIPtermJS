@@ -65,6 +65,17 @@ class BGIsvg extends BGI {
       Number(this.palette[c+2]).toString(16).padStart(2, '0');
   }
 
+  // returns polypoints with dx, dy added to each point.
+  // polypoints is an array of ints: [x1, y1, x2, y2, ... xn, yn]
+  offsetPoints (dx, dy, polypoints) {
+    const nump = Math.floor(polypoints.length / 2);
+    for (let i=0; i < nump; i++) {
+      polypoints[i*2] += dx;
+      polypoints[i*2+1] += dy;
+    }
+    return polypoints;
+  }
+
   svgNode (elem, dict) {
     elem = document.createElementNS("http://www.w3.org/2000/svg", elem);
     for (var k in dict) {
@@ -89,7 +100,7 @@ class BGIsvg extends BGI {
       clipPath.appendChild(rect);
       defs.appendChild(clipPath);
       this.svg.appendChild(defs);
-      this.svgView = this.svgNode('g', { 'clipPath': `url(#${id})` });
+      this.svgView = this.svgNode('g', { 'clip-path': `url(#${id})` });
       this.svg.appendChild(this.svgView);
       this.svgViewCount++;
     }
@@ -97,9 +108,9 @@ class BGIsvg extends BGI {
 
   resetSVG () {
     if (this.svg) {
+      this.svgViewCount = 0;
       this.svg.innerHTML = '';
       this.svgSetViewport(this.info.vp);
-      this.svgViewCount = 0;
       // fill viewport with background color
       this.svgView.appendChild( this.svgNode('rect', {
         'x': 0, 'y': 0, 'width': this.width, 'height': this.height, 'fill': this.pal2hex(this.info.bgcolor)
@@ -205,6 +216,8 @@ class BGIsvg extends BGI {
     super.putpixel(x, y, color, wmode);
 
     if (this.svgView) {
+      x += this.info.vp.left;
+      y += this.info.vp.top;
       this.svgView.appendChild( this.svgNode('circle', {
         'cx': (x + 0.5), 'cy': (y + 0.5), 'r': 0.5, 'fill': this.pal2hex(color)
       }));
@@ -220,6 +233,9 @@ class BGIsvg extends BGI {
     if (top > bottom) { let tmp = top; top = bottom; bottom = tmp; }
 
     if (this.svgView) {
+      const vp = this.info.vp;
+      left += vp.left; right += vp.left;
+      top += vp.top; bottom += vp.top;
       const fillcolor = (this.info.fill.style === BGI.EMPTY_FILL) ? this.info.bgcolor : color;
       const fill = (this.info.fill.style === BGI.SOLID_FILL) ? this.pal2hex(fillcolor) : `url(#${this.svgFillId})`;
       this.svgView.appendChild( this.svgNode('rect', {
@@ -261,7 +277,7 @@ class BGIsvg extends BGI {
     super.drawbezier(numsegments, cntpoints);
 
     if (cntpoints && (cntpoints.length >= 8) && this.svgView) {
-      const [x1, y1, x2, y2, x3, y3, x4, y4] = cntpoints;
+      const [x1, y1, x2, y2, x3, y3, x4, y4] = this.offsetPoints(this.info.vp.left, this.info.vp.top, cntpoints);
       this.svgView.appendChild( this.svgNode('path', {
         // 'd': 'M'+(x1+0.5)+','+(y1+0.5)+' C '+(x2+0.5)+','+(y2+0.5)+' '+(x3+0.5)+','+(y3+0.5) +' '+(x4+0.5)+','+(y4+0.5),
         'd': 'M'+x1+','+y1+' C '+x2+','+y2+' '+x3+','+y3+' '+x4+','+y4,
@@ -279,6 +295,7 @@ class BGIsvg extends BGI {
     super.drawpoly(numpoints, polypoints, color);
 
     if (this.svgView) {
+      polypoints = this.offsetPoints(this.info.vp.left, this.info.vp.top, polypoints);
       this.svgView.appendChild( this.svgNode('polygon', {
         // 'points': polypoints.join(' '),
         'points': polypoints.map(x => x + 0.5).join(' '),
@@ -294,6 +311,7 @@ class BGIsvg extends BGI {
     super.drawpolyline(numpoints, polypoints, color);
 
     if (this.svgView) {
+      polypoints = this.offsetPoints(this.info.vp.left, this.info.vp.top, polypoints);
       this.svgView.appendChild( this.svgNode('polyline', {
         // 'points': polypoints.join(' '),
         'points': polypoints.map(x => x + 0.5).join(' '),
@@ -309,6 +327,8 @@ class BGIsvg extends BGI {
     super.ellipse(cx, cy, stangle, endangle, xradius, yradius, thickness);
 
     if (this.svgView) {
+      cx += this.info.vp.left;
+      cy += this.info.vp.top;
       if (thickness === 1) {
         if (xradius < 1) { xradius = 1; }
         if (yradius < 1) { yradius = 1; }
@@ -335,6 +355,8 @@ class BGIsvg extends BGI {
     super.fillellipse(cx, cy, xradius, yradius);
 
     if (this.svgView) {
+      cx += this.info.vp.left;
+      cy += this.info.vp.top;
       // draw filled ellipse, no outline
       const fillcolor = (this.info.fill.style === BGI.EMPTY_FILL) ? this.info.bgcolor : this.info.fill.color;
       const fill = (this.info.fill.style === BGI.SOLID_FILL) ? this.pal2hex(fillcolor) : `url(#${this.svgFillId})`;
@@ -351,6 +373,7 @@ class BGIsvg extends BGI {
     super.fillpoly(numpoints, pp);
 
     if (this.svgView) {
+      pp = this.offsetPoints(this.info.vp.left, this.info.vp.top, pp);
       const fillcolor = (this.info.fill.style === BGI.EMPTY_FILL) ? this.info.bgcolor : this.info.fill.color;
       const fill = (this.info.fill.style === BGI.SOLID_FILL) ? this.pal2hex(fillcolor) : `url(#${this.svgFillId})`;
       this.svgView.appendChild( this.svgNode('polygon', {
@@ -387,6 +410,9 @@ class BGIsvg extends BGI {
     super.line(x1, y1, x2, y2, color, wmode, linestyle, thickness);
 
     if (this.svgView) {
+      const vp = this.info.vp;
+      x1 += vp.left; x2 += vp.left;
+      y1 += vp.top; y2 += vp.top;
       this.svgView.appendChild( this.svgNode('line', {
         'x1': (x1 + 0.5), 'y1': (y1 + 0.5), 'x2': (x2 + 0.5), 'y2': (y2 + 0.5),
         'stroke': this.pal2hex(color), 'stroke-width': thickness,
@@ -405,6 +431,9 @@ class BGIsvg extends BGI {
     super.rectangle(left, top, right, bottom, color, wmode);
 
     if (this.svgView) {
+      const vp = this.info.vp;
+      left += vp.left; right += vp.left;
+      top += vp.top; bottom += vp.top;
       this.svgView.appendChild( this.svgNode('rect', {
         'x': (left + 0.5), 'y': (top + 0.5), 'width': (right - left), 'height': (bottom - top),
         'stroke': this.pal2hex(color), 'stroke-width': this.info.line.thickness,
@@ -431,6 +460,8 @@ class BGIsvg extends BGI {
       if (endangle === (stangle + 360)) { endangle--; }
 
       // draw filled elliptical pie slice with outline
+      cx += this.info.vp.left;
+      cy += this.info.vp.top;
       const fillcolor = (this.info.fill.style === BGI.EMPTY_FILL) ? this.info.bgcolor : this.info.fill.color;
       const fill = (this.info.fill.style === BGI.SOLID_FILL) ? this.pal2hex(fillcolor) : `url(#${this.svgFillId})`;
       this.svgView.appendChild( this.svgNode('path', {
@@ -457,7 +488,7 @@ class BGIsvg extends BGI {
   }
 
   setlinestyle (linestyle, upattern = 0xFFFF, thickness = 1) {
-    super.setlinestyle (linestyle, upattern, thickness);
+    super.setlinestyle(linestyle, upattern, thickness);
 
     switch (linestyle) {
       case 0: this.svgDashArray = []; break;
@@ -466,6 +497,12 @@ class BGIsvg extends BGI {
       case 3: this.svgDashArray = [5,3,5,3]; break;
       case 4: this.svgDashArray = this.svgMakeDashArray(upattern);
     }
+  }
+
+  // Sets the current viewport for graphics output.
+  setviewport (x1, y1, x2, y2, clip) {
+    super.setviewport(x1, y1, x2, y2, clip);
+    this.svgSetViewport({ left: x1, top: y1, right: x2, bottom: y2 });
   }
 
 
