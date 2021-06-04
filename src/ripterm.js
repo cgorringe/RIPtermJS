@@ -41,9 +41,6 @@ function testBGI (args) {
 
   // TEST Fonts
 
-  // SANS.CHR not using correct chars!
-  // "!#ABCDE" = "02PQRST" using SANS.CHR
-/*
   const fontname = 'BOLD.CHR';
   bgi.fetchFont(fontname);
 
@@ -52,20 +49,21 @@ function testBGI (args) {
     console.log('Starting to draw font...');
 
     bgi.setcolor(BGI.LIGHTGREEN);
-    bgi.moveto(100, 200);
+    bgi.moveto(150, 150);
 
+    bgi.drawChar(32, fontname, 1, 0); // 32=space
     bgi.drawChar(33, fontname, 1, 0); // 33='!'
     bgi.drawChar(35, fontname, 1, 0); // 35='#' (bug)
     bgi.drawChar(65, fontname, 2, 0); // 65='A'
-    bgi.drawChar(66, fontname, 2, 0); // 66='B'
-    bgi.drawChar(67, fontname, 3, 0); // 67='C'
-    bgi.drawChar(68, fontname, 3, 0); // 68='D'
-    bgi.drawChar(69, fontname, 4, 0); // 69='E'
+    bgi.drawChar(66, fontname, 3, 0); // 66='B'
+    bgi.drawChar(67, fontname, 4, 0); // 67='C'
+    bgi.drawChar(68, fontname, 5, 0); // 68='D'
+    bgi.drawChar(69, fontname, 6, 0); // 69='E'
 
     bgi.refresh();
 
   }, 1000);
-*/
+
 
 }
 
@@ -352,11 +350,11 @@ class RIPterm {
       this.ripData = [];
 
       // process one line at a time
-      // FIXME: missing \r at end of lines
+      // FIXME: missing \r at end of lines, and need to remove all \n
       let lines = text.split("\n");
       for (let i=0; i < lines.length; i++) {
         let aLine = lines[i];
-        while (aLine.match( /(.*)\\$/m )) {  // works?
+        while (aLine.match( /(.*)\\$/m )) {  // works? (NO) FIXME: include spaces?
           aLine = RegExp.$1 + lines[i+1];  // works?
           i++;
         }

@@ -629,8 +629,8 @@ class BGI {
 
           //console.log(font); // DEBUG
 
-          // Scan definition data to create sliced copies, one array for each char.
-          // (not using offsets to char defs stored at 0x90 in file.)
+          // Must read offsets to char defs stored in file, as some reuse the same def. (e.g. SANS.CHR)
+          const charOffsets = new Uint16Array(buffer, 0x90, font.numchars);
           const dataOffset = dview.getUint16(0x85, true) + 0x80;
           const defdata = new Uint8Array(buffer, dataOffset); // length to EOF
           font.data = []; // array of Uint8Array slices, indexed 0 to numchars-1
@@ -638,22 +638,22 @@ class BGI {
           // Each pair of bytes is an (x, y) coord, and 2-bit opcode encoded in each high bit.
           // All we care about here is to slice whenever both high bits are 0,
           // which means End of Character definition.
-
           if ((defdata.length % 2) !== 0) {
             this.log('err', 'Font data length should be a multiple of 2, so something is wrong.');
             return;
           }
 
+          // Scan definition data starting at each offset in charOffsets[] to create sliced copies.
           let byte1, byte2, pos = 0, spos = 0;
-          while (pos < defdata.length - 1) {
-            byte1 = defdata[pos];
-            byte2 = defdata[pos + 1];
-            if (((byte1 & 0x80) === 0) && ((byte2 & 0x80) === 0)) {
-              // at the end of character
-              font.data.push( defdata.slice(spos, pos + 2) );
-              spos = pos + 2; // move start to next
-            }
-            pos += 2;
+          for (let i=0; i < font.numchars; i++) {
+            spos = charOffsets[i];
+            pos = spos;
+            do {
+              byte1 = defdata[pos];
+              byte2 = defdata[pos + 1];
+              pos += 2;
+            } while (!(((byte1 & 0x80) === 0) && ((byte2 & 0x80) === 0)) && (pos < defdata.length - 1))
+            font.data.push( defdata.slice(spos, pos) );
           }
 
           // TODO: how to return the font object?
@@ -689,7 +689,7 @@ class BGI {
     const actualScale = (scale < BGI.fontScales.length) ? BGI.fontScales[scale] : 1;
 
     if ((value < font.firstchar) || (value >= font.firstchar + font.numchars)) {
-      this.log('font', 'drawChar() value out of range!');
+      this.log('font', 'drawChar() value out of range! ' + value);
       return;
     }
 
@@ -1507,7 +1507,7 @@ class BGI {
       // offset initial y position
       const yoffset = Math.trunc((font.top - font.bottom) * actualScale);
 
-      // TODO: most y offsets correct, except in FELIX.RIP, NO-L.RIP, STPATS95.RIP
+      // FIXME: most y offsets correct, except in FELIX.RIP, NO-L.RIP, STPATS95.RIP
 
       this.moveto(x, y + yoffset);
       this.outtext(text);
