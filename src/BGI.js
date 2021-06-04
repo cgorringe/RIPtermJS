@@ -675,7 +675,6 @@ class BGI {
   // scale = 1 to 10, indexes into BGI.fontScales[] for actual scale factor.
   drawChar (value, fontname, scale, dir) {
 
-    // TODO: drawing below baseline off by 1 pixel!
     // TODO: dir not yet implemented for vertical direction.
     // current postion (cp) should only update when dir is horizontal, not vertical! (see specs v2.0)
 
@@ -708,8 +707,8 @@ class BGI {
       ybyte = chardata[i + 1];
 
       // convert the one's-complement 7-bit signed values
-      dx = (xbyte & 0x40) ? -(~xbyte & 0x3F) : (xbyte & 0x3F);
-      dy = (ybyte & 0x40) ? -(~ybyte & 0x3F) : (ybyte & 0x3F);
+      dx = (xbyte & 0x40) ? -(-xbyte & 0x3F) : (xbyte & 0x3F);
+      dy = (ybyte & 0x40) ? -(-ybyte & 0x3F) : (ybyte & 0x3F);
 
       // multiply by scale factor
       dx = Math.trunc(dx * actualScale);
@@ -718,7 +717,6 @@ class BGI {
       y = y0 - dy;
 
       // TODO: direction
-      // TODO: fix off-by-1 pixels drawn under the baseline!
 
       if (((xbyte & 0x80) !== 0) && (ybyte & 0x80) === 0) {
         // move pointer when high bits 1 & 0

@@ -468,6 +468,14 @@ class RIPterm {
       ['0x' + hex[1] + hex[2] | 0, '0x' + hex[3] + hex[4] | 0, '0x' + hex[5] + hex[6] | 0];
   }
 
+  // convert these "\!" "\|" "\\" to normal text.
+  unescapeRIPtext (text) {
+    text = text.replace(/\\\!/g, '!');
+    text = text.replace(/\\\|/g, '|');
+    text = text.replace(/\\\\/g, '\\');
+    return text;
+  }
+
   // Extracts command code + args from RIP instruction.
   // TODO: not coded to work with ESC character commands
   parseRIPcmd (inst) {
@@ -492,7 +500,7 @@ class RIPterm {
         case '2': ret.push( parseInt(args.substr(pos, 2), 36) ); pos += 2; break;
         case '3': ret.push( parseInt(args.substr(pos, 3), 36) ); pos += 3; break;
         case '4': ret.push( parseInt(args.substr(pos, 4), 36) ); pos += 4; break;
-        case '*': ret.push( args.substr(pos) ); break;
+        case '*': ret.push( this.unescapeRIPtext(args.substr(pos)) ); break;
         default:
       }
     });
