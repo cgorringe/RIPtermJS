@@ -312,6 +312,7 @@ class BGIsvg extends BGI {
 
     if (this.svgView) {
       polypoints = this.offsetPoints(this.info.vp.left, this.info.vp.top, polypoints);
+      // TODO: remove stroke-dasharray if solid? is fill: none default?
       this.svgView.appendChild( this.svgNode('polyline', {
         // 'points': polypoints.join(' '),
         'points': polypoints.map(x => x + 0.5).join(' '),
@@ -414,6 +415,7 @@ class BGIsvg extends BGI {
       const vp = this.info.vp;
       x1 += vp.left; x2 += vp.left;
       y1 += vp.top; y2 += vp.top;
+      // TODO: remove stroke-dasharray if solid?
       this.svgView.appendChild( this.svgNode('line', {
         'x1': (x1 + 0.5), 'y1': (y1 + 0.5), 'x2': (x2 + 0.5), 'y2': (y2 + 0.5),
         'stroke': this.pal2hex(color), 'stroke-width': thickness,

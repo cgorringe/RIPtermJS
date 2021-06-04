@@ -110,6 +110,17 @@ class BGI {
     this.aspect = { xasp: 1, yasp: 1 }; // use 372, 480 for RipTerm
     this.isBuffered = true; // true = copy pixels to context, false = using context data store
     this.colorMask = 0x0F;  // 0xF = 16-color mode, 0xFF = 256-color mode
+    this.fonts = {}; // key is file, e.g. 'GOTH.CHR' (may rethink this later)
+
+    // log callback function
+    if ('log' in args) {
+      this.logFunc = args.log;
+    }
+
+    // need to pass this in to find font files
+    if ('fontsPath' in args) {
+      this.fontsPath = args.fontsPath;
+    }
 
     this.initContext(args.ctx, args.width, args.height);
     // which assigns these:
@@ -117,11 +128,6 @@ class BGI {
     //   this.pixels  : Uint8ClampedArray()
     //   this.imgData : ImageData()
     //   this.width, this.height, this.isBuffered
-
-    // log callback function
-    if ('log' in args) {
-      this.logFunc = args.log;
-    }
 
     this.graphdefaults();
   }
@@ -214,6 +220,17 @@ class BGI {
     this.fillpixels = new Uint8ClampedArray(this.width * this.height)
   }
 
+  // Loads all the vector font .CHR files in BGI.fontFileList[]
+  loadFonts () {
+
+    // TODO: may want to try to not load them all at the same time!
+    BGI.fontFileList.forEach(filename => {
+      if (filename.length > 3) {
+        this.fetchFont(filename);
+      }
+    })
+  }
+
   // TODO: rethink this or replace
   // int width, int height, const char* title="Windows BGI", int left=0, int top=0, bool dbflag=false, bool closeflag=true
   // return value is an id to later use in setcurrentwindow()
@@ -243,11 +260,16 @@ class BGI {
 
   // sends msg to provided log function, else send to console if none provided.
   log (type, msg) {
-    if (this.logFunc) {
+    if (typeof this.logFunc === 'function') {
       this.logFunc(type, msg);
     }
     else {
-      console.log(msg);
+      if (type === 'err') {
+        console.error(msg);
+      }
+      else {
+        console.log(msg);
+      }
     }
   }
 
@@ -562,6 +584,157 @@ class BGI {
     // so not fixable in this function!
     //return (x >= 0) ? ( (y > 0) ? (( x >= y) ? 1 : 2) : (( x > -y) ? 8 : 7) )
     //                : ( (y >= 0) ? ((-x > y) ? 4 : 3) : ((-x >= -y) ? 5 : 6) );
+  }
+
+  ////////////////////////////////////////////////////////////////////////////////
+  // Font methods
+
+  // download and parse given .CHR font file.
+  // filename = filename without path, including '.CHR' (e.g. 'BOLD.CHR')
+  // uses this.fontsPath
+  // TODO: callback or Promise returned?
+  fetchFont (filename) {
+
+    if (typeof filename !== 'string') {
+      this.log('err', 'fetchFont() missing "filename"!');
+      return;
+    }
+    if (typeof this.fontsPath !== 'string') {
+      this.log('err', 'must pass in "fontsPath" to BGI()!');
+      return;
+    }
+    const url = this.fontsPath + '/' + filename;
+    this.log('font', 'Fetching font: ' + url);
+
+    let request = new Request(url);
+    fetch(request)
+      .then(response => response.arrayBuffer())
+      .then(buffer => {
+
+        const dview = new DataView(buffer);
+        if (dview.getUint8(0x80) === 43) { // 43 = '+'
+
+          // Save font metadata
+          let font = {};
+          font.numchars = dview.getUint16(0x81, true); // true = little-endian
+          font.firstchar = dview.getUint8(0x84); // ASCII value of first char
+          font.top = dview.getInt8(0x88); // top of capital, going up from baseline
+          font.baseline = dview.getInt8(0x89); // usually 0?
+          font.bottom = dview.getInt8(0x8A); // bottom descender, usually negative
+
+          // Create a copy of the char widths byte array buffer to store into font object.
+          const widthOffset = 0x90 + (font.numchars * 2);
+          const fontWidths = new Uint8Array(buffer, widthOffset, font.numchars);
+          font.widths = fontWidths.slice(0); // widths are indexed 0 to numchars-1
+
+          //console.log(font); // DEBUG
+
+          // Scan definition data to create sliced copies, one array for each char.
+          // (not using offsets to char defs stored at 0x90 in file.)
+          const dataOffset = dview.getUint16(0x85, true) + 0x80;
+          const defdata = new Uint8Array(buffer, dataOffset); // length to EOF
+          font.data = []; // array of Uint8Array slices, indexed 0 to numchars-1
+
+          // Each pair of bytes is an (x, y) coord, and 2-bit opcode encoded in each high bit.
+          // All we care about here is to slice whenever both high bits are 0,
+          // which means End of Character definition.
+
+          if ((defdata.length % 2) !== 0) {
+            this.log('err', 'Font data length should be a multiple of 2, so something is wrong.');
+            return;
+          }
+
+          let byte1, byte2, pos = 0, spos = 0;
+          while (pos < defdata.length - 1) {
+            byte1 = defdata[pos];
+            byte2 = defdata[pos + 1];
+            if (((byte1 & 0x80) === 0) && ((byte2 & 0x80) === 0)) {
+              // at the end of character
+              font.data.push( defdata.slice(spos, pos + 2) );
+              spos = pos + 2; // move start to next
+            }
+            pos += 2;
+          }
+
+          // TODO: how to return the font object?
+          this.fonts[filename] = font; // TODO: may rethink this
+        }
+        else {
+          this.log('font', 'CHR file marker not correct');
+        }
+
+      }); // end fetch()
+
+      // TODO: return a Promise that can run code when finished loading?
+
+  } // end fetchFont()
+
+  // uses and updates this.info.cp, and this.fonts
+  // value = ASCII code value of a single character as int.
+  // fontname = filename including .CHR (e.g. 'GOTH.CHR') MAY CHANGE.
+  // scale = 1 to 10, indexes into BGI.fontScales[] for actual scale factor.
+  drawChar (value, fontname, scale, dir) {
+
+    // TODO: drawing below baseline off by 1 pixel!
+    // TODO: dir not yet implemented for vertical direction.
+    // current postion (cp) should only update when dir is horizontal, not vertical! (see specs v2.0)
+
+    // check for valid input
+    if ((fontname in this.fonts) === false) {
+      this.log('font', 'drawChar() font not found!');
+      return;
+    }
+
+    const font = this.fonts[fontname];
+    const color = this.info.fgcolor;
+    const actualScale = (scale < BGI.fontScales.length) ? BGI.fontScales[scale] : 1;
+
+    if ((value < font.firstchar) || (value >= font.firstchar + font.numchars)) {
+      this.log('font', 'drawChar() value out of range!');
+      return;
+    }
+
+    // scan char data
+    const chardata = font.data[value - font.firstchar];
+    let xbyte, ybyte, dx, dy, x, y;
+    let numcmds = chardata.length;
+    const x0 = this.info.cp.x;
+    const y0 = this.info.cp.y;
+
+    for (let i=0; i < numcmds; i+=2) {
+
+      // read next byte pair
+      xbyte = chardata[i];
+      ybyte = chardata[i + 1];
+
+      // convert the one's-complement 7-bit signed values
+      dx = (xbyte & 0x40) ? -(~xbyte & 0x3F) : (xbyte & 0x3F);
+      dy = (ybyte & 0x40) ? -(~ybyte & 0x3F) : (ybyte & 0x3F);
+
+      // multiply by scale factor
+      dx = Math.trunc(dx * actualScale);
+      dy = Math.trunc(dy * actualScale);
+      x = x0 + dx;
+      y = y0 - dy;
+
+      // TODO: direction
+      // TODO: fix off-by-1 pixels drawn under the baseline!
+
+      if (((xbyte & 0x80) !== 0) && (ybyte & 0x80) === 0) {
+        // move pointer when high bits 1 & 0
+        //console.log('move', xbyte, ybyte, dx, dy); // DEBUG
+        this.moveto(x, y);
+      }
+      else if (((xbyte & 0x80) !== 0) && (ybyte & 0x80) !== 0) {
+        // draw line when high bits 1 & 1
+        //console.log('draw', xbyte, ybyte, dx, dy); // DEBUG
+        this.lineto(x, y, color, BGI.COPY_PUT, BGI.SOLID_LINE, BGI.NORM_WIDTH);
+      }
+      else {
+        //console.log('????', xbyte, ybyte, dx, dy); // DEBUG
+      }
+    }
+
   }
 
 
@@ -1211,8 +1384,12 @@ class BGI {
   // Installs a font file from disk.
   // name = filename of font .CHR file (e.g. "USER.CHR") not including path?
   // returns a font ID that can be passed to settextstyle()
+  // TODO: not done!
   installuserfont (name) {
-    return 0; // int
+
+    let idnum = BGI.fontFileIds[name];
+    // TODO: load font file?
+    return (idnum) ? idnum : 0; // TEST
   }
 
   // Draws a line in the current color, using the current write mode, line style, and thickness
@@ -1268,15 +1445,20 @@ class BGI {
 
   // Draws a line from the CP (current position) to a point that is a relative distance (dx,dy)
   // from the CP. The CP is advanced by (dx,dy).
-  linerel (dx, dy) {
-    this.line(this.info.cp.x, this.info.cp.y, this.info.cp.x + dx, this.info.cp.y + dy);
+  linerel (dx, dy, color = this.info.fgcolor, wmode = this.info.writeMode,
+        linestyle = this.info.line.style, thickness = this.info.line.thickness) {
+
+    this.line(this.info.cp.x, this.info.cp.y, this.info.cp.x + dx, this.info.cp.y + dy,
+      color, wmode, linestyle, thickness);
     this.info.cp.x += dx;
     this.info.cp.y += dy;
   }
 
   // Draws a line from the CP (current position) to (x,y), then moves the CP to (x,y).
-  lineto (x, y) {
-    this.line(this.info.cp.x, this.info.cp.y, x, y);
+  lineto (x, y, color = this.info.fgcolor, wmode = this.info.writeMode,
+        linestyle = this.info.line.style, thickness = this.info.line.thickness) {
+
+    this.line(this.info.cp.x, this.info.cp.y, x, y, color, wmode, linestyle, thickness);
     this.info.cp.x = x;
     this.info.cp.y = y;
   }
@@ -1293,12 +1475,45 @@ class BGI {
     this.info.cp.y = y;
   }
 
+  // Draws text using current info.cp position, info.text.charsize and info.text.direction
+  // TODO: doesn't yet support BGI.DEFAULT_FONT (0)
   outtext (text) {
 
+    const fontnum = this.info.text.font;
+
+    // TODO: skipping font 0 for now...
+    if ((fontnum > 0) && (fontnum < BGI.fontFileList.length)) {
+      const fontname = BGI.fontFileList[fontnum];
+      // loop thru each character in text string
+      text.split('').forEach(c => {
+        const cvalue = c.charCodeAt(0) & 0xFF; // to strip out 2nd byte
+        this.drawChar(cvalue, fontname, this.info.text.charsize, this.info.text.direction);
+      });
+    }
   }
 
+  // Draws text after offseting position by (x, y) + offsetting y by other factors.
   outtextxy (x, y, text) {
 
+    const fontnum = this.info.text.font;
+    // TODO: skipping font 0 for now...
+    if ((fontnum > 0) && (fontnum < BGI.fontFileList.length)) {
+
+      const fontname = BGI.fontFileList[fontnum];
+      const font = this.fonts[fontname];
+      const scale = this.info.text.charsize;
+      const actualScale = (scale < BGI.fontScales.length) ? BGI.fontScales[scale] : 1;
+
+      //console.log(font); // DEBUG
+
+      // offset initial y position
+      const yoffset = Math.trunc((font.top - font.bottom) * actualScale);
+
+      // TODO: most y offsets correct, except in FELIX.RIP, NO-L.RIP, STPATS95.RIP
+
+      this.moveto(x, y + yoffset);
+      this.outtext(text);
+    }
   }
 
   // fills with fill color and pattern.
@@ -1604,9 +1819,11 @@ class BGI {
     // x component is advanced after a call to outtext(string) by textwidth(string).
   }
 
-  // TODO
   settextstyle (font, direction, charsize) {
     // SEE https://www.cs.colorado.edu/~main/bgi/doc/settextstyle.html
+    this.info.text.font = font;
+    this.info.text.direction = direction;
+    this.info.text.charsize = charsize;
   }
 
   // TODO
@@ -1774,8 +1991,8 @@ class BGI {
 
   // fonts
   BGI.DEFAULT_FONT=0; BGI.TRIPLEX_FONT=1; BGI.SMALL_FONT=2; BGI.SANSSERIF_FONT=3;
-  BGI.GOTHIC_FONT=4; BGI.BIG_FONT=5; BGI.SCRIPT_FONT=6; BGI.SIMPLEX_FONT=7;
-  BGI.TRIPLEX_SCR_FONT=8; BGI.COMPLEX_FONT=9; BGI.EUROPEAN_FONT=10; BGI.BOLD_FONT=11;
+  BGI.GOTHIC_FONT=4; BGI.SCRIPT_FONT=5; BGI.SIMPLEX_FONT=6; BGI.TRIPLEX_SCR_FONT=7;
+  BGI.COMPLEX_FONT=8; BGI.EUROPEAN_FONT=9; BGI.BOLD_FONT=10;
 
   // text alignment used in settextjustify()
   BGI.HORIZ_DIR=0; BGI.VERT_DIR=1; // text_just enum
@@ -1802,6 +2019,25 @@ class BGI {
 
   // numbers
   BGI.PI_CONV = (3.1415926 / 180.0);
+
+  // these not in BGI spec
+  BGI.fontFileIds = {
+    'TRIP.CHR': BGI.TRIPLEX_FONT,
+    'LITT.CHR': BGI.SMALL_FONT,
+    'SANS.CHR': BGI.SANSSERIF_FONT,
+    'GOTH.CHR': BGI.GOTHIC_FONT,
+    'SCRI.CHR': BGI.SCRIPT_FONT,
+    'SIMP.CHR': BGI.SIMPLEX_FONT,
+    'TSCR.CHR': BGI.TRIPLEX_SCR_FONT,
+    'LCOM.CHR': BGI.COMPLEX_FONT,
+    'EURO.CHR': BGI.EUROPEAN_FONT,
+    'BOLD.CHR': BGI.BOLD_FONT
+  };
+  BGI.fontFileList = [
+    '', 'TRIP.CHR', 'LITT.CHR', 'SANS.CHR', 'GOTH.CHR', 'SCRI.CHR',
+    'SIMP.CHR', 'TSCR.CHR', 'LCOM.CHR', 'EURO.CHR', 'BOLD.CHR'
+  ];
+  BGI.fontScales = [ 1, 0.6, 2/3, 0.75, 1, 4/3, 5/3, 2, 2.5, 3, 4 ];
 
 
 ////////////////////////////////////////////////////////////////////////////////

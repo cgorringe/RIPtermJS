@@ -24,7 +24,7 @@ function testBGI (args) {
 
   const canvas = document.getElementById(args.canvasId);
   const ctx = canvas.getContext('2d');
-  const bgi = new BGI({ ctx });
+  const bgi = new BGI({ ctx, fontsPath:'fonts' });
 
   // drawing test
   bgi.setcolor(BGI.YELLOW);
@@ -38,6 +38,35 @@ function testBGI (args) {
   bgi.bar3d(200, 200, 300, 300, 20, true);
 
   bgi.refresh();
+
+  // TEST Fonts
+
+  // SANS.CHR not using correct chars!
+  // "!#ABCDE" = "02PQRST" using SANS.CHR
+/*
+  const fontname = 'BOLD.CHR';
+  bgi.fetchFont(fontname);
+
+  // add delay so font can load
+  setTimeout(() => {
+    console.log('Starting to draw font...');
+
+    bgi.setcolor(BGI.LIGHTGREEN);
+    bgi.moveto(100, 200);
+
+    bgi.drawChar(33, fontname, 1, 0); // 33='!'
+    bgi.drawChar(35, fontname, 1, 0); // 35='#' (bug)
+    bgi.drawChar(65, fontname, 2, 0); // 65='A'
+    bgi.drawChar(66, fontname, 2, 0); // 66='B'
+    bgi.drawChar(67, fontname, 3, 0); // 67='C'
+    bgi.drawChar(68, fontname, 3, 0); // 68='D'
+    bgi.drawChar(69, fontname, 4, 0); // 69='E'
+
+    bgi.refresh();
+
+  }, 1000);
+*/
+
 }
 
 
@@ -87,16 +116,14 @@ class RIPterm {
         'diffBGcolor' : '#222',  // background color for diff pixels that match.
         'svgPrefix' : 'rip',     // used to prefix internal SVG ids
         'logQuiet' : false,      // set to true to stop logging to console
+        'fontsPath' : 'fonts',
+        'iconsPath' : 'icons',
 
         // these options copied from prior version are not implemented yet.
         'floodFill' : true,
         'debugVerbose' : false,  // verbose flag
         'debugFillBuf' : false,  // display flood-fill buffer in canvas instead of normal drawings.
         'svgIncludePut' : false, // adds RIP_PUT_IMAGE (1P) to SVG (experimental)
-        'iconsPath' : 'icons',
-        'fontsPath' : 'fonts',
-        'fontsFiles' : ['8x8.png', 'TRIP.CHR', 'LITT.CHR', 'SANS.CHR', 'GOTH.CHR',
-          'SCRI.CHR', 'SIMP.CHR', 'TSCR.CHR', 'LCOM.CHR', 'EURO.CHR', 'BOLD.CHR'],
       };
 
       // assign or overwrite opts with passed-in options
@@ -146,10 +173,12 @@ class RIPterm {
             ctx: this.ctx,
             svg: this.svg,
             prefix: this.opts.svgPrefix,
+            fontsPath: this.opts.fontsPath,
             log: (type, msg) => { this.log(type, msg) }
           })
           : new BGI({
             ctx: this.ctx,
+            fontsPath: this.opts.fontsPath,
             log: (type, msg) => { this.log(type, msg) }
           });
 
@@ -157,6 +186,9 @@ class RIPterm {
         //this.bgi.setaspectratio(371, 480); // = 0.7729
         this.bgi.setaspectratio(372, 480); // better
         this.initCommands();
+
+        // TODO: may want to move outside constructor?
+        this.bgi.loadFonts();
       }
     }
     else {
@@ -177,7 +209,7 @@ class RIPterm {
   // send log messages to a div, if given logId option.
   log (type, msg) {
     if (this.logDiv) {
-      const typeStrings = { 'term':'trm', 'rip':'rip', 'bgi':'bgi', 'svg':'svg', 'err':'!!!' }
+      const typeStrings = { 'term':'trm', 'rip':'rip', 'bgi':'bgi', 'svg':'svg', 'err':'!!!', 'font':'fnt' }
       const out = typeStrings[type] || '???';
       this.logDiv.innerHTML += `<span class="rip-log-${type}">${out}</span> ${msg}<br>`;
     }
@@ -578,19 +610,27 @@ class RIPterm {
         }
       },
 
-      // RIP_TEXT (T) [NOT DONE]
+      // RIP_TEXT (T)
+      // uses and updates info.cp
       'T': (args) => {
         const [text] = this.parseRIPargs(args, '*');
         this.log('rip', 'RIP_TEXT: ' + text);
+        this.bgi.outtext(text);
       },
 
-      // RIP_TEXT_XY (@) [NOT DONE]
+      // RIP_TEXT_XY (@)
+      // updates info.cp
       '@': (args) => {
         const [x, y, text] = this.parseRIPargs(args, '22*');
         this.log('rip', 'RIP_TEXT_XY: ' + text);
+        this.bgi.outtextxy(x, y, text);
       },
 
       // RIP_FONT_STYLE (Y)
+      'Y': (args) => {
+        const [font, direction, size, res] = this.parseRIPargs(args, '2222');
+        this.bgi.settextstyle(font, direction, size);
+      },
 
       // RIP_PIXEL (X)
       // spec says this doesn't use writeMode (mistake?)
