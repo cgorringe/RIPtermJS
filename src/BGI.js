@@ -831,6 +831,7 @@ class BGI {
     // TODO: scale & direction!
 
     if (value < 0 || value > 255) { return; }
+    if (scale < 1) { scale = 1; }
     let x0 = this.info.cp.x;
     let y0 = this.info.cp.y;
     let bitchar = this.bitfonts[fontnum][value];
@@ -839,18 +840,28 @@ class BGI {
     const xsize = 8; // TODO: need to store sizes in lookup table!
 
     // loop thru each scanline
-    let scanline, bit;
+    let scanline, bit, x1, y1;
     for (let y=0; y < ysize; y++) {
       scanline = bitchar[y];
       for (let x=0; x < xsize; x++) {
         bit = scanline & 1;
         scanline = scanline >> 1;
         if (bit) {
-          this._putpixel(x0 + x, y0 + y); // TODO: try _putpixel_abs() later?
+          if (scale > 1) {
+            // square pixel
+            x1 = x0 + (x * scale);
+            y1 = y0 + (y * scale);
+            this._bar (x1, y1, x1 + scale - 1, y1 + scale - 1,
+              this.info.fgcolor, this.info.writeMode, BGI.SOLID_FILL);
+          }
+          else {
+            // single pixel
+            this._putpixel(x0 + x, y0 + y); // TODO: try _putpixel_abs() later?
+          }
         }
       }
     }
-    this.info.cp.x += xsize; // increment current position
+    this.info.cp.x += (xsize * scale); // increment current position
   }
 
   ////////////////////////////////////////////////////////////////////////////////
@@ -872,10 +883,12 @@ class BGI {
 
   // Draws and fills a rectangle, using fill style and color. Has no border. (see fillrect)
   // For a border, use bar3d with depth = 0.
-  bar (left, top, right, bottom, color = this.info.fill.color, wmode = this.info.writeMode) {
-    this._bar(left, top, right, bottom, color, wmode);
+  bar (left, top, right, bottom, color = this.info.fill.color, wmode = this.info.writeMode,
+        fillstyle = this.info.fill.style ) {
+    this._bar(left, top, right, bottom, color, wmode, fillstyle);
   }
-  _bar (left, top, right, bottom, color = this.info.fill.color, wmode = this.info.writeMode) {
+  _bar (left, top, right, bottom, color = this.info.fill.color, wmode = this.info.writeMode,
+        fillstyle = this.info.fill.style ) {
 
     // swap
     if (left > right) { let tmp = left; left = right; right = tmp; }
