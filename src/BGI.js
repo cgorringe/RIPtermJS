@@ -1604,21 +1604,29 @@ class BGI {
   }
 
   // Draws text using current info.cp position, info.text.charsize and info.text.direction
-  // TODO: doesn't yet support BGI.DEFAULT_FONT (0)
   outtext (text) {
 
+    // set yoffset for scalable fonts first
+    let yoffset = 0;
     const fontnum = this.info.text.font;
 
     if (fontnum === 0) {
       // loop thru each character in text string
       text.split('').forEach(c => {
         const cvalue = c.charCodeAt(0) & 0xFF; // to strip out 2nd byte
-        //this.drawChar(cvalue, fontname, this.info.text.charsize, this.info.text.direction);
         this.drawPNGChar(cvalue, 0, this.info.text.charsize, this.info.text.direction);
       });
     }
     else if ((fontnum > 0) && (fontnum < BGI.fontFileList.length)) {
       const fontname = BGI.fontFileList[fontnum];
+      const font = this.fonts[fontname];
+      const scale = this.info.text.charsize;
+      const actualScale = (scale < BGI.fontScales.length) ? BGI.fontScales[scale] : 1;
+
+      // offset initial y position
+      yoffset = Math.trunc((font.top - font.bottom) * actualScale);
+      this.moverel(0, yoffset);
+
       // loop thru each character in text string
       text.split('').forEach(c => {
         const cvalue = c.charCodeAt(0) & 0xFF; // to strip out 2nd byte
@@ -1627,25 +1635,9 @@ class BGI {
     }
   }
 
-  // Draws text after offseting position by (x, y) + offsetting y by other factors.
+  // Draws text after offseting position by (x, y).
   outtextxy (x, y, text) {
-
-    // set yoffset for scalable fonts first
-    let yoffset = 0;
-    const fontnum = this.info.text.font;
-    if ((fontnum > 0) && (fontnum < BGI.fontFileList.length)) {
-      const fontname = BGI.fontFileList[fontnum];
-      const font = this.fonts[fontname];
-      const scale = this.info.text.charsize;
-      const actualScale = (scale < BGI.fontScales.length) ? BGI.fontScales[scale] : 1;
-      //console.log(font); // DEBUG
-
-      // offset initial y position
-      yoffset = Math.trunc((font.top - font.bottom) * actualScale);
-      // FIXME: most y offsets correct, except in FELIX.RIP, NO-L.RIP, STPATS95.RIP
-    }
-
-    this.moveto(x, y + yoffset);
+    this.moveto(x, y);
     this.outtext(text);
   }
 
