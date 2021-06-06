@@ -40,9 +40,9 @@ function testBGI (args) {
   bgi.refresh();
 
   // TEST Fonts
-
+/*
   const fontname = 'BOLD.CHR';
-  bgi.fetchFont(fontname);
+  bgi.fetchCHRFont(fontname);
 
   // add delay so font can load
   setTimeout(() => {
@@ -63,7 +63,16 @@ function testBGI (args) {
     bgi.refresh();
 
   }, 1000);
-
+*/
+/*
+  // TEST Bitmap Fonts
+  bgi.fetchPNGFont ('8x8.png', 0, 8, 8);
+  bgi.fetchPNGFont ('8x14.png', 2, 8, 14);
+  // add delay so font can load
+  setTimeout(() => {
+    console.log(bgi.bitfonts); // DEBUG
+  }, 1000);
+*/
 
 }
 
@@ -150,7 +159,7 @@ class RIPterm {
 
       // init canvas
       this.canvas = document.getElementById(opts.canvasId);
-      this.ctx = this.canvas.getContext('2d');
+      this.ctx = this.canvas.getContext('2d'); // , { alpha: false } ???
 
       this.isRunning = false;
       this.isFullscreen = false;
@@ -186,7 +195,7 @@ class RIPterm {
         this.initCommands();
 
         // TODO: may want to move outside constructor?
-        this.bgi.loadFonts();
+        this.bgi.initFonts();
       }
     }
     else {

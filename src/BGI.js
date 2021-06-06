@@ -112,6 +112,12 @@ class BGI {
     this.colorMask = 0x0F;  // 0xF = 16-color mode, 0xFF = 256-color mode
     this.fonts = {}; // key is file, e.g. 'GOTH.CHR' (may rethink this later)
 
+    // index is font size: 0=8x8, 1=7x8, 2=8x14, 3=7x14, 4=16x14.
+    // value is an array of 256 elements for each ASCII char,
+    // each element is an array of ints, each being a scanline of height values.
+    // e.g. this.bitfonts[0][65][2] is font size 0, ASCII char 65, 3rd scanline which returns an 8-bit int.
+    this.bitfonts = [];
+
     // log callback function
     if ('log' in args) {
       this.logFunc = args.log;
@@ -221,14 +227,21 @@ class BGI {
   }
 
   // Loads all the vector font .CHR files in BGI.fontFileList[]
-  loadFonts () {
+  initFonts () {
 
     // TODO: may want to try to not load them all at the same time!
+
+    // load vector fonts
     BGI.fontFileList.forEach(filename => {
       if (filename.length > 3) {
-        this.fetchFont(filename);
+        this.fetchCHRFont(filename);
       }
     })
+
+    // load bitmap fonts
+    this.fetchPNGFont('8x8.png', 0, 8, 8);
+    this.fetchPNGFont('8x14.png', 2, 8, 14);
+
   }
 
   // TODO: rethink this or replace
@@ -593,10 +606,10 @@ class BGI {
   // filename = filename without path, including '.CHR' (e.g. 'BOLD.CHR')
   // uses this.fontsPath
   // TODO: callback or Promise returned?
-  fetchFont (filename) {
+  fetchCHRFont (filename) {
 
     if (typeof filename !== 'string') {
-      this.log('err', 'fetchFont() missing "filename"!');
+      this.log('err', 'fetchCHRFont() missing "filename"!');
       return;
     }
     if (typeof this.fontsPath !== 'string') {
@@ -604,7 +617,7 @@ class BGI {
       return;
     }
     const url = this.fontsPath + '/' + filename;
-    this.log('font', 'Fetching font: ' + url);
+    this.log('font', 'Fetching CHR font: ' + url);
 
     let request = new Request(url);
     fetch(request)
@@ -667,7 +680,7 @@ class BGI {
 
       // TODO: return a Promise that can run code when finished loading?
 
-  } // end fetchFont()
+  } // end fetchCHRFont()
 
   // uses and updates this.info.cp, and this.fonts
   // value = ASCII code value of a single character as int.
@@ -735,6 +748,110 @@ class BGI {
 
   }
 
+  // Downloads a PNG file containing a bitmap font.
+  // xsize & ysize is the size in pixels of an individual character. (e.g. 8x8)
+  // PNG file must arrange all ASCII chars in a 16 x 16 grid.
+  // PNG size must be at least (16 * xsize) by (16 * ysize) pixels.
+  // OFF pixels are black (0,0,0), else they are ON pixels.
+  // filename = filename without path, including '.png' (e.g. '8x8.png')
+  // will use this.fontsPath + '/' + filename for full path.
+  // fontnum = font size value for bitmapped fonts (0-4) to index into this.bitfonts[]
+  // TODO: return a Promise?
+
+  fetchPNGFont (filename, fontnum, xsize, ysize) {
+
+    // checking args
+    if (typeof filename !== 'string') {
+      this.log('err', 'fetchPNGFont() missing "filename"!');
+      return;
+    }
+    if (typeof this.fontsPath !== 'string') {
+      this.log('err', 'must pass in "fontsPath" to BGI()!');
+      return;
+    }
+    const url = this.fontsPath + '/' + filename;
+    this.log('font', 'Fetching PNG font: ' + url);
+
+    let img = new Image();
+    img.onload = () => {
+
+      const imgW = img.naturalWidth;
+      const imgH = img.naturalHeight;
+
+      // PNG size must be at least (16 * xsize) by (16 * ysize) pixels.
+      const minW = xsize * 16, minH = ysize * 16;
+      if ((imgW < minW) || (imgH < minH)) {
+        this.log('err', `PNG size is ${imgW}x${imgH} but needs to be at least ${minW}x${minH}!`);
+        return;
+      }
+
+      // preparing font image
+      const can1 = document.createElement('canvas');
+      can1.setAttribute('width', imgW);
+      can1.setAttribute('height', imgH);
+      const ctx1 = can1.getContext('2d');
+      ctx1.drawImage(img, 0, 0);
+      const imgdata1 = ctx1.getImageData(0, 0, imgW, imgH);
+      // imgdata1.data is Uint8ClampedArray(w * h * 4) // RGBA
+
+      // for every ASCII char
+      this.bitfonts[fontnum] = [];
+      let pos = 0, bit = 0;
+      for (let i=0; i < 256; i++) {
+        // upper-left pixel of char in PNG
+        let x0 = (i % 16) * xsize;
+        let y0 = Math.floor(i / 16) * ysize;
+        let bitchar = []; // array of scanline values (1 for each row)
+
+        for (let y=0; y < ysize; y++) {
+          let scanline = 0;
+          // lopping x in reverse so bits are shifted on scanline in reverse order
+          for (let x = xsize - 1; x >= 0; x--) {
+            pos = ((y0 + y) * imgW + x0 + x) * 4;
+            bit = (imgdata1.data[pos] != 0) ? 1 : 0; // just checking red value
+            scanline = (scanline << 1) | bit;
+          }
+          bitchar.push(scanline);
+        }
+        this.bitfonts[fontnum].push(bitchar);
+      }
+    } // end onload
+
+    img.src = url;
+    // TODO: return a Promise
+  }
+
+  // uses and updates this.info.cp, this.bitfonts, info.fgcolor
+  // value: ASCII code value of a single character as int.
+  // fontnum: size value 0-4
+  // scale: 1 to 10 ?
+  // dir: 0 = horizontal, 1 = vertical (NOT DONE)
+  drawPNGChar (value, fontnum, scale, dir) {
+
+    // TODO: scale & direction!
+
+    if (value < 0 || value > 255) { return; }
+    let x0 = this.info.cp.x;
+    let y0 = this.info.cp.y;
+    let bitchar = this.bitfonts[fontnum][value];
+
+    const ysize = bitchar.length;
+    const xsize = 8; // TODO: need to store sizes in lookup table!
+
+    // loop thru each scanline
+    let scanline, bit;
+    for (let y=0; y < ysize; y++) {
+      scanline = bitchar[y];
+      for (let x=0; x < xsize; x++) {
+        bit = scanline & 1;
+        scanline = scanline >> 1;
+        if (bit) {
+          this._putpixel(x0 + x, y0 + y); // TODO: try _putpixel_abs() later?
+        }
+      }
+    }
+    this.info.cp.x += xsize; // increment current position
+  }
 
   ////////////////////////////////////////////////////////////////////////////////
   // Standard BGI functions
@@ -1479,8 +1596,15 @@ class BGI {
 
     const fontnum = this.info.text.font;
 
-    // TODO: skipping font 0 for now...
-    if ((fontnum > 0) && (fontnum < BGI.fontFileList.length)) {
+    if (fontnum === 0) {
+      // loop thru each character in text string
+      text.split('').forEach(c => {
+        const cvalue = c.charCodeAt(0) & 0xFF; // to strip out 2nd byte
+        //this.drawChar(cvalue, fontname, this.info.text.charsize, this.info.text.direction);
+        this.drawPNGChar(cvalue, 0, this.info.text.charsize, this.info.text.direction);
+      });
+    }
+    else if ((fontnum > 0) && (fontnum < BGI.fontFileList.length)) {
       const fontname = BGI.fontFileList[fontnum];
       // loop thru each character in text string
       text.split('').forEach(c => {
@@ -1493,25 +1617,23 @@ class BGI {
   // Draws text after offseting position by (x, y) + offsetting y by other factors.
   outtextxy (x, y, text) {
 
+    // set yoffset for scalable fonts first
+    let yoffset = 0;
     const fontnum = this.info.text.font;
-    // TODO: skipping font 0 for now...
     if ((fontnum > 0) && (fontnum < BGI.fontFileList.length)) {
-
       const fontname = BGI.fontFileList[fontnum];
       const font = this.fonts[fontname];
       const scale = this.info.text.charsize;
       const actualScale = (scale < BGI.fontScales.length) ? BGI.fontScales[scale] : 1;
-
       //console.log(font); // DEBUG
 
       // offset initial y position
-      const yoffset = Math.trunc((font.top - font.bottom) * actualScale);
-
+      yoffset = Math.trunc((font.top - font.bottom) * actualScale);
       // FIXME: most y offsets correct, except in FELIX.RIP, NO-L.RIP, STPATS95.RIP
-
-      this.moveto(x, y + yoffset);
-      this.outtext(text);
     }
+
+    this.moveto(x, y + yoffset);
+    this.outtext(text);
   }
 
   // fills with fill color and pattern.
