@@ -1654,13 +1654,13 @@ class BGI {
   // Put byte array of image data on to pixels[]
   // image is an object:
   // { x:int, y:int, width:int, height:int, data:Uint8ClampedArray }
+  // image is offset and clipped by viewport.
   putimage (left, top, image, wmode) {
 
     // OLD
     // putimage (left, top, bitmap, op)
     //   bitmap = points to where image stored
     //   op = see putimage_ops enum (0=COPY, 1=XOR, 2=OR, 3=AND, 4=NOT)
-    //   no info on whether image gets clipped by viewport ???
 
     if (!(image && image.data)) {
       this.log('err', 'putimage() missing image!');
@@ -1675,56 +1675,66 @@ class BGI {
     const data = image.data; // Uint8ClampedArray
     let right = left + image.width - 1;
     let bottom = top + image.height - 1;
-    let i=0, o=0;
+    let i=0, o=0, yi=0;
 
-    // exit if outside canvas bounds
-    // TODO: what about viewport bounds?
-    if ((right >= this.width) || (bottom >= this.height)) { return false; }
+    // clip if outside viewport bounds
+    if (right > vp.right) { right = vp.right; }
+    if (bottom > vp.bottom) { bottom = vp.bottom; }
 
     switch (wmode) {
       default:
       case BGI.COPY_PUT:
         for (let y=top; y <= bottom; ++y) {
+          i = yi * image.width;
           o = y * this.width + left;
           for (let x=left; x <= right; ++x) {
             this.pixels[o++] = data[i++];
           }
+          yi++;
         }
         break;
 
       case BGI.XOR_PUT:
         for (let y=top; y <= bottom; ++y) {
+          i = yi * image.width;
           o = y * this.width + left;
           for (let x=left; x <= right; ++x) {
             this.pixels[o++] ^= data[i++];
           }
+          yi++;
         }
         break;
 
       case BGI.OR_PUT:
         for (let y=top; y <= bottom; ++y) {
+          i = yi * image.width;
           o = y * this.width + left;
           for (let x=left; x <= right; ++x) {
             this.pixels[o++] |= data[i++];
           }
+          yi++;
         }
         break;
 
       case BGI.AND_PUT:
         for (let y=top; y <= bottom; ++y) {
+          i = yi * image.width;
           o = y * this.width + left;
           for (let x=left; x <= right; ++x) {
             this.pixels[o++] &= data[i++];
           }
+          yi++;
         }
         break;
 
       case BGI.NOT_PUT:
         for (let y=top; y <= bottom; ++y) {
+          i = yi * image.width;
           o = y * this.width + left;
           for (let x=left; x <= right; ++x) {
             this.pixels[o++] = ~data[i++] & this.colorMask;
           }
+          yi++;
         }
     }
     return true;
