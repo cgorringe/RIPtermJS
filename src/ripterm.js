@@ -492,7 +492,12 @@ class RIPterm {
   parseRIPcmd (inst) {
     let args = inst;
     const cmd = /^[0-9]*./.exec(inst)[0];
-    if (cmd) { args = inst.substr(cmd.length); } // grab everything after cmd string
+    if (cmd) {
+      // grab everything after cmd string
+      args = inst.substr(cmd.length);
+      // remove all newlines (NOT TESTED)
+      args = args.replace(/\r?\n|\r/gm, '');
+    }
     return [cmd, args];
   }
 

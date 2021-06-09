@@ -76,12 +76,17 @@ class BGIsvg extends BGI {
     return polypoints;
   }
 
-  svgNode (elem, dict) {
+  // dict is object of key:value attribute pairs.
+  // text is optional.
+  svgNode (elem, dict, text) {
     elem = document.createElementNS("http://www.w3.org/2000/svg", elem);
     for (var k in dict) {
       if ((dict[k] != null) && (dict[k] != "")) {
-        elem.setAttributeNS(null, k, dict[k]);
+        elem.setAttribute(k, dict[k]);
       }
+    }
+    if (text) {
+      elem.appendChild(document.createTextNode(text));
     }
     return elem
   }
@@ -427,6 +432,31 @@ class BGIsvg extends BGI {
   getimage (left, top, right, bottom) {
     this.log('svg', 'RIP_GET_IMAGE (1C) not supported in SVGs.');
     return super.getimage(left, top, right, bottom);
+  }
+
+  // Draws text using current info.cp position, info.text.charsize and info.text.direction.
+  // Only outputs SVG text for default 8x8 font (0). Other fonts are drawn using lines.
+  // TODO: vertical text direction not implemented.
+  outtext (text) {
+    const fontnum = this.info.text.font;
+    if (fontnum === 0) {
+      let scale = this.info.text.charsize;
+      if (scale < 1) { scale = 1; }
+      let fontSize = 8 * scale;
+      let textLength = text.length * fontSize; // pixels wide
+      let x0 = this.info.cp.x;
+      let y0 = this.info.cp.y + fontSize;
+      let color = this.info.fgcolor;
+      // let dir = this.info.text.direction; // 0 = horiz, 1 = vert
+      this.svgView.appendChild( this.svgNode('text', {
+        'x': x0, 'y': y0,
+        'font-family': 'monospace', 'font-size': fontSize + 'px', 'style': 'white-space:pre',
+        'lengthAdjust': 'spacingAndGlyphs', 'textLength': textLength,
+        'fill': this.pal2hex(color)
+      }, text));
+    }
+    // must call at end, as it'll modify info.cp text position.
+    super.outtext(text);
   }
 
   // draws in current line style, thickness, and drawing color
