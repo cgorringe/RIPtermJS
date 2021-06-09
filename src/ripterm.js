@@ -147,7 +147,10 @@ class RIPterm {
       // debug options
       this.commandsDiv = ('commandsId' in opts) ? document.getElementById(opts.commandsId) : null;
       this.counterDiv = ('counterId' in opts) ? document.getElementById(opts.counterId) : null;
-      this.logDiv = ('logId' in opts) ? document.getElementById(opts.logId) : null;
+      if ('logId' in opts) {
+        this.logId = opts.logId;
+        this.logDiv = document.getElementById(opts.logId);
+      }
       if ('ssId' in opts) {
         this.canvasSS = document.getElementById(opts.ssId);
         this.ctxSS = (this.canvasSS && this.canvasSS.getContext) ? this.canvasSS.getContext('2d') : null;
@@ -218,7 +221,8 @@ class RIPterm {
     if (this.logDiv) {
       const typeStrings = { 'term':'trm', 'rip':'rip', 'bgi':'bgi', 'svg':'svg', 'err':'!!!', 'font':'fnt' }
       const out = typeStrings[type] || '???';
-      this.logDiv.innerHTML += `<span class="rip-log-${type}">${out}</span> ${msg}<br>`;
+      this.logDiv.innerHTML += `<span class="${this.logId}-${type}">${out}</span> ${msg}<br>`;
+      this.logDiv.scrollTop = this.logDiv.scrollHeight; // autoscrolls
     }
     if (type === 'err') {
       console.error(msg);

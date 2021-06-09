@@ -44,9 +44,7 @@
     height: 350px; /* use this later to stretch: 480px */
   }
   .rip-frame {
-    /* float: left; */
-    margin: 4px 4px 4px 0;
-    width: 656px;
+    margin: 4px 0 4px 0;
   }
   .rip-frame-width {
     width: 656px;
@@ -78,7 +76,7 @@
     /* border:solid 1px #999; */
     margin: 4px 0;
     padding: 0px 8px;
-    width: 136px;  /* 144px */
+    width: calc(100% - 662px);  /* 136px, 144px */
     /* height: 366px; */ /* was 496px */
     overflow: auto;
     background: #333;
@@ -86,15 +84,34 @@
     font-size: 12px;
     color: #fff;
     vertical-align: top;
+    white-space: nowrap;
   }
   #rip-commands::after {
     /* content: "";
     display: block;
     clear: both; */
   }
-  .clear {
-    clear: both;
+
+  #rip-log {
+    height: 18em;
+    padding: 0px 8px;
+    overflow: auto;
+    background: #333;
+    font-family: monospace;
+    font-size: 12px;
+    color: #fff;
+    vertical-align: top;
   }
+
+  .rip-select-views {
+    line-height: 1.5em;
+  }
+  .rip-select-views * {
+    padding-right: 0.5em;
+  }
+
+  .clear { clear: both; }
+
   #rip-counter {
     float: right;
     font-size: 12pt;
@@ -102,6 +119,7 @@
     line-height: 30px;
     /* clear: both; */
   }
+
   .debugOptions {
     padding-left: 0.5em;
     font-size: 12pt;
@@ -110,10 +128,19 @@
     padding-right: 0.5em;
     font-weight: 400;
   }
+
+  /* debug log colors */
+  .rip-log-term { color: #888; }
+  .rip-log-font { color: #b8f; }
+  .rip-log-rip { color: #88f; }
+  .rip-log-bgi { color: #8ff; }
+  .rip-log-svg { color: #8f8; }
+  .rip-log-err { color: #f88; }
+  /* rip command colors */
   .cmd-ok  { color: #88f; }
   .cmd-not { color: #f88; }
   .cmd-paused { color: #ff8; }
-  .pad-radio * { padding-right: 0.5em; }
+
 </style>
 <div>
 
@@ -197,6 +224,7 @@
     <option value="rips/test/L_LINE">Test Line Styles #1 (L)(=)</option>
     <option value="rips/test/L_LINE2">Test Line Styles #2 (L)(=)</option>
     <option value="rips/test/COVAI">Test Circ/Oval/Arc/Pie (COVAIoi)</option>
+    <option value="rips/test/v_VIEW">Test Viewport (v)</option>
     <option value="rips/set2/K!LIGHT">K!LIGHT.RIP</option>
     <option value="rips/set2/KT-JJB">KT-JJB.RIP</option>
     <option value="rips/set2/OUT-AD">OUT-AD.RIP</option>
@@ -212,7 +240,7 @@
   <button onclick="ripterm.reset();">Reset</button>
   <button onclick="ripterm.fullscreen();">Full Screen</button>
 
-  <span id="rip-counter" class=""></span>
+  <span id="rip-counter"></span>
   <div class="clear"></div>
 
   <div class="rip-frame-width">
@@ -281,24 +309,27 @@
   </div>
 
   <div id="rip-commands" class="rip-frame-height framed">
-  RIPscript here...<br/>
   </div>
   <div class="clear"></div>
 
   <hr>
-  <div class="rip-frame-width">
-    <div class="pad-radio" style="float:left; line-height:1.5em">
-      <strong>Select View:</strong>
-      <input type="radio" id="canvas-opt" name="view-options" onclick="showView('#canvas-view')" checked>
-        <label for="canvas-opt">Canvas</label>
-      <input type="radio" id="ss-opt" name="view-options" onclick="showView('#ss-view')">
-        <label for="ss-opt">Original</label>
-      <input type="radio" id="svg-opt" name="view-options" onclick="showView('#svg-view')">
-        <label for="svg-opt">SVG</label>
-      <input type="radio" id="diff-opt" name="view-options" onclick="showView('#diff-view')">
-        <label for="diff-opt">Diff</label>
-    </div>
+  <div class="rip-select-views">
+    <strong>Select View:</strong>
+    <input type="radio" id="canvas-opt" name="view-options" onclick="showView('#canvas-view')" checked>
+      <label for="canvas-opt">Canvas</label>
+    <input type="radio" id="ss-opt" name="view-options" onclick="showView('#ss-view')">
+      <label for="ss-opt">Original</label>
+    <input type="radio" id="svg-opt" name="view-options" onclick="showView('#svg-view')">
+      <label for="svg-opt">SVG</label>
+    <input type="radio" id="diff-opt" name="view-options" onclick="showView('#diff-view')">
+      <label for="diff-opt">Diff</label>
   </div>
+
+  <hr>
+  <h6><b>Debug Log</b></h6>
+  <div id="rip-log" class="rip-frame framed">
+  </div>
+  <button onclick="clearLog()">Clear</button>
 
 </div>
 
@@ -307,16 +338,17 @@
 <script src="src/BGIsvg.js"></script>
 <script src="src/ripterm.js"></script>
 <script>
-
   // testBGI({ canvasId: 'rip-canvas' }); // TEST
+
   const ripterm = new RIPterm({
     canvasId: 'rip-canvas',
     ssId: 'rip-ss-canvas',
     diffId: 'rip-diff-canvas',
     svgId: 'rip-svg',
+    logId: 'rip-log',
     commandsId: 'rip-commands',
     counterId: 'rip-counter',
-    timeInterval: 1,
+    timeInterval: 0,
     refreshInterval: 20,
     fontsPath: 'fonts',
     iconsPath: 'icons',
@@ -350,10 +382,12 @@
     $(viewId).show();
   }
 
+  function clearLog() {
+    document.getElementById('rip-log').innerHTML = '';
+  }
+
 </script>
 <br><br>
-
-
 
               </div>
             </div>
