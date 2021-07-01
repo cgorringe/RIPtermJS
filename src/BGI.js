@@ -688,7 +688,6 @@ class BGI {
   // scale = 1 to 10, indexes into BGI.fontScales[] for actual scale factor.
   drawChar (value, fontname, scale, dir) {
 
-    // TODO: dir not yet implemented for vertical direction.
     // current postion (cp) should only update when dir is horizontal, not vertical! (see specs v2.0)
 
     // check for valid input
@@ -726,10 +725,10 @@ class BGI {
       // multiply by scale factor
       dx = Math.trunc(dx * actualScale);
       dy = Math.trunc(dy * actualScale);
-      x = x0 + dx;
-      y = y0 - dy;
 
-      // TODO: direction
+      // handle direction
+      x = x0 + ((dir === BGI.HORIZ_DIR) ?  dx : -dy);
+      y = y0 + ((dir === BGI.HORIZ_DIR) ? -dy : -dx);
 
       if (((xbyte & 0x80) !== 0) && (ybyte & 0x80) === 0) {
         // move pointer when high bits 1 & 0
@@ -828,7 +827,7 @@ class BGI {
   // dir: 0 = horizontal, 1 = vertical (NOT DONE)
   drawPNGChar (value, fontnum, scale, dir) {
 
-    // TODO: scale & direction!
+    // TODO: vertical direction!
 
     if (value < 0 || value > 255) { return; }
     if (scale < 1) { scale = 1; }
@@ -1610,22 +1609,21 @@ class BGI {
     let yoffset = 0;
     const fontnum = this.info.text.font;
 
-    if (fontnum === 0) {
+    if (fontnum === BGI.DEFAULT_FONT) {
       // loop thru each character in text string
       text.split('').forEach(c => {
         const cvalue = c.charCodeAt(0) & 0xFF; // to strip out 2nd byte
         this.drawPNGChar(cvalue, 0, this.info.text.charsize, this.info.text.direction);
       });
     }
-    else if ((fontnum > 0) && (fontnum < BGI.fontFileList.length)) {
+    else if (fontnum < BGI.fontFileList.length) {
       const fontname = BGI.fontFileList[fontnum];
-      const font = this.fonts[fontname];
-      const scale = this.info.text.charsize;
-      const actualScale = (scale < BGI.fontScales.length) ? BGI.fontScales[scale] : 1;
-
-      // offset initial y position
-      yoffset = Math.trunc((font.top - font.bottom) * actualScale);
-      this.moverel(0, yoffset);
+      if (this.info.text.direction === BGI.HORIZ_DIR) {
+        this.moverel(0, this.textheight(text));
+      }
+      else {
+        this.moverel(this.textheight(text), this.textwidth(text));
+      }
 
       // loop thru each character in text string
       text.split('').forEach(c => {
@@ -2002,16 +2000,55 @@ class BGI {
     this.info.writeMode = mode;
   }
 
-  // TODO
+  // TODO: Needs further testing
   // takes current font size and multiplication factor, and determines the height of text in pixels.
   textheight (text) {
-    return 0;
+
+    let th = 0;
+    const fontnum = this.info.text.font;
+    const scale = this.info.text.charsize;
+
+    if (fontnum === BGI.DEFAULT_FONT) {
+      th = 8 * scale;
+    }
+    else if (fontnum < BGI.fontFileList.length) {
+      const fontname = BGI.fontFileList[fontnum];
+      const font = this.fonts[fontname];
+      if (font) {
+        const actualScale = (scale < BGI.fontScales.length) ? BGI.fontScales[scale] : 1;
+        th = Math.trunc((font.top - font.bottom) * actualScale);
+        // TODO: Not sure if this is correct height returned!
+      }
+    }
+    return th;
   }
   
-  // TODO
+  // TODO: Needs further testing
   // takes the string length, current font size, and multiplication factor, and determines the width of text in pixels.
   textwidth (text) {
 
+    let tw = 0;
+    const fontnum = this.info.text.font;
+    const scale = this.info.text.charsize;
+
+    if (fontnum === BGI.DEFAULT_FONT) {
+      tw = text.length * 8 * scale;
+    }
+    else if (fontnum < BGI.fontFileList.length) {
+      // CHR font widths
+      const fontname = BGI.fontFileList[fontnum];
+      const font = this.fonts[fontname];
+      if (font) {
+        const actualScale = (scale < BGI.fontScales.length) ? BGI.fontScales[scale] : 1;
+        // loop thru each character in text string
+        text.split('').forEach(c => {
+          let cvalue = c.charCodeAt(0) & 0xFF; // to strip out 2nd byte
+          let charwidth = font.widths[cvalue - font.firstchar];
+          tw += Math.round(charwidth * actualScale); // TODO: Test if round or trunc?
+        });
+      }
+    }
+    return tw;
   }
 
   ////////////////////////////////////////////////////////////////////////////////
