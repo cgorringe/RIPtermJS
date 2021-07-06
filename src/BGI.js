@@ -2044,11 +2044,11 @@ class BGI {
         text.split('').forEach(c => {
           let cvalue = c.charCodeAt(0) & 0xFF; // to strip out 2nd byte
           let charwidth = font.widths[cvalue - font.firstchar];
-          tw += Math.round(charwidth * actualScale); // TODO: Test if round or trunc?
+          tw += (charwidth * actualScale);
         });
       }
     }
-    return tw;
+    return Math.floor(tw);
   }
 
   ////////////////////////////////////////////////////////////////////////////////
