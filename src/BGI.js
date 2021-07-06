@@ -804,7 +804,7 @@ class BGI {
 
         for (let y=0; y < ysize; y++) {
           let scanline = 0;
-          // lopping x in reverse so bits are shifted on scanline in reverse order
+          // looping x in reverse so bits are shifted on scanline in reverse order
           for (let x = xsize - 1; x >= 0; x--) {
             pos = ((y0 + y) * imgW + x0 + x) * 4;
             bit = (imgdata1.data[pos] != 0) ? 1 : 0; // just checking red value
@@ -824,10 +824,8 @@ class BGI {
   // value: ASCII code value of a single character as int.
   // fontnum: size value 0-4
   // scale: 1 to 10 ?
-  // dir: 0 = horizontal, 1 = vertical (NOT DONE)
+  // dir: 0 = horizontal, 1 = vertical
   drawPNGChar (value, fontnum, scale, dir) {
-
-    // TODO: vertical direction!
 
     if (value < 0 || value > 255) { return; }
     if (scale < 1) { scale = 1; }
@@ -848,19 +846,36 @@ class BGI {
         if (bit) {
           if (scale > 1) {
             // square pixel
-            x1 = x0 + (x * scale);
-            y1 = y0 + (y * scale);
+            if (dir === BGI.HORIZ_DIR) {
+              x1 = x0 + (x * scale);
+              y1 = y0 + (y * scale);
+            }
+            else {
+              x1 = x0 + (y * scale);
+              y1 = y0 - (x * scale);
+            }
             this._bar (x1, y1, x1 + scale - 1, y1 + scale - 1,
               this.info.fgcolor, this.info.writeMode, BGI.SOLID_FILL);
           }
           else {
             // single pixel
-            this._putpixel(x0 + x, y0 + y); // TODO: try _putpixel_abs() later?
+            if (dir === BGI.HORIZ_DIR) {
+              this._putpixel(x0 + x, y0 + y); // TODO: try _putpixel_abs() later?
+            }
+            else {
+              this._putpixel(x0 + y, y0 - x);
+            }
           }
         }
       }
     }
-    this.info.cp.x += (xsize * scale); // increment current position
+    // increment current position
+    if (dir === BGI.HORIZ_DIR) {
+      this.info.cp.x += (xsize * scale);
+    }
+    else {
+      this.info.cp.y -= (xsize * scale);
+    }
   }
 
   ////////////////////////////////////////////////////////////////////////////////
@@ -1608,8 +1623,13 @@ class BGI {
     // set yoffset for scalable fonts first
     let yoffset = 0;
     const fontnum = this.info.text.font;
+    const scale = this.info.text.charsize;
 
     if (fontnum === BGI.DEFAULT_FONT) {
+      // move cp if vertical
+      if (this.info.text.direction === BGI.VERT_DIR) {
+        this.moverel(-this.textheight(text), this.textwidth(text) - scale);
+      }
       // loop thru each character in text string
       text.split('').forEach(c => {
         const cvalue = c.charCodeAt(0) & 0xFF; // to strip out 2nd byte
@@ -1628,7 +1648,7 @@ class BGI {
       // loop thru each character in text string
       text.split('').forEach(c => {
         const cvalue = c.charCodeAt(0) & 0xFF; // to strip out 2nd byte
-        this.drawChar(cvalue, fontname, this.info.text.charsize, this.info.text.direction);
+        this.drawChar(cvalue, fontname, scale, this.info.text.direction);
       });
     }
   }
@@ -2000,7 +2020,6 @@ class BGI {
     this.info.writeMode = mode;
   }
 
-  // TODO: Needs further testing
   // takes current font size and multiplication factor, and determines the height of text in pixels.
   textheight (text) {
 
@@ -2023,7 +2042,6 @@ class BGI {
     return th;
   }
   
-  // TODO: Needs further testing
   // takes the string length, current font size, and multiplication factor, and determines the width of text in pixels.
   textwidth (text) {
 

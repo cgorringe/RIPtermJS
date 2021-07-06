@@ -436,7 +436,6 @@ class BGIsvg extends BGI {
 
   // Draws text using current info.cp position, info.text.charsize and info.text.direction.
   // Only outputs SVG text for default 8x8 font (0). Other fonts are drawn using lines.
-  // TODO: vertical text direction not implemented.
   outtext (text) {
     const fontnum = this.info.text.font;
     if (fontnum === 0) {
@@ -445,15 +444,29 @@ class BGIsvg extends BGI {
       let fontSize = 8 * scale;
       let textLength = text.length * fontSize; // pixels wide
       let x0 = this.info.cp.x;
-      let y0 = this.info.cp.y + fontSize;
+      let y0 = this.info.cp.y + fontSize - scale;
       let color = this.info.fgcolor;
-      // let dir = this.info.text.direction; // 0 = horiz, 1 = vert
-      this.svgView.appendChild( this.svgNode('text', {
-        'x': x0, 'y': y0,
-        'font-family': 'monospace', 'font-size': fontSize + 'px', 'style': 'white-space:pre',
-        'lengthAdjust': 'spacingAndGlyphs', 'textLength': textLength,
-        'fill': this.pal2hex(color)
-      }, text));
+      if (this.info.text.direction === BGI.HORIZ_DIR) {
+        // horizontal
+        this.svgView.appendChild( this.svgNode('text', {
+          'x': x0, 'y': y0,
+          'font-family': 'monospace', 'font-size': fontSize + 'px', 'style': 'white-space:pre',
+          'lengthAdjust': 'spacingAndGlyphs', 'textLength': textLength,
+          'fill': this.pal2hex(color)
+        }, text));
+      }
+      else {
+        // vertical
+        let x = x0 - scale;
+        let y = y0 + textLength - fontSize;
+        this.svgView.appendChild( this.svgNode('text', {
+          'x': x, 'y': y,
+          'font-family': 'monospace', 'font-size': fontSize + 'px', 'style': 'white-space:pre',
+          'lengthAdjust': 'spacingAndGlyphs', 'textLength': textLength,
+          'transform': `rotate(270,${x},${y})`,
+          'fill': this.pal2hex(color)
+        }, text));
+      }
     }
     // must call at end, as it'll modify info.cp text position.
     super.outtext(text);
