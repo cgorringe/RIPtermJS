@@ -35,10 +35,11 @@ Visit my [demo page](http://carl.gorringe.org/pub/code/javascript/RIPtermJS/).
 [![](img/badge_demo.png)](http://carl.gorringe.org/pub/code/javascript/RIPtermJS/)
 
 
-![](img/screen1.png)
-![](img/screen2.png) <br>
-![](img/screen3.png)
-![](img/screen4.png) <br>
+|     |     |     |
+| --- | --- | --- |
+![](rips/set1/CITY.png) | ![](rips/set1/ACOMA.png) | ![](rips/set1/SBBS2.png)
+![](rips/set1/MAMA.png) | ![](rips/set2/P1-DL1.png) | ![](rips/set2/LO-TV1.png)
+![](rips/set2/OUT-BOBA.png) | ![](rips/set2/PL-ORC.png) | ![](rips/set1/MAIN5.png)
 
 
 ## License
