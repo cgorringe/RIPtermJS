@@ -375,8 +375,8 @@ class BGIsvg extends BGI {
   }
 
   // only draw fill without the outline, since super.fillpoly() calls drawpoly()
-  fillpoly (numpoints, pp) {
-    super.fillpoly(numpoints, pp);
+  fillpoly (numpoints, pp, info) {
+    super.fillpoly(numpoints, pp, info);
 
     if (this.svgView) {
       pp = this.offsetPoints(this.info.vp.left, this.info.vp.top, pp);

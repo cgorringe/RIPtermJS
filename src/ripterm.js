@@ -143,6 +143,7 @@ class RIPterm {
       this.cmdTimer = null; // commands interval timer
       this.refTimer = null; // refresh interval timer
       this.clipboard = {};  // { x:int, y:int, width:int, height:int, data:Uint8ClampedArray }
+      this.buttonStyle = {};
 
       // debug options
       this.commandsDiv = ('commandsId' in opts) ? document.getElementById(opts.commandsId) : null;
@@ -547,6 +548,125 @@ class RIPterm {
 
   }
 
+  ////////////////////////////////////////////////////////////////////////////////
+  // Drawing methods
+
+  drawBeveledBox(x1, y1, x2, y2, topl_col, botr_col, corner_col, corner_size) {
+
+    // FIXME: need to override fill pattern in fillpoly() that is defined in bgi.info.fill.fpattern
+    // also override line style & thickness for lines
+
+    if (corner_col && corner_size) {
+      const clen = corner_size - 1;
+      // draw bevel polygons
+      this.bgi.fillpoly(7, [x2-1,y2-1, x1,y2-1, x1+clen+1,y2-clen-2, x2-clen-1,y2-clen-2, x2-clen-1,y1+clen, x2-1,y1-1, x2-1,y2-1],
+        { bgcolor:0, fgcolor:0, fill: { color: botr_col } }
+      );
+      this.bgi.fillpoly(7, [x1,y1-1, x2-1,y1-1, x2-clen-2,y1+clen, x1+clen,y1+clen, x1+clen,y2-clen-2, x1,y2-2, x1,y1-1],
+        { bgcolor:0, fgcolor:0, fill: { color: topl_col } }
+      );
+      // draw corners
+      this.bgi.line(x1, y1, x1+clen, y1+clen, corner_col, BGI.COPY_PUT, BGI.SOLID_LINE, 1);
+      this.bgi.line(x2-1, y1, x2 - clen-1, y1 + clen, corner_col, BGI.COPY_PUT, BGI.SOLID_LINE, 1);
+      this.bgi.line(x1, y2-1, x1+clen, y2-clen-1, corner_col, BGI.COPY_PUT, BGI.SOLID_LINE, 1);
+      this.bgi.line(x2-1, y2-1, x2-clen-1, y2-clen-1, corner_col, BGI.COPY_PUT, BGI.SOLID_LINE, 1);
+    }
+
+  }
+
+  // Implements RIP_BUTTON & RIP_BUTTON_STYLE
+  // uses this.bgi, this.clipboard, and modifies this.buttonStyle
+  // NOT DONE
+
+  // includes adding button to mouse field list
+  // TODO: determine arg list
+  createButton (x1, y1, x2, y2, hotkey, flags, text) {
+    // NOT DONE
+
+  }
+
+  // Only draws a button without saving anything.
+  // TODO: determine arg list
+  // NOT DONE
+  drawButton (x1, y1, x2, y2, hotkey, flags, text) {
+
+    // hotkey: ASCII value of key to press.
+    // flags:
+    //   1 = draw as selected.
+    //   2 = default when ENTER pressed. (nothing to do here)
+    // text:
+    //   ICONFILE[.ICN]<>TEXT LABEL<>HOST COMMAND
+
+    const bstyle = this.buttonStyle;
+    // TODO: check bstyle contains needed properties
+    const bevsize = (bstyle.flags & 512) ? bstyle.bevsize : 0;
+
+    // set actual size
+    let left = x1, top = y1, right = x2, bot = y2;
+    if (bstyle.wid && (bstyle.wid > 0) && bstyle.hgt && (bstyle.hgt > 0)) {
+        // style overrides button width & height
+        right = left + bstyle.wid; // don't -1!
+        bot = top + bstyle.hgt;
+    }
+
+    // FIXME: redo override of line style, thickness, fill style (since this changes global info!)
+    this.bgi.setlinestyle(BGI.SOLID_LINE, 0xFFFF, 1);
+    this.bgi.setfillstyle(BGI.SOLID_FILL, bstyle.surface);
+
+    // draw 1px recess (+/- 2 outside)
+    if (bstyle.flags & 16) {
+      // draw 1px recess with corners
+      this.drawBeveledBox(left - bevsize - 2, top - bevsize - 2, right + bevsize + 2, bot + bevsize + 2,
+        bstyle.dark, bstyle.bright, bstyle.corner_col, 1);
+      // draw 1px black box outline
+      this.bgi.rectangle(left - bevsize - 1, top - bevsize - 1, right + bevsize, bot + bevsize, BGI.BLACK, BGI.COPY_PUT);
+    }
+
+    // draw bevel (+/- bevsize outside)
+    // TODO: draw selected button
+    if ((bstyle.flags & 512) && bevsize && (bevsize > 0)) {
+      this.drawBeveledBox(left - bevsize, top - bevsize, right + bevsize, bot + bevsize,
+        bstyle.bright, bstyle.dark, bstyle.corner_col, bevsize);
+    }
+
+    // draw surface
+    this.bgi.bar(left, top, right-1, bot-1, bstyle.surface, BGI.COPY_PUT, BGI.SOLID_FILL);
+
+    // TODO: icon
+    // TODO: label text
+    // TODO: hotkey
+    //   underline or highlight first char in text if underline or hilight flag set.
+
+    // draw sunken (inside)
+    if (bstyle.flags & 32768) {
+      this.drawBeveledBox(left, top, right, bot, bstyle.dark, bstyle.bright, bstyle.corner_col, 1);
+    }
+
+    // draw chisel on top of button image (inside)
+    if (bstyle.flags & 8) {
+      // position depends on button height and a lookup table of indent values
+      let xin, yin, h = bot - top; // don't +1!
+      if (h < 12) { xin = 1; yin = 1; }
+      else if (h < 25) { xin = 3; yin = 2; }
+      else if (h < 40) { xin = 4; yin = 3; }
+      else if (h < 75) { xin = 6; yin = 5; }
+      else if (h < 150) { xin = 7; yin = 5; }
+      else if (h < 200) { xin = 8; yin = 6; }
+      else if (h < 250) { xin = 10; yin = 7; }
+      else if (h < 300) { xin = 11; yin = 8; }
+      else { xin = 13; yin = 9; }
+
+      // draw chisel as 2 rectangles
+      // need lines to include pixels at top-right & bottom-left
+      this.bgi.line(left + xin, top + yin, right - xin - 1, top + yin, bstyle.dark, BGI.COPY_PUT);
+      this.bgi.line(right - xin - 2, top + yin, right - xin - 2, bot - yin - 2, bstyle.dark, BGI.COPY_PUT);
+      this.bgi.line(right - xin - 2, bot - yin - 2, left + xin, bot - yin - 2, bstyle.dark, BGI.COPY_PUT);
+      this.bgi.line(left + xin, bot - yin - 1, left + xin, top + yin, bstyle.dark, BGI.COPY_PUT);
+      this.bgi.rectangle(left + xin + 1, top + yin + 1, right - xin - 1, bot - yin - 1, bstyle.bright, BGI.COPY_PUT);
+    }
+
+  }
+
 
   ////////////////////////////////////////////////////////////////////////////////
   // RIP commands
@@ -841,8 +961,32 @@ class RIPterm {
 
       // RIP_WRITE_ICON (1W)
       // RIP_LOAD_ICON (1I)
+
       // RIP_BUTTON_STYLE (1B)
+      '1B': (args) => {
+        if (args.length >= 30) {
+          const [
+            wid, hgt, orient, flags, bevsize,
+            dfore, dback, bright, dark, surface,
+            grp_no, flags2, uline_col, corner_col // res:6
+          ] = this.parseRIPargs(args, '22242222222222');
+          this.buttonStyle = {
+            wid, hgt, orient, flags, bevsize,
+            dfore, dback, bright, dark, surface,
+            grp_no, flags2, uline_col, corner_col
+          };
+        }
+      },
+
       // RIP_BUTTON (1U)
+      '1U': (args) => {
+        if (args.length >= 9) {
+          const [x0, y0, x1, y1, hotkey, flags, res, text] = this.parseRIPargs(args, '2222211*');
+          this.createButton(x0, y0, x1, y1, hotkey, flags, text);
+          this.drawButton(x0, y0, x1, y1, hotkey, flags, text);
+        }
+      },
+
       // RIP_DEFINE (1D)
       // RIP_QUERY (1<esc>)
       // RIP_COPY_REGION (1G)
