@@ -24,9 +24,10 @@ The most popular terminal program for accessing RIP-enabled BBSs was an MS-DOS p
 - [x] Filled Circles, Ovals, &amp; Pie Slices (DONE)
 - [x] Drawing Text using .CHR fonts (DONE)
 - [x] Default Text Font (8x8 font DONE)
-- [ ] Text windows
-- [ ] Buttons &amp; Mouse regions
+- [ ] Buttons &amp; Mouse regions (in progress)
 - [ ] Loading &amp; drawing of Icons
+- [ ] WebSockets to BBS on server
+- [ ] Text windows &amp; ANSI emulation
 - [ ] $ Variables
 
 

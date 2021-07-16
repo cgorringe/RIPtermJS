@@ -562,13 +562,9 @@ class RIPterm {
 
       // draw bevel polygons
       this.bgi.setfillstyle (BGI.SOLID_FILL, botr_col);
-      this.bgi.fillpoly(7, [x2-1,y2-1, x1,y2-1, x1+clen+1,y2-clen-2, x2-clen-1,y2-clen-2, x2-clen-1,y1+clen, x2-1,y1-1, x2-1,y2-1],
-      //  { bgcolor:0, fgcolor:0, fill: { color: botr_col } }
-      );
+      this.bgi.fillpoly(7, [x2-1,y2-1, x1,y2-1, x1+clen+1,y2-clen-2, x2-clen-1,y2-clen-2, x2-clen-1,y1+clen, x2-1,y1-1, x2-1,y2-1] );
       this.bgi.setfillstyle (BGI.SOLID_FILL, topl_col);
-      this.bgi.fillpoly(7, [x1,y1-1, x2-1,y1-1, x2-clen-2,y1+clen, x1+clen,y1+clen, x1+clen,y2-clen-2, x1,y2-2, x1,y1-1],
-      //  { bgcolor:0, fgcolor:0, fill: { color: topl_col } }
-      );
+      this.bgi.fillpoly(7, [x1,y1-1, x2-1,y1-1, x2-clen-2,y1+clen, x1+clen,y1+clen, x1+clen,y2-clen-2, x1,y2-2, x1,y1-1] );
 
       // draw corners
       this.bgi.line(x1, y1, x1+clen, y1+clen, corner_col, BGI.COPY_PUT, BGI.SOLID_LINE, 1);
