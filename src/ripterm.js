@@ -585,21 +585,24 @@ class RIPterm {
 
   }
 
-  // Only draws a button without saving anything.
-  // TODO: determine arg list
-  // NOT DONE
-  drawButton (x1, y1, x2, y2, hotkey, flags, text) {
-
-    // hotkey: ASCII value of key to press.
-    // flags:
-    //   1 = draw as selected.
-    //   2 = default when ENTER pressed. (nothing to do here)
-    // text:
-    //   ICONFILE[.ICN]<>TEXT LABEL<>HOST COMMAND
+  // Only draws a button without saving anything. (NOT DONE)
+  //
+  // hotkey: ASCII value of key to press.
+  // flags:
+  //   1 = draw as selected.
+  //   2 = default when ENTER pressed. (ignore here)
+  // text:
+  //   ICONFILE[.ICN]<>TEXT LABEL<>HOST COMMAND
+  //
+  drawButton (x1, y1, x2, y2, hotkey, flags, text, isSelected = false) {
 
     const bstyle = this.buttonStyle;
     // TODO: check bstyle contains needed properties
     const bevsize = (bstyle.flags & 512) ? bstyle.bevsize : 0;
+    const [icon_name, label_text, host_cmd] = text.split("<>");
+
+    //console.log(`drawButton("${label_text}")`); // DEBUG
+    //console.log({ bstyle }); // DEBUG
 
     // set actual size
     let left = x1, top = y1, right = x2, bot = y2;
@@ -625,17 +628,24 @@ class RIPterm {
     // draw bevel (+/- bevsize outside)
     // TODO: draw selected button
     if ((bstyle.flags & 512) && bevsize && (bevsize > 0)) {
-      this.drawBeveledBox(left - bevsize, top - bevsize, right + bevsize, bot + bevsize,
-        bstyle.bright, bstyle.dark, bstyle.corner_col, bevsize);
+      if ((flags & 1) || isSelected) {
+        // draw button selected
+        // for now: reverse bright & dark colors
+        // TODO: improve this
+        this.drawBeveledBox(left - bevsize, top - bevsize, right + bevsize, bot + bevsize,
+          bstyle.dark, bstyle.bright, bstyle.corner_col, bevsize);
+      }
+      else {
+        // draw button not selected
+        this.drawBeveledBox(left - bevsize, top - bevsize, right + bevsize, bot + bevsize,
+          bstyle.bright, bstyle.dark, bstyle.corner_col, bevsize);
+      }
     }
 
     // draw surface
     this.bgi.bar(left, top, right-1, bot-1, bstyle.surface, BGI.COPY_PUT, BGI.SOLID_FILL);
 
-    // TODO: icon
-    // TODO: label text
-    // TODO: hotkey
-    //   underline or highlight first char in text if underline or hilight flag set.
+    // TODO: Draw icon
 
     // draw sunken (inside)
     if (bstyle.flags & 32768) {
@@ -657,13 +667,108 @@ class RIPterm {
       else { xin = 13; yin = 9; }
 
       // draw chisel as 2 rectangles
-      // need lines to include pixels at top-right & bottom-left
+      // including pixels at top-right & bottom-left
       this.bgi.line(left + xin, top + yin, right - xin - 1, top + yin, bstyle.dark, BGI.COPY_PUT);
       this.bgi.line(right - xin - 2, top + yin, right - xin - 2, bot - yin - 2, bstyle.dark, BGI.COPY_PUT);
       this.bgi.line(right - xin - 2, bot - yin - 2, left + xin, bot - yin - 2, bstyle.dark, BGI.COPY_PUT);
       this.bgi.line(left + xin, bot - yin - 1, left + xin, top + yin, bstyle.dark, BGI.COPY_PUT);
       this.bgi.rectangle(left + xin + 1, top + yin + 1, right - xin - 1, bot - yin - 1, bstyle.bright, BGI.COPY_PUT);
     }
+
+    // calculate label text position
+
+    let tw = this.bgi.textwidth(label_text);
+    let th = 0;
+    let var_h = this.bgi.textheight(label_text, BGI.VAR_HEIGHT); // VAR_HEIGHT, FULL_HEIGHT
+    let main_h = this.bgi.textheight(label_text, BGI.MAIN_HEIGHT);
+    let above_h = this.bgi.textheight(label_text, BGI.ABOVE_HEIGHT);
+
+    //console.log({ left, top, right, bot, orient: bstyle.orient }); // DEBUG
+    //console.log({ var_h, main_h, above_h }); // DEBUG
+    //console.log({ tw, th }); // DEBUG
+
+    // start with button center
+    let tx = left + Math.round((right - left) / 2);
+    let ty = top + Math.round((bot - top) / 2) + 1;
+
+    //console.log({ tx, ty }); // DEBUG
+
+    // adjust vertical centering of label
+    if (bstyle.flags & 8192) {
+      // when set, add descenders to height, except when orient = LEFT or RIGHT.
+      // TODO
+      console.log(`Flag set to adjust vertical centering for button: ${label_text}`); // DEBUG
+    }
+
+    //console.log({ tw, th }); // DEBUG
+
+    // position using orientation
+    switch (bstyle.orient) {
+      case 0: // above (TODO)
+        th += main_h;
+        tx -= Math.floor(tw / 2);
+        ty = top - bevsize - th;
+        break;
+      case 1: // left (TODO)
+        th += main_h + (main_h - var_h);
+        tx = left - bevsize - tw;
+        ty -= Math.round(th / 2) + above_h - 1;
+        break;
+      case 2: // center (testing...)
+        // sometimes off by 1 in x or y.
+        th += main_h;
+        tx -= Math.round(tw / 2);
+        ty -= Math.round(th / 2) + above_h;
+        break;
+      case 3: // right (testing...)
+        th += main_h + (main_h - var_h);
+        tx = right + bevsize + 7; // TODO: replace (+7) constant!?
+        ty -= Math.round(th / 2) + above_h - 1;
+        break;
+      case 4: // below (TODO)
+        tx -= Math.floor(tw / 2);
+        ty = bot + bevsize;
+        break;
+      default:
+    }
+
+    //console.log({ tx, ty, th }); // DEBUG
+
+    // draw label dropshadow
+    if (bstyle.flags & 32) {
+      this.bgi.setcolor(bstyle.dback); // TODO: redo override
+      this.bgi.outtextxy(tx + 1, ty + 1, label_text);
+    }
+    // draw label text
+    this.bgi.setcolor(bstyle.dfore); // TODO: redo override
+    this.bgi.outtextxy(tx, ty, label_text);
+
+    // draw hotkey over prior text (only if mouse button)
+    // underline or highlight first char in text if underline or hilight flag set.
+    if (bstyle.flags & 1024) {
+      if (bstyle.flags2 & 2) {
+        // highlight hotkey character using bstyle.uline_col
+        let hotchar = String.fromCharCode(hotkey);
+        let idx = label_text.indexOf(hotchar);
+        if (idx === 0) {
+          // draw the first char again as hotkey
+          this.bgi.setcolor(bstyle.uline_col); // TODO: redo override
+          this.bgi.outtextxy(tx, ty, hotchar);
+        }
+        else if (idx > 0) {
+          // draw prefix text again, then highlighted hotkey (NOT TESTED)
+          this.bgi.setcolor(bstyle.dfore); // TODO: redo override
+          this.bgi.outtextxy(tx, ty, label_text.slice(0, idx));
+          this.bgi.setcolor(bstyle.uline_col); // TODO: redo override
+          this.bgi.outtext(hotchar);
+        }
+      }
+      if (bstyle.flags & 2048) {
+        // TODO: underline hotkey character
+        // chars with descenders have underline drawn slightly lower
+      }
+    }
+
 
   }
 

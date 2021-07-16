@@ -2025,23 +2025,63 @@ class BGI {
     this.info.writeMode = mode;
   }
 
-  // takes current font size and multiplication factor, and determines the height of text in pixels.
-  textheight (text) {
+  // Takes current font size and multiplication factor, and determines the height of text in pixels.
+  // flags (optional):
+  //   0 = BGI.VAR_HEIGHT:
+  //       Scans text for any descenders and returns full height if there are any, else only main height.
+  //   1 = BGI.MAIN_HEIGHT: Returns main height between the baseline and top of text.
+  //   2 = BGI.DROP_HEIGHT: Returns drop height from the baseline to bottom of descender.
+  //   3 = BGI.FULL_HEIGHT: Returns main + drop height. (default)
+  //   4 = BGI.ABOVE_HEIGHT: Returns distance from top of cell to top of text.
+
+  textheight (text, flags = BGI.FULL_HEIGHT) {
 
     let th = 0;
     const fontnum = this.info.text.font;
     const scale = this.info.text.charsize;
 
     if (fontnum === BGI.DEFAULT_FONT) {
-      th = 8 * scale;
+      switch (flags) {
+        case BGI.MAIN_HEIGHT: th = scale * 8; break;
+        case BGI.DROP_HEIGHT: th = scale; break;
+        case BGI.ABOVE_HEIGHT: th = 0; break;
+        default: th = scale * 8; // full height
+      }
     }
     else if (fontnum < BGI.fontFileList.length) {
       const fontname = BGI.fontFileList[fontnum];
       const font = this.fonts[fontname];
       if (font) {
         const actualScale = (scale < BGI.fontScales.length) ? BGI.fontScales[scale] : 1;
-        th = Math.trunc((font.top - font.bottom) * actualScale);
-        // TODO: Not sure if this is correct height returned!
+        let h = 0;
+
+        switch (flags) {
+          case BGI.VAR_HEIGHT:
+            // check every char in text and add drop height only if at least 1 char has a descender.
+            let drop = false;
+            text.split('').forEach(c => {
+              let cvalue = c.charCodeAt(0) & 0xFF; // strip out 2nd byte
+              if (BGI.charDescenders[cvalue] === 1) { drop = true; }
+            });
+            h = (drop) ? (font.top - font.bottom) : font.top;
+            th = Math.trunc(h * actualScale);
+            break;
+
+          case BGI.MAIN_HEIGHT:
+            th = Math.trunc(font.top * actualScale);
+            break;
+
+          case BGI.DROP_HEIGHT:
+            th = Math.trunc(-font.bottom * actualScale);
+            break;
+
+          case BGI.ABOVE_HEIGHT:
+            th = Math.round(BGI.fontPadAbove[fontnum] * actualScale); // round() or trunc()??
+            break;
+
+          default: // BGI.FULL_HEIGHT
+            th = Math.trunc((font.top - font.bottom) * actualScale);
+        }
       }
     }
     return th;
@@ -2215,7 +2255,9 @@ class BGI {
   // numbers
   BGI.PI_CONV = (3.1415926 / 180.0);
 
-  // these not in BGI spec
+
+  // the following are not in BGI spec
+
   BGI.fontFileIds = {
     'TRIP.CHR': BGI.TRIPLEX_FONT,
     'LITT.CHR': BGI.SMALL_FONT,
@@ -2228,11 +2270,31 @@ class BGI {
     'EURO.CHR': BGI.EUROPEAN_FONT,
     'BOLD.CHR': BGI.BOLD_FONT
   };
+
   BGI.fontFileList = [
     '', 'TRIP.CHR', 'LITT.CHR', 'SANS.CHR', 'GOTH.CHR', 'SCRI.CHR',
     'SIMP.CHR', 'TSCR.CHR', 'LCOM.CHR', 'EURO.CHR', 'BOLD.CHR'
   ];
+
+  // actual scale values to multiply by given size index.
   BGI.fontScales = [ 1, 0.6, 2/3, 0.75, 1, 4/3, 5/3, 2, 2.5, 3, 4 ];
 
+  // used in textheight()
+  BGI.VAR_HEIGHT=0; BGI.MAIN_HEIGHT=1; BGI.DROP_HEIGHT=2; BGI.FULL_HEIGHT=3; BGI.ABOVE_HEIGHT=4;
+
+  // num pixels between top of cell and top of font when scale = 4.
+  BGI.fontPadAbove = [ 0, 10, 3, 11, 11, 16, 14, 9, 13, 12, 19 ]; // font 0 to 10
+
+  // ASCII chars that have descenders. 1 = char goes below baseline.
+  BGI.charDescenders = [
+    0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+    0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+    0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+    0,0,0,0,0,0,0,1,0,0,1,0,0,0,0,0,1,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,
+    1,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,1,
+    0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+    1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+    0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0
+  ];
 
 ////////////////////////////////////////////////////////////////////////////////

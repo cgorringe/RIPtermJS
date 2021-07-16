@@ -375,6 +375,7 @@ class BGIsvg extends BGI {
   }
 
   // only draw fill without the outline, since super.fillpoly() calls drawpoly()
+  // FIXME: incorrect stroke colors
   fillpoly (numpoints, pp, info) {
     super.fillpoly(numpoints, pp, info);
 
