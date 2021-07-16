@@ -553,25 +553,31 @@ class RIPterm {
 
   drawBeveledBox(x1, y1, x2, y2, topl_col, botr_col, corner_col, corner_size) {
 
-    // FIXME: need to override fill pattern in fillpoly() that is defined in bgi.info.fill.fpattern
-    // also override line style & thickness for lines
-
     if (corner_col && corner_size) {
       const clen = corner_size - 1;
+
+      this.bgi.pushState();
+      this.bgi.setcolor(BGI.BLACK);
+      this.bgi.setlinestyle(BGI.SOLID_LINE);
+
       // draw bevel polygons
+      this.bgi.setfillstyle (BGI.SOLID_FILL, botr_col);
       this.bgi.fillpoly(7, [x2-1,y2-1, x1,y2-1, x1+clen+1,y2-clen-2, x2-clen-1,y2-clen-2, x2-clen-1,y1+clen, x2-1,y1-1, x2-1,y2-1],
-        { bgcolor:0, fgcolor:0, fill: { color: botr_col } }
+      //  { bgcolor:0, fgcolor:0, fill: { color: botr_col } }
       );
+      this.bgi.setfillstyle (BGI.SOLID_FILL, topl_col);
       this.bgi.fillpoly(7, [x1,y1-1, x2-1,y1-1, x2-clen-2,y1+clen, x1+clen,y1+clen, x1+clen,y2-clen-2, x1,y2-2, x1,y1-1],
-        { bgcolor:0, fgcolor:0, fill: { color: topl_col } }
+      //  { bgcolor:0, fgcolor:0, fill: { color: topl_col } }
       );
+
       // draw corners
       this.bgi.line(x1, y1, x1+clen, y1+clen, corner_col, BGI.COPY_PUT, BGI.SOLID_LINE, 1);
       this.bgi.line(x2-1, y1, x2 - clen-1, y1 + clen, corner_col, BGI.COPY_PUT, BGI.SOLID_LINE, 1);
       this.bgi.line(x1, y2-1, x1+clen, y2-clen-1, corner_col, BGI.COPY_PUT, BGI.SOLID_LINE, 1);
       this.bgi.line(x2-1, y2-1, x2-clen-1, y2-clen-1, corner_col, BGI.COPY_PUT, BGI.SOLID_LINE, 1);
-    }
 
+      this.bgi.popState();
+    }
   }
 
   // Implements RIP_BUTTON & RIP_BUTTON_STYLE
@@ -612,8 +618,8 @@ class RIPterm {
         bot = top + bstyle.hgt;
     }
 
-    // FIXME: redo override of line style, thickness, fill style (since this changes global info!)
-    this.bgi.setlinestyle(BGI.SOLID_LINE, 0xFFFF, 1);
+    this.bgi.pushState();
+    this.bgi.setlinestyle(BGI.SOLID_LINE);
     this.bgi.setfillstyle(BGI.SOLID_FILL, bstyle.surface);
 
     // draw 1px recess (+/- 2 outside)
@@ -736,11 +742,11 @@ class RIPterm {
 
     // draw label dropshadow
     if (bstyle.flags & 32) {
-      this.bgi.setcolor(bstyle.dback); // TODO: redo override
+      this.bgi.setcolor(bstyle.dback);
       this.bgi.outtextxy(tx + 1, ty + 1, label_text);
     }
     // draw label text
-    this.bgi.setcolor(bstyle.dfore); // TODO: redo override
+    this.bgi.setcolor(bstyle.dfore);
     this.bgi.outtextxy(tx, ty, label_text);
 
     // draw hotkey over prior text (only if mouse button)
@@ -752,14 +758,14 @@ class RIPterm {
         let idx = label_text.indexOf(hotchar);
         if (idx === 0) {
           // draw the first char again as hotkey
-          this.bgi.setcolor(bstyle.uline_col); // TODO: redo override
+          this.bgi.setcolor(bstyle.uline_col);
           this.bgi.outtextxy(tx, ty, hotchar);
         }
         else if (idx > 0) {
           // draw prefix text again, then highlighted hotkey (NOT TESTED)
-          this.bgi.setcolor(bstyle.dfore); // TODO: redo override
+          this.bgi.setcolor(bstyle.dfore);
           this.bgi.outtextxy(tx, ty, label_text.slice(0, idx));
-          this.bgi.setcolor(bstyle.uline_col); // TODO: redo override
+          this.bgi.setcolor(bstyle.uline_col);
           this.bgi.outtext(hotchar);
         }
       }
@@ -769,7 +775,7 @@ class RIPterm {
       }
     }
 
-
+    this.bgi.popState();
   }
 
 

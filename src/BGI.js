@@ -117,6 +117,7 @@ class BGI {
     // each element is an array of ints, each being a scanline of height values.
     // e.g. this.bitfonts[0][65][2] is font size 0, ASCII char 65, 3rd scanline which returns an 8-bit int.
     this.bitfonts = [];
+    this.stateStack = [];
 
     // log callback function
     if ('log' in args) {
@@ -330,6 +331,21 @@ class BGI {
     // TODO
     this.refresh();
   }
+
+  // saves this.info to a stack
+  pushState () {
+    this.stateStack.push( JSON.parse(JSON.stringify(this.info)) );
+  }
+
+  // restores this.info from a stack
+  popState () {
+    if (this.stateStack.length > 0) {
+      this.info = this.stateStack.pop();
+    }
+  }
+
+  ////////////////////////////////////////////////////////////////////////////////
+  // Drawing methods
 
   // Draws a pixel offset and clipped by current viewport.
   putpixel (x, y, color = this.info.fgcolor, wmode = this.info.writeMode) {
@@ -1132,16 +1148,11 @@ class BGI {
   // Draw a filled polygon, using current fill pattern, fill color and bgcolor.
   // pp is an array of ints: [x1, y1, x2, y2, ... xn, yn]
   // where n = numpoints.
-  fillpoly (numpoints, pp, info) {
+  fillpoly (numpoints, pp) {
     // polypoints array of ints
 
-    // assign or overwrite info with passed-in info
-    const fgcolor = (info && ('fgcolor' in info)) ? info.fgcolor : this.info.fgcolor;
-    const bgcolor = (info && ('bgcolor' in info)) ? info.bgcolor : this.info.bgcolor;
-    const fillcolor = (info && ('fill' in info) && ('color' in info.fill)) ? info.fill.color : this.info.fill.color;
-
     // code based on: http://alienryderflex.com/polygon_fill/
-    const vp = info && info.vp || this.info.vp;
+    const vp = this.info.vp;
     let i, j, x, y, xnode, xval;
 
     // scan thru all rows in viewport
@@ -1194,13 +1205,13 @@ class BGI {
       // draw pixels between node pairs
       for (i=0; i < xnode.length; i+=2) {
         for (x = xnode[i]; x <= xnode[i+1]; x++) {
-          this.ff_putpixel(x, y, fillcolor, BGI.COPY_PUT);
+          this.ff_putpixel(x, y, this.info.fill.color, BGI.COPY_PUT);
         }
       }
     }
     // this fixes filled polygon border issues
     // not sure if bgcolor should just be 0, but since bgcolor is never set != 0, it doesn't matter
-    if (fgcolor != bgcolor) {
+    if (this.info.fgcolor != this.info.bgcolor) {
       this._drawpoly(numpoints, pp);
     }
   }
