@@ -375,9 +375,12 @@
     return document.getElementById('rip-canvas').toDataURL("image/png").replace("image/png", "image/octet-stream");
   }
 
+  function toBase64 (str) {
+    return window.btoa(unescape(encodeURIComponent(str)));
+  }
+
   function getSVG() {
-    // not working under Chrome! content cropped??
-    return 'data:text/attachment;,' + document.getElementById('rip-svg-frame').innerHTML;
+    return 'data:text/attachment;base64,' + toBase64(document.getElementById('rip-svg-frame').innerHTML);
   }
 
   function saveSVG() {
