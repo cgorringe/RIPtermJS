@@ -557,18 +557,20 @@ class RIPterm {
       const clen = corner_size - 1;
 
       this.bgi.pushState();
-      this.bgi.setcolor(BGI.BLACK);
       this.bgi.setlinestyle(BGI.SOLID_LINE);
 
       // draw bevel polygons
+      this.bgi.setcolor(botr_col); // botr_col
       this.bgi.setfillstyle (BGI.SOLID_FILL, botr_col);
       this.bgi.fillpoly(7, [x2-1,y2-1, x1,y2-1, x1+clen+1,y2-clen-2, x2-clen-1,y2-clen-2, x2-clen-1,y1+clen, x2-1,y1-1, x2-1,y2-1] );
+
+      this.bgi.setcolor(topl_col); // topl_col
       this.bgi.setfillstyle (BGI.SOLID_FILL, topl_col);
       this.bgi.fillpoly(7, [x1,y1-1, x2-1,y1-1, x2-clen-2,y1+clen, x1+clen,y1+clen, x1+clen,y2-clen-2, x1,y2-2, x1,y1-1] );
 
       // draw corners
-      this.bgi.line(x1, y1, x1+clen, y1+clen, corner_col, BGI.COPY_PUT, BGI.SOLID_LINE, 1);
-      this.bgi.line(x2-1, y1, x2 - clen-1, y1 + clen, corner_col, BGI.COPY_PUT, BGI.SOLID_LINE, 1);
+      this.bgi.line(x1, y1-1, x1+clen, y1+clen-1, corner_col, BGI.COPY_PUT, BGI.SOLID_LINE, 1);
+      this.bgi.line(x2-1, y1-1, x2 - clen-1, y1+clen-1, corner_col, BGI.COPY_PUT, BGI.SOLID_LINE, 1);
       this.bgi.line(x1, y2-1, x1+clen, y2-clen-1, corner_col, BGI.COPY_PUT, BGI.SOLID_LINE, 1);
       this.bgi.line(x2-1, y2-1, x2-clen-1, y2-clen-1, corner_col, BGI.COPY_PUT, BGI.SOLID_LINE, 1);
 
@@ -618,15 +620,6 @@ class RIPterm {
     this.bgi.setlinestyle(BGI.SOLID_LINE);
     this.bgi.setfillstyle(BGI.SOLID_FILL, bstyle.surface);
 
-    // draw 1px recess (+/- 2 outside)
-    if (bstyle.flags & 16) {
-      // draw 1px recess with corners
-      this.drawBeveledBox(left - bevsize - 2, top - bevsize - 2, right + bevsize + 2, bot + bevsize + 2,
-        bstyle.dark, bstyle.bright, bstyle.corner_col, 1);
-      // draw 1px black box outline
-      this.bgi.rectangle(left - bevsize - 1, top - bevsize - 1, right + bevsize, bot + bevsize, BGI.BLACK, BGI.COPY_PUT);
-    }
-
     // draw bevel (+/- bevsize outside)
     // TODO: draw selected button
     if ((bstyle.flags & 512) && bevsize && (bevsize > 0)) {
@@ -634,15 +627,28 @@ class RIPterm {
         // draw button selected
         // for now: reverse bright & dark colors
         // TODO: improve this
-        this.drawBeveledBox(left - bevsize, top - bevsize, right + bevsize, bot + bevsize,
+        this.drawBeveledBox(left - bevsize, top - bevsize + 1, right + bevsize, bot + bevsize,
           bstyle.dark, bstyle.bright, bstyle.corner_col, bevsize);
       }
       else {
         // draw button not selected
-        this.drawBeveledBox(left - bevsize, top - bevsize, right + bevsize, bot + bevsize,
+        this.drawBeveledBox(left - bevsize, top - bevsize + 1, right + bevsize, bot + bevsize,
           bstyle.bright, bstyle.dark, bstyle.corner_col, bevsize);
       }
     }
+
+    // draw 1px recess (+/- 2 outside)
+    if (bstyle.flags & 16) {
+      // draw 1px recess with corners
+      this.bgi.line(left-bevsize-1, top-bevsize-2, right+bevsize, top-bevsize-2, bstyle.dark, BGI.COPY_PUT);
+      this.bgi.line(left-bevsize-2, top-bevsize-1, left-bevsize-2, bot+bevsize, bstyle.dark, BGI.COPY_PUT);
+      this.bgi.line(right+bevsize+1, top-bevsize-1, right+bevsize+1, bot+bevsize, bstyle.bright, BGI.COPY_PUT);
+      this.bgi.line(left-bevsize-1, bot+bevsize+1, right+bevsize, bot+bevsize+1, bstyle.bright, BGI.COPY_PUT);
+
+      // draw 1px black box outline
+      this.bgi.rectangle(left - bevsize - 1, top - bevsize - 1, right + bevsize, bot + bevsize, BGI.BLACK, BGI.COPY_PUT);
+    }
+
 
     // draw surface
     this.bgi.bar(left, top, right-1, bot-1, bstyle.surface, BGI.COPY_PUT, BGI.SOLID_FILL);
@@ -651,7 +657,10 @@ class RIPterm {
 
     // draw sunken (inside)
     if (bstyle.flags & 32768) {
-      this.drawBeveledBox(left, top, right, bot, bstyle.dark, bstyle.bright, bstyle.corner_col, 1);
+      this.bgi.line(left, top, right-1, top, bstyle.dark, BGI.COPY_PUT);
+      this.bgi.line(left, top, left, bot-1, bstyle.dark, BGI.COPY_PUT);
+      this.bgi.line(right-1, top, right-1, bot-1, bstyle.bright, BGI.COPY_PUT);
+      this.bgi.line(left, bot-1, right-1, bot-1, bstyle.bright, BGI.COPY_PUT);
     }
 
     // draw chisel on top of button image (inside)
