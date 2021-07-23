@@ -125,6 +125,7 @@ class RIPterm {
         'logQuiet' : false,      // set to true to stop logging to console
         'fontsPath' : 'fonts',
         'iconsPath' : 'icons',
+        'origButtons' : true,   // set true to use original selected button style
 
         // these options copied from prior version are not implemented yet.
         'floodFill' : true,
@@ -137,13 +138,15 @@ class RIPterm {
       Object.entries(opts).forEach( ([k, v]) => { this.opts[k] = v } );
 
       // init other vars
-      // these copied from v2 and may change
       this.ripData = [];
       this.cmdi = 0;
       this.cmdTimer = null; // commands interval timer
       this.refTimer = null; // refresh interval timer
       this.clipboard = {};  // { x:int, y:int, width:int, height:int, data:Uint8ClampedArray }
       this.buttonStyle = {};
+      this.buttons = [];  // array of active button objects
+      this.buttonClicked; // last clicked button object
+      this.withinButton = false;
 
       // debug options
       this.commandsDiv = ('commandsId' in opts) ? document.getElementById(opts.commandsId) : null;
@@ -197,6 +200,9 @@ class RIPterm {
         //this.bgi.setaspectratio(371, 480); // = 0.7729
         this.bgi.setaspectratio(372, 480); // better
         this.initCommands();
+
+        // must do once
+        this.handleMouseEvents = this.handleMouseEvents.bind(this);
 
         // TODO: may want to move outside constructor?
         this.bgi.initFonts();
@@ -517,6 +523,11 @@ class RIPterm {
         case '2': ret.push( parseInt(args.substr(pos, 2), 36) ); pos += 2; break;
         case '3': ret.push( parseInt(args.substr(pos, 3), 36) ); pos += 3; break;
         case '4': ret.push( parseInt(args.substr(pos, 4), 36) ); pos += 4; break;
+        case '5': ret.push( parseInt(args.substr(pos, 5), 36) ); pos += 5; break;
+        case '6': ret.push( parseInt(args.substr(pos, 6), 36) ); pos += 6; break;
+        case '7': ret.push( parseInt(args.substr(pos, 7), 36) ); pos += 7; break;
+        case '8': ret.push( parseInt(args.substr(pos, 8), 36) ); pos += 8; break;
+        case '9': ret.push( parseInt(args.substr(pos, 9), 36) ); pos += 9; break;
         case '*': ret.push( this.unescapeRIPtext(args.substr(pos)) ); break;
         default:
       }
@@ -548,10 +559,110 @@ class RIPterm {
 
   }
 
+
+  ////////////////////////////////////////////////////////////////////////////////
+  // Mouse event handlers
+
+  // Calculate mouse coordinates.
+  // provided Event e, returns translated mouse coords [x, y]
+  mouseCoords (e) {
+
+    // clientWidth or Height could be off if canvas padding not 0?
+    const x = Math.round(e.offsetX * (this.canvas.width / this.canvas.clientWidth));
+    const y = Math.round(e.offsetY * (this.canvas.height / this.canvas.clientHeight));
+    return [x, y];
+  }
+
+  // Draws a Button or Mouse Region, then refreshes canvas.
+  // b: object. See createButton() & createMouseRegion() for properties.
+  // isDown: true = selected
+  updateButton (b, isDown) {
+
+    // FIXME: viewports not implemented yet! (assumes viewport is entire canvas)
+    if (typeof b === 'undefined') { return; }
+    if (b.isButton) {
+      // button
+      const bstyle = b.style;
+      const bevsize = (bstyle.flags & 512) ? bstyle.bevsize : 0;
+      this.drawButton(b.ax1 + bevsize, b.ay1 + bevsize, b.ax2 - bevsize, b.ay2 - bevsize, b.hotkey, b.flags, b.text, b.style, isDown);
+    }
+    else if (b.invertFlag) {
+      // mouse region
+      this.drawInvertedBar(b.ax1, b.ay1, b.ax2, b.ay2);
+    }
+    this.bgi.refresh();
+  }
+
+  // Activates Button & Mouse Region events,
+  // such as normally done after the '#' RIP command.
+  // activate: true = turn on, false = turn off mouse events on canvas.
+  activateMouseEvents (activate) {
+    if (activate) {
+      // activate mouse events
+      this.canvas.addEventListener('mouseup', this.handleMouseEvents );
+      this.canvas.addEventListener('mousedown', this.handleMouseEvents );
+      this.canvas.addEventListener('mousemove', this.handleMouseEvents );
+      this.canvas.addEventListener('mouseleave', this.handleMouseEvents );
+    }
+    else {
+      // deactivate mouse events
+      this.canvas.removeEventListener('mouseup', this.handleMouseEvents );
+      this.canvas.removeEventListener('mousedown', this.handleMouseEvents );
+      this.canvas.removeEventListener('mousemove', this.handleMouseEvents );
+      this.canvas.removeEventListener('mouseleave', this.handleMouseEvents );
+    }
+  }
+
+  // Event listener handler for mouseup, mousedown, mousemove, and mouseleave events.
+  // uses: this.buttons[], this.buttonClicked, this.withinButton
+  handleMouseEvents (e) {
+
+    let [x, y] = this.mouseCoords(e);
+    let isWithin = false;
+
+    for (const b of this.buttons) {
+      if ((x > b.ax1) && (x < b.ax2) && (y > b.ay1) && (y < b.ay2)) {
+        // within area of mouse region
+        isWithin = true;
+        if (e.type === 'mousedown') {
+          // select button / mouse region
+          this.buttonClicked = b;
+          this.updateButton(b, true);
+        }
+        else if ((this.buttonClicked !== null) && (e.type === 'mouseup')) {
+          // unselect currently clicked button
+          this.updateButton(this.buttonClicked, false);
+          if (b == this.buttonClicked) {
+            // only if within previously clicked button
+            this.log('term', 'click sends: ' + b.cmdText);
+          }
+          this.buttonClicked = null;
+        }
+        break;
+      }
+      else if (b == this.buttonClicked) {
+
+      }
+    }
+
+    // also unselect clicked button if mouseup outside any region
+    if ( (isWithin == false) && (this.buttonClicked !== null) && ((e.type === 'mouseup') || (e.type === 'mouseleave')) ) {
+      this.updateButton(this.buttonClicked, false);
+      this.buttonClicked = null;
+    }
+
+    // change cursor if isWithin changed
+    if (this.withinButton !== isWithin) {
+      this.withinButton = isWithin;
+      this.canvas.style.cursor = (isWithin) ? 'pointer' : 'auto';
+    }
+  }
+
+
   ////////////////////////////////////////////////////////////////////////////////
   // Drawing methods
 
-  drawBeveledBox(x1, y1, x2, y2, topl_col, botr_col, corner_col, corner_size) {
+  drawBeveledBox (x1, y1, x2, y2, topl_col, botr_col, corner_col, corner_size) {
 
     if (corner_col && corner_size) {
       const clen = corner_size - 1;
@@ -578,18 +689,76 @@ class RIPterm {
     }
   }
 
-  // Implements RIP_BUTTON & RIP_BUTTON_STYLE
-  // uses this.bgi, this.clipboard, and modifies this.buttonStyle
-  // NOT DONE
 
-  // includes adding button to mouse field list
-  // TODO: determine arg list
-  createButton (x1, y1, x2, y2, hotkey, flags, text) {
-    // NOT DONE
+  // Implements RIP_MOUSE
+  // clk: 1=invert, 0=don't invert.
+  // clr: 1= zoom text window to full screen, and clear.
+  // text: host command that gets sent when clicked.
+  //
+  createMouseRegion (x1, y1, x2, y2, clk, clr, text) {
 
+    let button = {};
+    button.isButton = false;
+    button.cmdText = text;
+    button.invertFlag = (clk === 1) ? true : false;
+    button.resetFlag = (clr === 1) ? true : false;
+    button.zoomFlag = (clr === 1) ? true : false;
+
+    // TODO: use this.bgi.getviewsettings()
+    let vp = this.bgi.info.vp;
+    button.ax1 = vp.left + x1;
+    button.ay1 = vp.top + y1;
+    button.ax2 = vp.left + x2 - 1;
+    button.ay2 = vp.top + y2 - 1;
+
+    this.buttons.unshift(button);
   }
 
-  // Only draws a button without saving anything. (NOT DONE)
+  clearAllButtons () {
+    this.activateMouseEvents(false);
+    this.buttons = [];
+  }
+
+  // Implements RIP_BUTTON & RIP_BUTTON_STYLE
+  // uses this.bgi, this.clipboard, and modifies this.buttonStyle
+  //
+  createButton (x1, y1, x2, y2, hotkey, flags, text, bstyle = this.buttonStyle) {
+
+    const [icon_name, label_text, host_cmd] = text.split("<>");
+    const bevsize = (bstyle.flags & 512) ? bstyle.bevsize : 0;
+
+    let button = {};
+    button.isButton = true;
+    button.style = JSON.parse(JSON.stringify(bstyle));
+    button.hotkey = hotkey;
+    button.flags = flags;
+    button.text = text;
+    button.cmdText = host_cmd;
+    button.invertFlag = (bstyle.flags & 2) ? true : false;
+    button.resetFlag = (bstyle.flags & 4) ? true : false; // RIP_RESET_WINDOWS
+    button.zoomFlag = (bstyle.flags2 & 4) ? true : false;
+
+    // TODO: use this.bgi.getviewsettings()
+    let vp = this.bgi.info.vp;
+    button.ax1 = vp.left + x1 - bevsize;
+    button.ay1 = vp.top + y1 - bevsize;
+    button.ax2 = vp.left + x2 + bevsize;
+    button.ay2 = vp.top + y2 + bevsize;
+
+    // only add to list if it's a Mouse Button
+    if (bstyle.flags & 1024) {
+      this.buttons.unshift(button);
+    }
+  }
+
+  // Draws an XOR'd white rectangle.
+  // (doesn't work in SVG)
+  //
+  drawInvertedBar (x1, y1, x2, y2) {
+    this.bgi._bar(x1, y1, x2-1, y2-1, BGI.WHITE, BGI.XOR_PUT, BGI.SOLID_FILL);
+  }
+
+  // Only draws a button without saving anything.
   //
   // hotkey: ASCII value of key to press.
   // flags:
@@ -598,15 +767,14 @@ class RIPterm {
   // text:
   //   ICONFILE[.ICN]<>TEXT LABEL<>HOST COMMAND
   //
-  drawButton (x1, y1, x2, y2, hotkey, flags, text, isSelected = false) {
+  drawButton (x1, y1, x2, y2, hotkey, flags, text, bstyle = this.buttonStyle, isSelected = false) {
 
-    const bstyle = this.buttonStyle;
+    // NOT DONE
+
     // TODO: check bstyle contains needed properties
-    const bevsize = (bstyle.flags & 512) ? bstyle.bevsize : 0;
     const [icon_name, label_text, host_cmd] = text.split("<>");
-
-    //console.log(`drawButton("${label_text}")`); // DEBUG
-    //console.log({ bstyle }); // DEBUG
+    const bevsize = (bstyle.flags & 512) ? bstyle.bevsize : 0;
+    let uline_col = bstyle.uline_col;
 
     // set actual size
     let left = x1, top = y1, right = x2, bot = y2;
@@ -620,15 +788,26 @@ class RIPterm {
     this.bgi.setlinestyle(BGI.SOLID_LINE);
     this.bgi.setfillstyle(BGI.SOLID_FILL, bstyle.surface);
 
+
     // draw bevel (+/- bevsize outside)
-    // TODO: draw selected button
+    let down = 0, isInverted = false;
     if ((bstyle.flags & 512) && bevsize && (bevsize > 0)) {
       if ((flags & 1) || isSelected) {
         // draw button selected
-        // for now: reverse bright & dark colors
-        // TODO: improve this
-        this.drawBeveledBox(left - bevsize, top - bevsize + 1, right + bevsize, bot + bevsize,
-          bstyle.dark, bstyle.bright, bstyle.corner_col, bevsize);
+        if (this.opts.origButtons) {
+          // draw original inverted button style
+          this.drawBeveledBox(left - bevsize, top - bevsize + 1, right + bevsize, bot + bevsize,
+            bstyle.bright, bstyle.dark, bstyle.corner_col, bevsize);
+          isInverted = true;
+        }
+        else {
+          // draw improved selected button style: reverse bright & dark colors
+          this.drawBeveledBox(left - bevsize, top - bevsize + 1, right + bevsize, bot + bevsize,
+            bstyle.dark, bstyle.bright, bstyle.corner_col, bevsize);
+          down = 1;
+        }
+        // invert highlight text if not center orientation
+        if (bstyle.orient != 2) { uline_col ^= 15; }
       }
       else {
         // draw button not selected
@@ -679,11 +858,11 @@ class RIPterm {
 
       // draw chisel as 2 rectangles
       // including pixels at top-right & bottom-left
-      this.bgi.line(left + xin, top + yin, right - xin - 1, top + yin, bstyle.dark, BGI.COPY_PUT);
-      this.bgi.line(right - xin - 2, top + yin, right - xin - 2, bot - yin - 2, bstyle.dark, BGI.COPY_PUT);
-      this.bgi.line(right - xin - 2, bot - yin - 2, left + xin, bot - yin - 2, bstyle.dark, BGI.COPY_PUT);
-      this.bgi.line(left + xin, bot - yin - 1, left + xin, top + yin, bstyle.dark, BGI.COPY_PUT);
-      this.bgi.rectangle(left + xin + 1, top + yin + 1, right - xin - 1, bot - yin - 1, bstyle.bright, BGI.COPY_PUT);
+      this.bgi.line(left + xin + down, top + yin + down, right - xin - 1 + down, top + yin + down, bstyle.dark, BGI.COPY_PUT);
+      this.bgi.line(right - xin - 2 + down, top + yin + down, right - xin - 2 + down, bot - yin - 2 + down, bstyle.dark, BGI.COPY_PUT);
+      this.bgi.line(right - xin - 2 + down, bot - yin - 2 + down, left + xin + down, bot - yin - 2 + down, bstyle.dark, BGI.COPY_PUT);
+      this.bgi.line(left + xin + down, bot - yin - 1 + down, left + xin + down, top + yin + down, bstyle.dark, BGI.COPY_PUT);
+      this.bgi.rectangle(left + xin + 1 + down, top + yin + 1 + down, right - xin - 1 + down, bot - yin - 1 + down, bstyle.bright, BGI.COPY_PUT);
     }
 
     // calculate label text position
@@ -728,8 +907,8 @@ class RIPterm {
       case 2: // center (testing...)
         // sometimes off by 1 in x or y.
         th += main_h;
-        tx -= Math.round(tw / 2);
-        ty -= Math.round(th / 2) + above_h;
+        tx -= Math.round(tw / 2) - down;
+        ty -= Math.round(th / 2) + above_h - down;
         break;
       case 3: // right (testing...)
         th += main_h + (main_h - var_h);
@@ -763,14 +942,14 @@ class RIPterm {
         let idx = label_text.indexOf(hotchar);
         if (idx === 0) {
           // draw the first char again as hotkey
-          this.bgi.setcolor(bstyle.uline_col);
+          this.bgi.setcolor(uline_col);
           this.bgi.outtextxy(tx, ty, hotchar);
         }
         else if (idx > 0) {
           // draw prefix text again, then highlighted hotkey (NOT TESTED)
           this.bgi.setcolor(bstyle.dfore);
           this.bgi.outtextxy(tx, ty, label_text.slice(0, idx));
-          this.bgi.setcolor(bstyle.uline_col);
+          this.bgi.setcolor(uline_col);
           this.bgi.outtext(hotchar);
         }
       }
@@ -778,6 +957,11 @@ class RIPterm {
         // TODO: underline hotkey character
         // chars with descenders have underline drawn slightly lower
       }
+    }
+
+    // inverts button if drawing as selected
+    if (isInverted) {
+      this.drawInvertedBar(left - bevsize, top - bevsize, right + bevsize, bot + bevsize);
     }
 
     this.bgi.popState();
@@ -805,6 +989,7 @@ class RIPterm {
       '*': (args) => {
         this.bgi.graphdefaults();
         this.bgi.cleardevice();
+        this.clearAllButtons();
       },
 
       // RIP_ERASE_WINDOW (e)
@@ -1054,7 +1239,18 @@ class RIPterm {
       },
 
       // RIP_MOUSE (1M)
+      '1M': (args) => {
+        if (args.length >= 17) {
+          const [num, x0, y0, x1, y1, clk, clr, res, text] = this.parseRIPargs(args, '22222115*');
+          this.createMouseRegion(x0, y0, x1, y1, clk, clr, text);
+        }
+      },
+
       // RIP_KILL_MOUSE_FIELDS (1K)
+      '1K': (args) => {
+        this.clearAllButtons();
+      },
+
       // RIP_BEGIN_TEXT (1T)
       // RIP_REGION_TEXT (1t)
       // RIP_END_TEXT (1R)
@@ -1124,6 +1320,7 @@ class RIPterm {
       // RIP_NO_MORE (#)
       '#': (args) => {
         // do nothing
+        this.activateMouseEvents(true);
       }
     }
   }

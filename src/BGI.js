@@ -924,9 +924,9 @@ class BGI {
     if (left > right) { let tmp = left; left = right; right = tmp; }
     if (top > bottom) { let tmp = top; top = bottom; bottom = tmp; }
 
-    const fillcolor = (this.info.fill.style === BGI.EMPTY_FILL) ? this.info.bgcolor : color;
+    const fillcolor = (fillstyle === BGI.EMPTY_FILL) ? this.info.bgcolor : color;
 
-    if (this.info.fill.style === BGI.SOLID_FILL) {
+    if (fillstyle === BGI.SOLID_FILL) {
       // draw filled solid bar
       for (let y = top; y <= bottom; y++) {
         for (let x = left; x <= right; x++) {
