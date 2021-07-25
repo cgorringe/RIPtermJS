@@ -1687,8 +1687,12 @@ class BGI {
 
   // Put byte array of image data on to pixels[]
   // image is an object:
-  // { x:int, y:int, width:int, height:int, data:Uint8ClampedArray }
-  // image is offset and clipped by viewport.
+  //   { x:int, y:int, width:int, height:int, data:Uint8ClampedArray }
+  // wmode = write mode { 0=COPY_PUT, 1=XOR_PUT, 2=OR_PUT, 3=AND_PUT, 4=NOT_PUT }
+  // Image is offset by viewport.
+  // May draw past right edge of vp, or exits early if past right edge of canvas.
+  // Will draw past bottom edge of vp and clip at edge of canvas.
+  //
   putimage (left, top, image, wmode) {
 
     // OLD
@@ -1698,7 +1702,7 @@ class BGI {
 
     if (!(image && image.data)) {
       this.log('err', 'putimage() missing image!');
-      return;
+      return false;
     }
 
     // offset by viewport
@@ -1711,9 +1715,17 @@ class BGI {
     let bottom = top + image.height - 1;
     let i=0, o=0, yi=0;
 
-    // clip if outside viewport bounds
-    if (right > vp.right) { right = vp.right; }
-    if (bottom > vp.bottom) { bottom = vp.bottom; }
+    // NOTE: the follow occurs under RIP 1.54
+    //  but may clip to viewport under 2.0?
+    //  (according to specs, not tested.)
+
+    // exit early if image past right edge of canvas
+    if (right > this.width - 1) {
+      this.log('bgi', `putimage() ignored: right edge (${right}) past canvas edge.`);
+      return false;
+    }
+    // draws past bottom of vp, but clips at canvas bottom
+    if (bottom > this.height - 1) { bottom = this.height - 1; }
 
     switch (wmode) {
       default:
