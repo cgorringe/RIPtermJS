@@ -270,7 +270,9 @@ class RIPterm {
 
   reset () {
     this.log('term', 'reset()');
-    this.cmd['*']();
+    this.bgi.graphdefaults();
+    this.bgi.cleardevice();
+    this.clearAllButtons();
     this.refreshCanvas();
     this.cmdi = 0;
     if (this.counterDiv) { this.counterDiv.innerHTML = this.cmdi + ' / ' + this.ripData.length; }
@@ -985,11 +987,15 @@ class RIPterm {
       },
 
       // RIP_RESET_WINDOWS (*)
-      // implements: clear screen, restore default palette
+      //   full text window 80x43, cursor to upper-left, clear screen, viewport to fullscreen
+      //   fill with current bgcolor, clear mouse regions, clear clipboard, restore default palette
       '*': (args) => {
-        this.bgi.graphdefaults();
+        // don't reset colors & styles!
+        // TODO: set text window
         this.bgi.cleardevice();
         this.clearAllButtons();
+        this.clipboard = {};
+        // TODO: restore default palette
       },
 
       // RIP_ERASE_WINDOW (e)
