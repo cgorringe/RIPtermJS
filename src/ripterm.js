@@ -585,8 +585,12 @@ class RIPterm {
     if (b.isButton) {
       // button
       const bstyle = b.style;
-      const bevsize = (bstyle.flags & 512) ? bstyle.bevsize : 0;
-      this.drawButton(b.ax1 + bevsize, b.ay1 + bevsize, b.ax2 - bevsize, b.ay2 - bevsize, b.hotkey, b.flags, b.text, b.style, isDown);
+      if (bstyle.flags & 2) {
+        // button is invertable
+        const bevsize = (bstyle.flags & 512) ? bstyle.bevsize : 0;
+        this.drawButton(b.ax1 + bevsize, b.ay1 + bevsize, b.ax2 - bevsize, b.ay2 - bevsize, b.hotkey, b.flags, b.text, b.style, isDown);
+      }
+      // TODO: else handle if (bstyle.flags & 4096) --> Hot Icons??
     }
     else if (b.invertFlag) {
       // mouse region
@@ -899,11 +903,11 @@ class RIPterm {
       case 0: // above (TODO)
         th += main_h;
         tx -= Math.floor(tw / 2);
-        ty = top - bevsize - th;
+        ty = top - th - th + 2; // - bevsize // ??
         break;
       case 1: // left (TODO)
         th += main_h + (main_h - var_h);
-        tx = left - bevsize - tw;
+        tx = left - bevsize - tw - 8; // ??
         ty -= Math.round(th / 2) + above_h - 1;
         break;
       case 2: // center (testing...)
@@ -918,8 +922,8 @@ class RIPterm {
         ty -= Math.round(th / 2) + above_h - 1;
         break;
       case 4: // below (TODO)
-        tx -= Math.floor(tw / 2);
-        ty = bot + bevsize;
+        tx -= Math.ceil(tw / 2); // -1 ??
+        ty = bot - 2; // + bevsize // ??
         break;
       default:
     }
