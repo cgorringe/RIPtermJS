@@ -781,13 +781,21 @@ class RIPterm {
   drawButton (x1, y1, x2, y2, hotkey, flags, text, bstyle = this.buttonStyle, isSelected = false, textStyle) {
 
     // NOT DONE
-
     // TODO: check bstyle contains needed properties
+
+    if (bstyle.flags & (1 + 128 + 256) === 0) {
+      // button must be a Clipboard, Icon, or Plain button, else exit
+      this.log('rip', "Can't draw invalid button.");
+      return;
+    }
+
     const [icon_name, label_text, host_cmd] = text.split("<>");
     const bevsize = (bstyle.flags & 512) ? bstyle.bevsize : 0;
     let dback = bstyle.dback;
     let dfore = bstyle.dfore;
     let uline_col = bstyle.uline_col;
+    let down = 0, isInverted = false;
+    if (flags & 1) { isSelected = true; }
 
     // set actual size
     let left = x1, top = y1, right = x2, bot = y2;
@@ -806,32 +814,31 @@ class RIPterm {
       this.bgi.settextstyle(textStyle.font, textStyle.direction, textStyle.charsize);
     }
 
-    // draw bevel (+/- bevsize outside)
-    let down = 0, isInverted = false;
-    if ((bstyle.flags & 512) && bevsize && (bevsize > 0)) {
-      if ((flags & 1) || isSelected) {
-        // draw button selected
-        if (this.opts.origButtons) {
-          // draw original inverted button style
-          this.drawBeveledBox(left - bevsize, top - bevsize + 1, right + bevsize, bot + bevsize,
-            bstyle.bright, bstyle.dark, bstyle.corner_col, bevsize);
-          isInverted = true;
-        }
-        else {
-          // draw improved selected button style: reverse bright & dark colors
-          this.drawBeveledBox(left - bevsize, top - bevsize + 1, right + bevsize, bot + bevsize,
-            bstyle.dark, bstyle.bright, bstyle.corner_col, bevsize);
-          down = 1;
-        }
-        // invert normal & highlight text if not center orientation
-        if (bstyle.orient != 2) {
-          dback ^= 15;
-          dfore ^= 15;
-          uline_col ^= 15;
-        }
+    // prepare if selected
+    if (isSelected) {
+      // invert normal & highlight text if not center orientation
+      if (bstyle.orient != 2) {
+        dback ^= 15;
+        dfore ^= 15;
+        uline_col ^= 15;
+      }
+      if (this.opts.origButtons === true) {
+        isInverted = true;
       }
       else {
-        // draw button not selected
+        down = 1;
+      }
+    }
+
+    // draw bevel (+/- bevsize outside)
+    if (bevsize > 0) {
+      if (isSelected && (this.opts.origButtons === false)) {
+        // draw improved selected style: reverse bright & dark colors & shift down
+        this.drawBeveledBox(left - bevsize, top - bevsize + 1, right + bevsize, bot + bevsize,
+          bstyle.dark, bstyle.bright, bstyle.corner_col, bevsize);
+      }
+      else {
+        // draw not selected
         this.drawBeveledBox(left - bevsize, top - bevsize + 1, right + bevsize, bot + bevsize,
           bstyle.bright, bstyle.dark, bstyle.corner_col, bevsize);
       }
