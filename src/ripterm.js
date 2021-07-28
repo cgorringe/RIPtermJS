@@ -588,7 +588,7 @@ class RIPterm {
       if (bstyle.flags & 2) {
         // button is invertable
         const bevsize = (bstyle.flags & 512) ? bstyle.bevsize : 0;
-        this.drawButton(b.ax1 + bevsize, b.ay1 + bevsize, b.ax2 - bevsize, b.ay2 - bevsize, b.hotkey, b.flags, b.text, b.style, isDown);
+        this.drawButton(b.ax1 + bevsize, b.ay1 + bevsize, b.ax2 - bevsize, b.ay2 - bevsize, b.hotkey, b.flags, b.text, b.style, isDown, b.textStyle);
       }
       // TODO: else handle if (bstyle.flags & 4096) --> Hot Icons??
     }
@@ -744,6 +744,9 @@ class RIPterm {
     button.resetFlag = (bstyle.flags & 4) ? true : false; // RIP_RESET_WINDOWS
     button.zoomFlag = (bstyle.flags2 & 4) ? true : false;
 
+    // save current font
+    button.textStyle = this.bgi.gettextsettings();
+
     // TODO: use this.bgi.getviewsettings()
     let vp = this.bgi.info.vp;
     button.ax1 = vp.left + x1 - bevsize;
@@ -772,14 +775,18 @@ class RIPterm {
   //   2 = default when ENTER pressed. (ignore here)
   // text:
   //   ICONFILE[.ICN]<>TEXT LABEL<>HOST COMMAND
+  // textStyle: (optional)
+  //   { font: 0, direction: 0, charsize: 0 }
   //
-  drawButton (x1, y1, x2, y2, hotkey, flags, text, bstyle = this.buttonStyle, isSelected = false) {
+  drawButton (x1, y1, x2, y2, hotkey, flags, text, bstyle = this.buttonStyle, isSelected = false, textStyle) {
 
     // NOT DONE
 
     // TODO: check bstyle contains needed properties
     const [icon_name, label_text, host_cmd] = text.split("<>");
     const bevsize = (bstyle.flags & 512) ? bstyle.bevsize : 0;
+    let dback = bstyle.dback;
+    let dfore = bstyle.dfore;
     let uline_col = bstyle.uline_col;
 
     // set actual size
@@ -794,6 +801,10 @@ class RIPterm {
     this.bgi.setlinestyle(BGI.SOLID_LINE);
     this.bgi.setfillstyle(BGI.SOLID_FILL, bstyle.surface);
 
+    // restore text style used when button created
+    if (textStyle && ('font' in textStyle) && ('direction' in textStyle) && ('charsize' in textStyle)) {
+      this.bgi.settextstyle(textStyle.font, textStyle.direction, textStyle.charsize);
+    }
 
     // draw bevel (+/- bevsize outside)
     let down = 0, isInverted = false;
@@ -812,8 +823,12 @@ class RIPterm {
             bstyle.dark, bstyle.bright, bstyle.corner_col, bevsize);
           down = 1;
         }
-        // invert highlight text if not center orientation
-        if (bstyle.orient != 2) { uline_col ^= 15; }
+        // invert normal & highlight text if not center orientation
+        if (bstyle.orient != 2) {
+          dback ^= 15;
+          dfore ^= 15;
+          uline_col ^= 15;
+        }
       }
       else {
         // draw button not selected
@@ -932,11 +947,11 @@ class RIPterm {
 
     // draw label dropshadow
     if (bstyle.flags & 32) {
-      this.bgi.setcolor(bstyle.dback);
+      this.bgi.setcolor(dback);
       this.bgi.outtextxy(tx + 1, ty + 1, label_text);
     }
     // draw label text
-    this.bgi.setcolor(bstyle.dfore);
+    this.bgi.setcolor(dfore);
     this.bgi.outtextxy(tx, ty, label_text);
 
     // draw hotkey over prior text (only if mouse button)
@@ -953,7 +968,7 @@ class RIPterm {
         }
         else if (idx > 0) {
           // draw prefix text again, then highlighted hotkey (NOT TESTED)
-          this.bgi.setcolor(bstyle.dfore);
+          this.bgi.setcolor(dfore);
           this.bgi.outtextxy(tx, ty, label_text.slice(0, idx));
           this.bgi.setcolor(uline_col);
           this.bgi.outtext(hotchar);

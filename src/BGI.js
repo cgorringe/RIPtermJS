@@ -1468,8 +1468,10 @@ class BGI {
     return 0; // ???
   }
 
-  gettextsettings (texttypeinfo) { // ***
-    // struct textsettingstype *texttypeinfo
+  // returns object: { font: 0, direction: 0, charsize: 0, horiz: 0, vert: 0 }
+  gettextsettings () {
+    // OLD struct textsettingstype *texttypeinfo
+    return JSON.parse(JSON.stringify(this.info.text)); // copy obj
   }
 
   getviewsettings (viewport) { // ***
