@@ -754,8 +754,8 @@ class RIPterm {
     button.ax2 = vp.left + x2 + bevsize;
     button.ay2 = vp.top + y2 + bevsize;
 
-    // only add to list if it's a Mouse Button
-    if (bstyle.flags & 1024) {
+    // only add to list if it's a Mouse Button, and it's a valid button
+    if ((bstyle.flags & 1024) && (bstyle.flags & (1 + 128 + 256))) {
       this.buttons.unshift(button);
     }
   }
@@ -783,7 +783,7 @@ class RIPterm {
     // NOT DONE
     // TODO: check bstyle contains needed properties
 
-    if (bstyle.flags & (1 + 128 + 256) === 0) {
+    if ((bstyle.flags & (1 + 128 + 256)) === 0) {
       // button must be a Clipboard, Icon, or Plain button, else exit
       this.log('rip', "Can't draw invalid button.");
       return;
