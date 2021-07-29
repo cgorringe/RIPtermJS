@@ -1390,6 +1390,9 @@ class BGI {
   // { x:int, y:int, width:int, height:int, data:Uint8ClampedArray }
   // uses this.pixels[]
   getimage (left, top, right, bottom) {
+    this._getimage(left, top, right, bottom);
+  }
+  _getimage (left, top, right, bottom) {
     // void *bitmap
 
     // swap
@@ -1696,6 +1699,9 @@ class BGI {
   // Will draw past bottom edge of vp and clip at edge of canvas.
   //
   putimage (left, top, image, wmode) {
+    this._putimage(left, top, image, wmode);
+  }
+  _putimage (left, top, image, wmode) {
 
     // OLD
     // putimage (left, top, bitmap, op)

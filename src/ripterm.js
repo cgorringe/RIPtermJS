@@ -588,7 +588,7 @@ class RIPterm {
       if (bstyle.flags & 2) {
         // button is invertable
         const bevsize = (bstyle.flags & 512) ? bstyle.bevsize : 0;
-        this.drawButton(b.ax1 + bevsize, b.ay1 + bevsize, b.ax2 - bevsize, b.ay2 - bevsize, b.hotkey, b.flags, b.text, b.style, isDown, b.textStyle);
+        this.drawButton(b.ax1 + bevsize, b.ay1 + bevsize, b.ax2 - bevsize, b.ay2 - bevsize, b.hotkey, b.flags, b.text, b.style, isDown, b.textStyle, b.image);
       }
       // TODO: else handle if (bstyle.flags & 4096) --> Hot Icons??
     }
@@ -596,7 +596,7 @@ class RIPterm {
       // mouse region
       this.drawInvertedBar(b.ax1, b.ay1, b.ax2, b.ay2);
     }
-    this.bgi.refresh();
+    this.refreshCanvas();
   }
 
   // Activates Button & Mouse Region events,
@@ -747,6 +747,16 @@ class RIPterm {
     // save current font
     button.textStyle = this.bgi.gettextsettings();
 
+    // include image if Clipboard button
+    if ((bstyle.flags & 1) && ('width' in this.clipboard) && ('height' in this.clipboard)) {
+      button.image = JSON.parse(JSON.stringify(this.clipboard));
+      // resize if there's an image
+      if (('width' in button.image) && ('height' in button.image)) {
+        x2 = x1 + button.image.width;
+        y2 = y1 + button.image.height;
+      }
+    }
+
     // TODO: use this.bgi.getviewsettings()
     let vp = this.bgi.info.vp;
     button.ax1 = vp.left + x1 - bevsize;
@@ -758,6 +768,7 @@ class RIPterm {
     if ((bstyle.flags & 1024) && (bstyle.flags & (1 + 128 + 256))) {
       this.buttons.unshift(button);
     }
+    return button;
   }
 
   // Draws an XOR'd white rectangle.
@@ -778,13 +789,13 @@ class RIPterm {
   // textStyle: (optional)
   //   { font: 0, direction: 0, charsize: 0 }
   //
-  drawButton (x1, y1, x2, y2, hotkey, flags, text, bstyle = this.buttonStyle, isSelected = false, textStyle) {
+  drawButton (x1, y1, x2, y2, hotkey, flags, text, bstyle = this.buttonStyle, isSelected = false, textStyle, bimage) {
 
     // NOT DONE
     // TODO: check bstyle contains needed properties
 
     if ((bstyle.flags & (1 + 128 + 256)) === 0) {
-      // button must be a Clipboard, Icon, or Plain button, else exit
+      // button must be a Clipboard (1), Icon (128), or Plain button (256), else exit
       this.log('rip', "Can't draw invalid button.");
       return;
     }
@@ -800,10 +811,16 @@ class RIPterm {
     // set actual size
     let left = x1, top = y1, right = x2, bot = y2;
     if (bstyle.wid && (bstyle.wid > 0) && bstyle.hgt && (bstyle.hgt > 0)) {
-        // style overrides button width & height
-        right = left + bstyle.wid; // don't -1!
-        bot = top + bstyle.hgt;
+      // style overrides button width & height
+      right = left + bstyle.wid; // don't -1!
+      bot = top + bstyle.hgt;
     }
+    if (bimage && ('width' in bimage) && ('height' in bimage)) {
+      // clipboard or icon image overrides button width & height
+      right = left + bimage.width;
+      bot = top + bimage.height;
+    }
+
 
     this.bgi.pushState();
     this.bgi.setlinestyle(BGI.SOLID_LINE);
@@ -856,11 +873,14 @@ class RIPterm {
       this.bgi.rectangle(left - bevsize - 1, top - bevsize - 1, right + bevsize, bot + bevsize, BGI.BLACK, BGI.COPY_PUT);
     }
 
-
-    // draw surface
-    this.bgi.bar(left, top, right-1, bot-1, bstyle.surface, BGI.COPY_PUT, BGI.SOLID_FILL);
-
-    // TODO: Draw icon
+    // draw image if present
+    if (bimage) {
+      this.bgi._putimage(left, top, bimage, BGI.COPY_PUT);
+    }
+    else {
+      // draw fill surface
+      this.bgi.bar(left, top, right-1, bot-1, bstyle.surface, BGI.COPY_PUT, BGI.SOLID_FILL);
+    }
 
     // draw sunken (inside)
     if (bstyle.flags & 32768) {
@@ -893,8 +913,16 @@ class RIPterm {
       this.bgi.rectangle(left + xin + 1 + down, top + yin + 1 + down, right - xin - 1 + down, bot - yin - 1 + down, bstyle.bright, BGI.COPY_PUT);
     }
 
-    // calculate label text position
+    // auto-stamp image onto clipboard
+    if (bstyle.flags & 64) {
+      // TODO: not sure if coords are correct (need to test with recess)
+      this.clipboard = this.bgi._getimage(left - bevsize, top - bevsize, right + bevsize - 1, bot + bevsize - 1);
+      this.log('rip', 'Auto-stamped button image onto Clipboard.');
+      // clear auto-stamp flag so that clipboard save only occurs once
+      bstyle.flags = (bstyle.flags & ~64);
+    }
 
+    // calculate label text position
     let tw = this.bgi.textwidth(label_text);
     let th = 0;
     let var_h = this.bgi.textheight(label_text, BGI.VAR_HEIGHT); // VAR_HEIGHT, FULL_HEIGHT
@@ -1291,7 +1319,7 @@ class RIPterm {
       '1C': (args) => {
         if (args.length >= 9) {
           const [x0, y0, x1, y1, res] = this.parseRIPargs(args, '22221');
-          this.clipboard = this.bgi.getimage(x0, y0, x1, y1)
+          this.clipboard = this.bgi.getimage(x0, y0, x1, y1);
         }
       },
 
@@ -1326,8 +1354,8 @@ class RIPterm {
       '1U': (args) => {
         if (args.length >= 9) {
           const [x0, y0, x1, y1, hotkey, flags, res, text] = this.parseRIPargs(args, '2222211*');
-          this.createButton(x0, y0, x1, y1, hotkey, flags, text);
-          this.drawButton(x0, y0, x1, y1, hotkey, flags, text);
+          let b = this.createButton(x0, y0, x1, y1, hotkey, flags, text);
+          this.drawButton(x0, y0, x1, y1, hotkey, flags, text, b.style, false, b.textStyle, b.image);
         }
       },
 
