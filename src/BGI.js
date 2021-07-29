@@ -1390,7 +1390,7 @@ class BGI {
   // { x:int, y:int, width:int, height:int, data:Uint8ClampedArray }
   // uses this.pixels[]
   getimage (left, top, right, bottom) {
-    this._getimage(left, top, right, bottom);
+    return this._getimage(left, top, right, bottom);
   }
   _getimage (left, top, right, bottom) {
     // void *bitmap
