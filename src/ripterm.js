@@ -767,14 +767,21 @@ class RIPterm {
     // save current font
     button.textStyle = this.bgi.gettextsettings();
 
+    // include image if Icon button
+    if (bstyle.flags & 128) {
+      const fname = this.fixIconFilename(icon_name);
+      button.image = this.bgi.readimagefile(fname);
+    }
+
     // include image if Clipboard button
     if ((bstyle.flags & 1) && ('width' in this.clipboard) && ('height' in this.clipboard)) {
       button.image = JSON.parse(JSON.stringify(this.clipboard));
-      // resize if there's an image
-      if (('width' in button.image) && ('height' in button.image)) {
-        x2 = x1 + button.image.width;
-        y2 = y1 + button.image.height;
-      }
+    }
+
+    // resize if there's an image
+    if (button.image && ('width' in button.image) && ('height' in button.image)) {
+      x2 = x1 + button.image.width;
+      y2 = y1 + button.image.height;
     }
 
     // TODO: use this.bgi.getviewsettings()
