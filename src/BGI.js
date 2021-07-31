@@ -118,6 +118,7 @@ class BGI {
     // e.g. this.bitfonts[0][65][2] is font size 0, ASCII char 65, 3rd scanline which returns an 8-bit int.
     this.bitfonts = [];
     this.stateStack = [];
+    this.icons = {}; // key is uppercased file+ext, e.g. 'EXAMPLE.ICN', value is image obj used in putimage().
 
     // log callback function
     if ('log' in args) {
@@ -127,6 +128,11 @@ class BGI {
     // need to pass this in to find font files
     if ('fontsPath' in args) {
       this.fontsPath = args.fontsPath;
+    }
+
+    // need to pass this in to find icon files
+    if ('iconsPath' in args) {
+      this.iconsPath = args.iconsPath;
     }
 
     this.initContext(args.ctx, args.width, args.height);
@@ -893,6 +899,86 @@ class BGI {
       this.info.cp.y -= (xsize * scale);
     }
   }
+
+  ////////////////////////////////////////////////////////////////////////////////
+  // Image methods
+
+  // Download and parse given .ICN or .HIC icon image file.
+  // Assumes 16-color images, 4-bits per pixel.
+  // filename = filename without path.
+  // uses this.iconsPath
+  // TODO: callback or Promise returned?
+  fetchIcon (filename) {
+
+    if (typeof filename !== 'string') {
+      this.log('err', 'fetchIcon() missing "filename"!');
+      return;
+    }
+    if (typeof this.iconsPath !== 'string') {
+      this.log('err', 'must pass in "iconsPath" to BGI()!');
+      return;
+    }
+
+    const url = this.iconsPath + '/' + filename;
+    this.log('bgi', 'Fetching icon: ' + url);
+
+    let request = new Request(url);
+    fetch(request)
+      .then(response => response.arrayBuffer())
+      .then(buffer => {
+
+        // no magic number in ICN files to test against
+        const dview = new DataView(buffer);
+        const imgWidth = dview.getUint16(0, true) + 1; // true = little-endian
+        const imgHeight = dview.getUint16(2, true) + 1;
+
+        // reject 1x1 images and those that can't fit in canvas
+        if ((imgWidth > 1) && (imgWidth <= this.width) && (imgHeight > 1) && (imgHeight <= this.height)) {
+
+          // decoding 4 bit-planes (16 colors)
+          let data = new Uint8ClampedArray(imgWidth * imgHeight + 8); // 8 extra slack pixels
+          const fileData = new Uint8Array(buffer, 4); // byte 4 to EOF
+
+          // calculate num bytes per bit-plane scan line, rounded up to 8-bit multiple
+          const byteWidth = Math.ceil(imgWidth / 8);
+
+          // read 4 bit-planes * byteWidth bytes each, per scanline (y)
+          let x, i=0, o=0, bp0, bp1, bp2, bp3, pix;
+          const off2 = byteWidth, off1 = byteWidth * 2, off0 = byteWidth * 3;
+          for (let y=0; y < imgHeight; y++) {
+            x = 0;
+            i = y * byteWidth * 4; // input index
+            o = y * imgWidth; // output index
+            for (let b=0; b < byteWidth; b++) {
+              bp3 = fileData[i + b];
+              bp2 = fileData[i + b + off2];
+              bp1 = fileData[i + b + off1];
+              bp0 = fileData[i + b + off0];
+              // convert bits from these 4 bit-plane bytes into 8 byte pixels (16-colors)
+              for (let p=7; p >= 0; p--) {
+                pix = ((bp3 & 1) << 3) | ((bp2 & 1) << 2) | ((bp1 & 1) << 1) | (bp0 & 1);
+                bp3 = bp3 >> 1;
+                bp2 = bp2 >> 1;
+                bp1 = bp1 >> 1;
+                bp0 = bp0 >> 1;
+                data[o+p] = pix;
+              }
+              o += 8;
+            }
+          }
+
+          let image = { width: imgWidth, height: imgHeight, data: data };
+
+          // TODO: should return image in a callback or Promise
+          // which should then store in the icons cache instead of here
+          this.icons[filename] = image;
+        }
+        else {
+          this.log('bgi', `invalid icon? (${imgWidth} x ${imgHeight}) ${url}`);
+        }
+      }); // end fetch()
+  }
+
 
   ////////////////////////////////////////////////////////////////////////////////
   // Standard BGI functions
@@ -1800,12 +1886,21 @@ class BGI {
   }
 
   // TODO
-  readimagefile (filename, x1, y1, x2, y2) {
+  readimagefile (filename) {
+  // readimagefile (filename, left, top, right, bottom) {
     // const char* filename=NULL, int left=0, int top=0, int right=INT_MAX, int bottom=INT_MAX
     // reads a BMP, GIF, JPG, ICON, EMF, or WMF image file.
     // displays it in part of the current active window.
     // unknown: would x2,y2 crop the image if under size of image? (I'd think so)
     // nothing returned
+
+    // NOT DONE: need to check BGI spec!
+
+    // retrieve image from cache, if available
+    let image = this.icons[filename] || {};
+
+    // this doesn't display the image, but instead returns it for use in putimage()
+    return image;
   }
 
   // draws in current line style, thickness, and drawing color

@@ -188,11 +188,13 @@ class RIPterm {
             svg: this.svg,
             prefix: this.opts.svgPrefix,
             fontsPath: this.opts.fontsPath,
+            iconsPath: this.opts.iconsPath,
             log: (type, msg) => { this.log(type, msg) }
           })
           : new BGI({
             ctx: this.ctx,
             fontsPath: this.opts.fontsPath,
+            iconsPath: this.opts.iconsPath,
             log: (type, msg) => { this.log(type, msg) }
           });
 
@@ -474,6 +476,24 @@ class RIPterm {
 
       // draw imgDiff to diff canvas
       this.ctxDiff.putImageData(imgDiff, 0, 0);
+    }
+  }
+
+  // convert to uppercase and add .ICN extension
+  fixIconFilename (filename) {
+    let fname = filename.toUpperCase();
+    if (fname.indexOf('.') === -1) {
+      fname += '.ICN';
+    }
+    return fname;
+  }
+
+  // fetches the given array of icon files and caches them.
+  // TODO: load in serial, and return a Promise
+  loadIcons (filenames) {
+
+    for (let fname of filenames) {
+      this.bgi.fetchIcon(fname);
     }
   }
 
@@ -1332,7 +1352,23 @@ class RIPterm {
       },
 
       // RIP_WRITE_ICON (1W)
+
       // RIP_LOAD_ICON (1I)
+      '1I': (args) => {
+        if (args.length >= 9) {
+          const [x, y, mode, clipflag, res, filename] = this.parseRIPargs(args, '22212*');
+          const fname = this.fixIconFilename(filename);
+          this.log('rip', 'RIP_LOAD_ICON: ' + fname);
+
+          // FIXME: for now this only retrieves images from the cache
+          const img = this.bgi.readimagefile(fname);
+          this.bgi.putimage(x, y, img, mode);
+          if (clipflag === 1) {
+            this.clipboard = img;
+          }
+        }
+      },
+
 
       // RIP_BUTTON_STYLE (1B)
       '1B': (args) => {
