@@ -482,9 +482,16 @@ class RIPterm {
   // convert to uppercase and add .ICN extension
   fixIconFilename (filename) {
     let fname = filename.toUpperCase();
-    if (fname.indexOf('.') === -1) {
+    if (!fname.includes('.')) {
       fname += '.ICN';
     }
+    return fname;
+  }
+
+  // convert to hot icon filename by replacing extension with .HIC, else returns null.
+  hotIconFilename (filename) {
+    let fname = this.fixIconFilename(filename);
+    fname = fname.includes('.ICN') ? fname.replace('.ICN', '.HIC') : null;
     return fname;
   }
 
@@ -605,12 +612,11 @@ class RIPterm {
     if (b.isButton) {
       // button
       const bstyle = b.style;
-      if (bstyle.flags & 2) {
-        // button is invertable
+      if ((bstyle.flags & 2) || (bstyle.flags & 4096)) {
+        // button is invertable or a Hot Icon
         const bevsize = (bstyle.flags & 512) ? bstyle.bevsize : 0;
-        this.drawButton(b.ax1 + bevsize, b.ay1 + bevsize, b.ax2 - bevsize, b.ay2 - bevsize, b.hotkey, b.flags, b.text, b.style, isDown, b.textStyle, b.image);
+        this.drawButton(b.ax1 + bevsize, b.ay1 + bevsize, b.ax2 - bevsize, b.ay2 - bevsize, b, isDown);
       }
-      // TODO: else handle if (bstyle.flags & 4096) --> Hot Icons??
     }
     else if (b.invertFlag) {
       // mouse region
@@ -784,6 +790,14 @@ class RIPterm {
       y2 = y1 + button.image.height;
     }
 
+    // include Hot Icon
+    if (bstyle.flags & 4096) {
+      const hotname = this.hotIconFilename(icon_name);
+      if (hotname) {
+        button.hoticon = this.bgi.readimagefile(hotname);
+      }
+    }
+
     // TODO: use this.bgi.getviewsettings()
     let vp = this.bgi.info.vp;
     button.ax1 = vp.left + x1 - bevsize;
@@ -807,6 +821,7 @@ class RIPterm {
 
   // Only draws a button without saving anything.
   //
+  // properties contained in 'button' obj:
   // hotkey: ASCII value of key to press.
   // flags:
   //   1 = draw as selected.
@@ -816,24 +831,24 @@ class RIPterm {
   // textStyle: (optional)
   //   { font: 0, direction: 0, charsize: 0 }
   //
-  drawButton (x1, y1, x2, y2, hotkey, flags, text, bstyle = this.buttonStyle, isSelected = false, textStyle, bimage) {
+  drawButton (x1, y1, x2, y2, button, isSelected = false) {
 
-    // NOT DONE
-    // TODO: check bstyle contains needed properties
+    const bstyle = button.style;
+    const textStyle = button.textStyle;
 
-    if ((bstyle.flags & (1 + 128 + 256)) === 0) {
+    if ((bstyle && ('flags' in bstyle) && ((bstyle.flags & (1 + 128 + 256)) !== 0)) === false) {
       // button must be a Clipboard (1), Icon (128), or Plain button (256), else exit
       this.log('rip', "Can't draw invalid button.");
       return;
     }
 
-    const [icon_name, label_text, host_cmd] = text.split("<>");
+    const [icon_name, label_text, host_cmd] = button.text.split("<>");
     const bevsize = (bstyle.flags & 512) ? bstyle.bevsize : 0;
     let dback = bstyle.dback;
     let dfore = bstyle.dfore;
     let uline_col = bstyle.uline_col;
     let down = 0, isInverted = false;
-    if (flags & 1) { isSelected = true; }
+    if (button.flags & 1) { isSelected = true; }
 
     // set actual size
     let left = x1, top = y1, right = x2, bot = y2;
@@ -842,12 +857,11 @@ class RIPterm {
       right = left + bstyle.wid; // don't -1!
       bot = top + bstyle.hgt;
     }
-    if (bimage && ('width' in bimage) && ('height' in bimage)) {
+    if (('image' in button) && ('width' in button.image) && ('height' in button.image)) {
       // clipboard or icon image overrides button width & height
-      right = left + bimage.width;
-      bot = top + bimage.height;
+      right = left + button.image.width;
+      bot = top + button.image.height;
     }
-
 
     this.bgi.pushState();
     this.bgi.setlinestyle(BGI.SOLID_LINE);
@@ -901,8 +915,8 @@ class RIPterm {
     }
 
     // draw image if present
-    if (bimage) {
-      this.bgi._putimage(left, top, bimage, BGI.COPY_PUT);
+    if ('image' in button) {
+      this.bgi._putimage(left, top, button.image, BGI.COPY_PUT);
     }
     else {
       // draw fill surface
@@ -1021,7 +1035,7 @@ class RIPterm {
     if (bstyle.flags & 1024) {
       if (bstyle.flags2 & 2) {
         // highlight hotkey character using bstyle.uline_col
-        let hotchar = String.fromCharCode(hotkey);
+        let hotchar = String.fromCharCode(button.hotkey);
         let idx = label_text.indexOf(hotchar);
         if (idx === 0) {
           // draw the first char again as hotkey
@@ -1045,6 +1059,12 @@ class RIPterm {
     // inverts button if drawing as selected
     if (isInverted) {
       this.drawInvertedBar(left - bevsize, top - bevsize, right + bevsize, bot + bevsize);
+    }
+
+    // draw hot icon if present
+    // (must be here since bevel could invert)
+    if (isSelected && ('hoticon' in button)) {
+      this.bgi._putimage(left, top, button.hoticon, BGI.COPY_PUT);
     }
 
     this.bgi.popState();
@@ -1398,7 +1418,7 @@ class RIPterm {
         if (args.length >= 9) {
           const [x0, y0, x1, y1, hotkey, flags, res, text] = this.parseRIPargs(args, '2222211*');
           let b = this.createButton(x0, y0, x1, y1, hotkey, flags, text);
-          this.drawButton(x0, y0, x1, y1, hotkey, flags, text, b.style, false, b.textStyle, b.image);
+          this.drawButton(x0, y0, x1, y1, b, false);
         }
       },
 
