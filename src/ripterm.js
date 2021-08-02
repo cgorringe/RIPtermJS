@@ -625,6 +625,38 @@ class RIPterm {
     this.refreshCanvas();
   }
 
+  // selects given button if not already, and unselects all other buttons in same group.
+  // uses this.buttons[], modifies button.flags and flags in all buttons in the same group.
+  selectRadioButton (button) {
+
+    // if button already selected, ignore it
+    if (button && (button.flags & 1)) { return; }
+
+    // only work with radio buttons
+    if (button.style.flags & 16384) {
+
+      // cycle thru all radio buttons in the same group
+      for (let b of this.buttons) {
+        // unselect button only if it's already selected
+        if (b.isButton && (b.flags & 1) && (b.style.flags & 16384) && (b.style.grp_no === button.style.grp_no)) {
+          b.flags ^= 1; // clear selected flag using XOR
+          this.updateButton(b, false);
+        }
+      }
+      // select the button
+      this.updateButton(button, true);
+      button.flags |= 1; // set selected flag
+    }
+  }
+
+  // toggles the selected state of a button, and updates selected flag.
+  // useful for toggling check buttons, but works with any selected buttons.
+  toggleButton (button) {
+    const toggled = (button.flags & 1) ? false : true;
+    button.flags ^= 1; // toggle selected flag using XOR
+    this.updateButton(button, toggled);
+  }
+
   // Activates Button & Mouse Region events,
   // such as normally done after the '#' RIP command.
   // activate: true = turn on, false = turn off mouse events on canvas.
@@ -657,23 +689,33 @@ class RIPterm {
         // within area of mouse region
         isWithin = true;
         if (e.type === 'mousedown') {
-          // select button / mouse region
-          this.buttonClicked = b;
           this.updateButton(b, true);
+          this.buttonClicked = b;
         }
         else if ((this.buttonClicked !== null) && (e.type === 'mouseup')) {
-          // unselect currently clicked button
-          this.updateButton(this.buttonClicked, false);
-          if (b == this.buttonClicked) {
-            // only if within previously clicked button
-            this.log('term', 'click sends: ' + b.cmdText);
+
+          // only update if not selected
+          if ((this.buttonClicked.flags & 1) === 0) {
+            this.updateButton(this.buttonClicked, false);
           }
+
+          // only if within previously clicked button
+          if (b === this.buttonClicked) {
+            this.sendHostCommand(b.cmdText);
+            // handle radio & check buttons
+            if (b.style.flags & 16384) {
+              // radio button
+              this.selectRadioButton(b);
+            }
+            else if (b.style.flags2 & 1) {
+              // toggle check button
+              this.toggleButton(b);
+            }
+          }
+
           this.buttonClicked = null;
         }
         break;
-      }
-      else if (b == this.buttonClicked) {
-
       }
     }
 
@@ -688,6 +730,14 @@ class RIPterm {
       this.withinButton = isWithin;
       this.canvas.style.cursor = (isWithin) ? 'pointer' : 'auto';
     }
+  }
+
+  // handles sending text to a host from clicking buttons and mouse regions.
+  sendHostCommand (text) {
+
+    // TODO: $ variables & host command templates
+
+    this.log('term', 'send to host: ' + text);
   }
 
 
@@ -804,6 +854,11 @@ class RIPterm {
     button.ay1 = vp.top + y1 - bevsize;
     button.ax2 = vp.left + x2 + bevsize;
     button.ay2 = vp.top + y2 + bevsize;
+
+    // send host command immediately if pre-selected in a Radio or Checkbox group
+    if ((button.flags & 1) && ((bstyle.flags & 16384) || (bstyle.flags2 & 1))) {
+      this.sendHostCommand(host_cmd);
+    }
 
     // only add to list if it's a Mouse Button, and it's a valid button
     if ((bstyle.flags & 1024) && (bstyle.flags & (1 + 128 + 256))) {
