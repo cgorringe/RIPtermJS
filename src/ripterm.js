@@ -145,7 +145,7 @@ class RIPterm {
       this.clipboard = {};  // { x:int, y:int, width:int, height:int, data:Uint8ClampedArray }
       this.buttonStyle = {};
       this.buttons = [];  // array of active button objects
-      this.buttonClicked; // last clicked button object
+      this.buttonClicked = null; // last clicked button object
       this.withinButton = false;
 
       // debug options
@@ -688,28 +688,28 @@ class RIPterm {
       if ((x > b.ax1) && (x < b.ax2) && (y > b.ay1) && (y < b.ay2)) {
         // within area of mouse region
         isWithin = true;
-        if (e.type === 'mousedown') {
+        if ((e.type === 'mousedown') && (e.button == 0)) {
+          // only if main (left) mouse button pressed
           this.updateButton(b, true);
           this.buttonClicked = b;
         }
         else if ((this.buttonClicked !== null) && (e.type === 'mouseup')) {
+          this.updateButton(this.buttonClicked, false);
 
-          // only update if not selected
-          if ((this.buttonClicked.flags & 1) === 0) {
-            this.updateButton(this.buttonClicked, false);
-          }
-
-          // only if within previously clicked button
+          // only if within previously clicked button or mouse region
           if (b === this.buttonClicked) {
             this.sendHostCommand(b.cmdText);
+
             // handle radio & check buttons
-            if (b.style.flags & 16384) {
-              // radio button
-              this.selectRadioButton(b);
-            }
-            else if (b.style.flags2 & 1) {
-              // toggle check button
-              this.toggleButton(b);
+            if (b.isButton) {
+              if (b.style.flags & 16384) {
+                // radio button
+                this.selectRadioButton(b);
+              }
+              else if (b.style.flags2 & 1) {
+                // toggle check button
+                this.toggleButton(b);
+              }
             }
           }
 
