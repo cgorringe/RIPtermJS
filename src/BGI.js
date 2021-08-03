@@ -918,6 +918,10 @@ class BGI {
       this.log('err', 'must pass in "iconsPath" to BGI()!');
       return;
     }
+    if (this.icons[filename]) {
+      // icon already in cache
+      return;
+    }
 
     const url = this.iconsPath + '/' + filename;
     this.log('bgi', 'Fetching icon: ' + url);

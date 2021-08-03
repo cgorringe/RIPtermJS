@@ -353,9 +353,11 @@ class RIPterm {
   }
 
   // TODO: update for v3
+  // returns an array of icon filenames used in RIP file, else empty array.
   readFile (url) {
     this.log('term', 'readFile(): ' + url);
 
+    let iconNames = [];
     this.cmdi = 0;
     let req = new XMLHttpRequest();
     if (req != null) {
@@ -387,6 +389,9 @@ class RIPterm {
           for (let j=0; j < cmds.length; j++) {
             let d = this.parseRIPcmd(cmds[j]);
 
+            // add extracted icon filenames to list
+            iconNames.push(...this.parseIconNames(d[0], d[1]));
+
             // TODO: take this out into another function
             // output html to commandsDiv
             if (this.opts.pauseOn.includes(d[0])) {
@@ -412,6 +417,9 @@ class RIPterm {
     this.reset();
 
     // console.log(this.ripData); // DEBUG
+    // this.log('term', `icons: ${iconNames}`); // DEBUG
+
+    return iconNames;
   }
 
   // Load and draw a screenshot image file inside a canvas
@@ -481,9 +489,10 @@ class RIPterm {
 
   // convert to uppercase and add .ICN extension
   fixIconFilename (filename) {
-    let fname = filename.toUpperCase();
-    if (!fname.includes('.')) {
-      fname += '.ICN';
+    let fname = null;
+    if ((typeof filename === 'string') && (filename.length > 0)) {
+      fname = filename.toUpperCase();
+      if (!fname.includes('.')) { fname += '.ICN'; }
     }
     return fname;
   }
@@ -491,7 +500,7 @@ class RIPterm {
   // convert to hot icon filename by replacing extension with .HIC, else returns null.
   hotIconFilename (filename) {
     let fname = this.fixIconFilename(filename);
-    fname = fname.includes('.ICN') ? fname.replace('.ICN', '.HIC') : null;
+    fname = (fname && fname.includes('.ICN')) ? fname.replace('.ICN', '.HIC') : null;
     return fname;
   }
 
@@ -578,6 +587,43 @@ class RIPterm {
       }
     }
     return ret;
+  }
+
+  // extracts icon filename(s) from RIP_LOAD_ICON (1I) or RIP_BUTTON (1U).
+  // returns an array of strings, else empty array.
+  // most often 1 filename, but returns 2 if there's a "hot icon" button.
+  // modifies: this.buttonStyle
+  //
+  parseIconNames (cmd, args) {
+    let fnames = [];
+    if (cmd === '1I') {
+      // RIP_LOAD_ICON
+      if (args.length > 9) {
+        const [x, y, mode, clipflag, res, filename] = this.parseRIPargs(args, '22212*');
+        fnames.push(this.fixIconFilename(filename));
+      }
+    }
+    else if (cmd === '1U') {
+      // RIP_BUTTON
+      if (args.length > 12) {
+        const [x0, y0, x1, y1, hotkey, flags, res, text] = this.parseRIPargs(args, '2222211*');
+        const [icon_name, label_text, host_cmd] = text.split("<>");
+        const fname1 = this.fixIconFilename(icon_name);
+        if (fname1) { fnames.push(fname1); }
+
+        // check current button style if button displays a Hot Icon
+        if (this.buttonStyle && ('flags' in this.buttonStyle) && (this.buttonStyle.flags & 4096)) {
+          const fname2 = this.hotIconFilename(icon_name);
+          if (fname2) { fnames.push(fname2); }
+        }
+      }
+    }
+    else if (cmd === '1B') {
+      // RIP_BUTTON_STYLE (1B)
+      // running this updates this.buttonStyle
+      this.cmd[cmd](args);
+    }
+    return fnames;
   }
 
   // TODO
@@ -826,7 +872,9 @@ class RIPterm {
     // include image if Icon button
     if (bstyle.flags & 128) {
       const fname = this.fixIconFilename(icon_name);
-      button.image = this.bgi.readimagefile(fname);
+      if (fname) {
+        button.image = this.bgi.readimagefile(fname);
+      }
     }
 
     // include image if Clipboard button
@@ -1443,10 +1491,12 @@ class RIPterm {
           this.log('rip', 'RIP_LOAD_ICON: ' + fname);
 
           // FIXME: for now this only retrieves images from the cache
-          const img = this.bgi.readimagefile(fname);
-          this.bgi.putimage(x, y, img, mode);
-          if (clipflag === 1) {
-            this.clipboard = img;
+          if (fname) {
+            const img = this.bgi.readimagefile(fname);
+            this.bgi.putimage(x, y, img, mode);
+            if (clipflag === 1) {
+              this.clipboard = img;
+            }
           }
         }
       },
