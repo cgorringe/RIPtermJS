@@ -709,17 +709,17 @@ class RIPterm {
   activateMouseEvents (activate) {
     if (activate) {
       // activate mouse events
-      this.canvas.addEventListener('mouseup', this.handleMouseEvents );
-      this.canvas.addEventListener('mousedown', this.handleMouseEvents );
-      this.canvas.addEventListener('mousemove', this.handleMouseEvents );
-      this.canvas.addEventListener('mouseleave', this.handleMouseEvents );
+      this.canvas.addEventListener('pointerup', this.handleMouseEvents );
+      this.canvas.addEventListener('pointerdown', this.handleMouseEvents );
+      this.canvas.addEventListener('pointermove', this.handleMouseEvents );
+      this.canvas.addEventListener('pointerleave', this.handleMouseEvents );
     }
     else {
       // deactivate mouse events
-      this.canvas.removeEventListener('mouseup', this.handleMouseEvents );
-      this.canvas.removeEventListener('mousedown', this.handleMouseEvents );
-      this.canvas.removeEventListener('mousemove', this.handleMouseEvents );
-      this.canvas.removeEventListener('mouseleave', this.handleMouseEvents );
+      this.canvas.removeEventListener('pointerup', this.handleMouseEvents );
+      this.canvas.removeEventListener('pointerdown', this.handleMouseEvents );
+      this.canvas.removeEventListener('pointermove', this.handleMouseEvents );
+      this.canvas.removeEventListener('pointerleave', this.handleMouseEvents );
     }
   }
 
@@ -734,12 +734,12 @@ class RIPterm {
       if ((x > b.ax1) && (x < b.ax2) && (y > b.ay1) && (y < b.ay2)) {
         // within area of mouse region
         isWithin = true;
-        if ((e.type === 'mousedown') && (e.button == 0)) {
+        if ((e.type === 'pointerdown') && (e.button == 0)) {
           // only if main (left) mouse button pressed
           this.updateButton(b, true);
           this.buttonClicked = b;
         }
-        else if ((this.buttonClicked !== null) && (e.type === 'mouseup')) {
+        else if ((this.buttonClicked !== null) && (e.type === 'pointerup')) {
           this.updateButton(this.buttonClicked, false);
 
           // only if within previously clicked button or mouse region
@@ -766,7 +766,7 @@ class RIPterm {
     }
 
     // also unselect clicked button if mouseup outside any region
-    if ( (isWithin == false) && (this.buttonClicked !== null) && ((e.type === 'mouseup') || (e.type === 'mouseleave')) ) {
+    if ( (isWithin == false) && (this.buttonClicked !== null) && ((e.type === 'pointerup') || (e.type === 'pointerleave')) ) {
       this.updateButton(this.buttonClicked, false);
       this.buttonClicked = null;
     }
