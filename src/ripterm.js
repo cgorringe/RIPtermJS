@@ -1078,7 +1078,8 @@ class RIPterm {
     //console.log({ tw, th }); // DEBUG
 
     // start with button center
-    let tx = left + Math.round((right - left) / 2);
+    //let tx = left + Math.round((right - left) / 2);
+    let tx = left;
     let ty = top + Math.round((bot - top) / 2) + 1;
 
     //console.log({ tx, ty }); // DEBUG
@@ -1092,37 +1093,54 @@ class RIPterm {
 
     //console.log({ tw, th }); // DEBUG
 
+    // FIXME: button labels are off by 1 pixel
+    // it's very hard to figure out!
+
+    // justify label when orient is above/center/below
+    let xjust;
+    if (bstyle.flags2 & 8) {
+      // left justify
+      tx = left + 7;
+    }
+    else if (bstyle.flags2 & 16) {
+      // right justify
+      tx = left + Math.floor(right - left - tw) - 6;
+    }
+    else {
+      // center justify
+      tx = left + Math.round((right - left - tw) / 2);
+    }
+
     // position using orientation
     switch (bstyle.orient) {
-      case 0: // above (TODO)
+      case 0: // above
         th += main_h;
-        tx -= Math.floor(tw / 2);
         ty = top - th - th + 2; // - bevsize // ??
         break;
-      case 1: // left (TODO)
+      case 1: // left
         th += main_h + (main_h - var_h);
         tx = left - bevsize - tw - 8; // ??
         ty -= Math.round(th / 2) + above_h - 1;
         break;
-      case 2: // center (testing...)
+      case 2: // center
         // sometimes off by 1 in x or y.
         th += main_h;
-        tx -= Math.round(tw / 2) - down;
-        ty -= Math.round(th / 2) + above_h - down;
+        tx += down; // -1
+        ty -= Math.round(th / 2) + above_h - down; // +1
         break;
-      case 3: // right (testing...)
+      case 3: // right
         th += main_h + (main_h - var_h);
         tx = right + bevsize + 7; // TODO: replace (+7) constant!?
         ty -= Math.round(th / 2) + above_h - 1;
         break;
-      case 4: // below (TODO)
-        tx -= Math.ceil(tw / 2); // -1 ??
+      case 4: // below
+        //tx -= Math.ceil(tw / 2); // -1 ??
         ty = bot - 2; // + bevsize // ??
         break;
       default:
     }
 
-    //console.log({ tx, ty, th }); // DEBUG
+    console.log({ tx, ty, th }); // DEBUG
 
     // draw label dropshadow
     if (bstyle.flags & 32) {
