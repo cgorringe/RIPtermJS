@@ -54,12 +54,14 @@
 </p>
 
 <script>
+
 // functions for displaying the log
 function clearLog () {
   document.getElementById('bgi-log').innerHTML = '';
 }
 
 function writeLog (type, msg) {
+  const logDiv = document.getElementById('bgi-log');
   if (logDiv) {
     logDiv.innerHTML += `<span class="${type}">${type}</span>: ${msg}<br>`;
     logDiv.scrollTop = logDiv.scrollHeight; // autoscrolls
@@ -71,11 +73,13 @@ function writeLog (type, msg) {
   }
 }
 
-// boilerplate code that must be run first
-const logDiv = document.getElementById('bgi-log');
-const canvas = document.getElementById('bgi-canvas');
-const ctx = canvas.getContext('2d');
-const bgi = new BGI({ ctx, fontsPath:'../fonts', log: writeLog, root: window });
+// setup BGI canvas
+const bgi = new BGI({
+  ctx: document.getElementById('bgi-canvas').getContext('2d'),
+  fontsPath: '../fonts',
+  log: writeLog,
+  root: window
+});
 
 // The following returns before it's finished, and needs to finish
 // before other BGI code runs. Will need to rethink how this is implemented.
@@ -113,7 +117,7 @@ int main (int argc, char *argv[])
 function main ()
 {
   let i, gd, gm;
-  initgraph(gd, gm, "");
+  // initgraph(gd, gm, "");
   setbkcolor(bgi.BLACK);
   cleardevice();
   outtextxy(0, 0, "Drawing 1000 lines...");
@@ -122,7 +126,7 @@ function main ()
     line(random(getmaxx()), random(getmaxy()),
          random(getmaxx()), random(getmaxy()));
   }
-  getch();
+  // getch();
   closegraph();
   return 0;
 }
