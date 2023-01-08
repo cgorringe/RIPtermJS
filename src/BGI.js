@@ -135,6 +135,11 @@ class BGI {
       this.iconsPath = args.iconsPath;
     }
 
+    // set to 'window' to bind class methods to global namespace
+    if ('root' in args) {
+      this.initRoot(args.root);
+    }
+
     this.initContext(args.ctx, args.width, args.height);
     // which assigns these:
     //   this.ctx     : CanvasRenderingContext2D()
@@ -274,6 +279,24 @@ class BGI {
     return 0;
   }
 
+  // (EXPERIMENTAL)
+  // Assign functions to root window so that they may be called directly
+  // without needing the object part.
+  initRoot (root = window) {
+
+    // TODO: Should rename some methods in BGI class to begin with '_' to exclude from root.
+    //       (e.g. 'log' ==> '_log')
+
+    // TODO: Redo BGI constants so that they may be included in root.
+
+    // enumerate all the methods in this class that we want to bind to root
+    let proto = Object.getPrototypeOf(this);
+    Object.getOwnPropertyNames(proto).forEach(name => {
+      if ((name !== 'constructor') && (name !== 'log') && (name.startsWith('_') === false)) {
+        root[name] = this[name].bind(this);
+      }
+    });
+  }
 
   ////////////////////////////////////////////////////////////////////////////////
   // Extra methods

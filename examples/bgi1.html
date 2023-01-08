@@ -59,7 +59,7 @@ function clearLog () {
   document.getElementById('bgi-log').innerHTML = '';
 }
 
-function log (type, msg) {
+function writeLog (type, msg) {
   if (logDiv) {
     logDiv.innerHTML += `<span class="${type}">${type}</span>: ${msg}<br>`;
     logDiv.scrollTop = logDiv.scrollHeight; // autoscrolls
@@ -75,11 +75,12 @@ function log (type, msg) {
 const logDiv = document.getElementById('bgi-log');
 const canvas = document.getElementById('bgi-canvas');
 const ctx = canvas.getContext('2d');
-const bgi = new BGI({ ctx, fontsPath:'../fonts', log: log });
+const bgi = new BGI({ ctx, fontsPath:'../fonts', log: writeLog, root: window });
 
 // The following returns before it's finished, and needs to finish
 // before other BGI code runs. Will need to rethink how this is implemented.
 bgi.initFonts();
+
 
 /*
 // Example written for Borland Turbo C that draws 1000 random lines.
@@ -108,20 +109,21 @@ int main (int argc, char *argv[])
 */
 
 // Example ported to Javascript:
+
 function main ()
 {
   let i, gd, gm;
-  bgi.initgraph(gd, gm, "");
-  bgi.setbkcolor(bgi.BLACK);
-  bgi.cleardevice();
-  bgi.outtextxy(0, 0, "Drawing 1000 lines...");
+  initgraph(gd, gm, "");
+  setbkcolor(bgi.BLACK);
+  cleardevice();
+  outtextxy(0, 0, "Drawing 1000 lines...");
   for (i = 0; i < 1000; i++) {
-    bgi.setcolor(1 + bgi.random(15));
-    bgi.line(bgi.random(bgi.getmaxx()), bgi.random(bgi.getmaxy()), 
-             bgi.random(bgi.getmaxx()), bgi.random(bgi.getmaxy()));
+    setcolor(1 + random(15));
+    line(random(getmaxx()), random(getmaxy()),
+         random(getmaxx()), random(getmaxy()));
   }
-  bgi.getch();
-  bgi.closegraph();
+  getch();
+  closegraph();
   return 0;
 }
 
