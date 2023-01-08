@@ -2281,7 +2281,7 @@ class BGI {
   // BGI for Windows functions (some not present)
 
   closegraph (win) {
-
+    this.refresh();
   }
 
   // NOT IN SDL_bgi
@@ -2303,10 +2303,11 @@ class BGI {
   }
 
   // EXTRA
-  bgi_getch (/* void */) {
+  getch (/* void */) {
+    this.unimplemented('getch');
     return 0; // int
   }
-  // getch = bgi_getch
+  bgi_getch = this.getch;
 
   getvisualpage (/* void */) {
     this.unimplemented('getvisualpage');

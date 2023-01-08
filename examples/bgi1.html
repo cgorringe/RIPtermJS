@@ -110,18 +110,19 @@ int main (int argc, char *argv[])
 // Example ported to Javascript:
 function main ()
 {
-  // bgi.initgraph();
+  let i, gd, gm;
+  bgi.initgraph(gd, gm, "");
   bgi.setbkcolor(bgi.BLACK);
   bgi.cleardevice();
   bgi.outtextxy(0, 0, "Drawing 1000 lines...");
-  for (let i = 0; i < 1000; i++) {
+  for (i = 0; i < 1000; i++) {
     bgi.setcolor(1 + bgi.random(15));
     bgi.line(bgi.random(bgi.getmaxx()), bgi.random(bgi.getmaxy()), 
-      bgi.random(bgi.getmaxx()), bgi.random(bgi.getmaxy()));
+             bgi.random(bgi.getmaxx()), bgi.random(bgi.getmaxy()));
   }
-  // bgi.getch();
-  // bgi.closegraph();
-  bgi.refresh();
+  bgi.getch();
+  bgi.closegraph();
+  return 0;
 }
 
 </script>
