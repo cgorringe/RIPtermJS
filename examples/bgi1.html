@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>BGI.js Example #1</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="../src/BGI.js"></script>
+
+<style>
+
+  body {
+    background-color: #345;
+    color: #def;
+    padding: 1em;
+  }
+
+  #bgi-canvas {
+    background-color: #234;
+  }
+
+  #bgi-log {
+    background-color: #234;
+    color: #ddf;
+    width: 620px;
+    height: 12em;
+    padding: 10px;
+    margin-bottom: 1em;
+    font-family: monospace;
+    font-size: 12px;
+    overflow: auto;
+    vertical-align: top;
+  }
+
+</style>
+
+</head>
+<body>
+
+<h2>BGI.js Example #1</h2>
+<p>
+  Example Text...
+</p>
+<p>
+  <button onclick="main()">Run Example</button>
+</p>
+<div>
+  <canvas id="bgi-canvas" width="640" height="350"></canvas>
+</div>
+<p>
+  <h3>Debug Log</h3>
+  <div id="bgi-log">
+  </div>
+  <button onclick="clearLog()">Clear</button>
+</p>
+
+<script>
+// functions for displaying the log
+function clearLog () {
+  document.getElementById('bgi-log').innerHTML = '';
+}
+
+function log (type, msg) {
+  if (logDiv) {
+    logDiv.innerHTML += `<span class="${type}">${type}</span>: ${msg}<br>`;
+    logDiv.scrollTop = logDiv.scrollHeight; // autoscrolls
+  }
+  if (type === 'err') {
+    console.error(msg);
+  } else {
+    console.log(msg);
+  }
+}
+
+// boilerplate code that must be run first
+const logDiv = document.getElementById('bgi-log');
+const canvas = document.getElementById('bgi-canvas');
+const ctx = canvas.getContext('2d');
+const bgi = new BGI({ ctx, fontsPath:'../fonts', log: log });
+
+// The following returns before it's finished, and needs to finish
+// before other BGI code runs. Will need to rethink how this is implemented.
+bgi.initFonts();
+
+/*
+// Example written for Borland Turbo C that draws 1000 random lines.
+// from https://en.wikipedia.org/wiki/Borland_Graphics_Interface
+
+#include <graphics.h>
+#include <conio.h>
+#include <stdlib.h>
+
+int main (int argc, char *argv[])
+{
+  int i, gd = DETECT, gm;
+  initgraph(&gd, &gm, "");
+  setbkcolor(BLACK);
+  cleardevice();
+  outtextxy(0, 0, "Drawing 1000 lines...");
+  for (i = 0; i < 1000; i++) {
+    setcolor(1 + random(15));
+    line(random(getmaxx()), random(getmaxy()), 
+         random(getmaxx()), random(getmaxy()));
+  }
+  getch();
+  closegraph();
+  return 0;
+}
+*/
+
+// Example ported to Javascript:
+function main ()
+{
+  // bgi.initgraph();
+  bgi.setbkcolor(bgi.BLACK);
+  bgi.cleardevice();
+  bgi.outtextxy(0, 0, "Drawing 1000 lines...");
+  for (let i = 0; i < 1000; i++) {
+    bgi.setcolor(1 + bgi.random(15));
+    bgi.line(bgi.random(bgi.getmaxx()), bgi.random(bgi.getmaxy()), 
+      bgi.random(bgi.getmaxx()), bgi.random(bgi.getmaxy()));
+  }
+  // bgi.getch();
+  // bgi.closegraph();
+  bgi.refresh();
+}
+
+</script>
+
+</body>
+</html>

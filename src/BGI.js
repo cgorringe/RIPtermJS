@@ -853,7 +853,7 @@ class BGI {
     if (scale < 1) { scale = 1; }
     let x0 = this.info.cp.x;
     let y0 = this.info.cp.y;
-    let bitchar = this.bitfonts[fontnum][value];
+    let bitchar = this.bitfonts[fontnum][value]; // FIXME: may be undefined!
 
     const ysize = bitchar.length;
     const xsize = 8; // TODO: need to store sizes in lookup table!
