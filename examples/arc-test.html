@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>BGI.js Example #1</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="../src/BGI.js"></script>
+
+<style>
+
+  body {
+    background-color: #345;
+    color: #def;
+    padding: 1em;
+  }
+
+  #bgi-canvas {
+    background-color: #234;
+  }
+
+  #bgi-log {
+    background-color: #234;
+    color: #ddf;
+    width: 620px;
+    height: 12em;
+    padding: 10px;
+    margin-bottom: 1em;
+    font-family: monospace;
+    font-size: 12px;
+    overflow: auto;
+    vertical-align: top;
+  }
+
+</style>
+
+</head>
+<body>
+
+<h2>Elliptical Arc Test</h2>
+<p>
+  Comparing a few different functions which draw arcs.
+</p>
+<p>
+  <button onclick="main()">Run Test</button>
+</p>
+<div>
+  <canvas id="bgi-canvas" width="640" height="350"></canvas>
+</div>
+<p>
+  <h3>Debug Log</h3>
+  <div id="bgi-log">
+  </div>
+  <button onclick="clearLog()">Clear</button>
+</p>
+
+<script>
+
+// functions for displaying the log
+function clearLog () {
+  document.getElementById('bgi-log').innerHTML = '';
+}
+
+function writeLog (type, msg) {
+  const logDiv = document.getElementById('bgi-log');
+  if (logDiv) {
+    logDiv.innerHTML += `<span class="${type}">${type}</span>: ${msg}<br>`;
+    logDiv.scrollTop = logDiv.scrollHeight; // autoscrolls
+  }
+  if (type === 'err') {
+    console.error(msg);
+  } else {
+    console.log(msg);
+  }
+}
+
+// setup BGI canvas
+const bgi = new BGI({
+  ctx: document.getElementById('bgi-canvas').getContext('2d'),
+  fontsPath: '../fonts',
+  log: writeLog,
+  root: window
+});
+
+// The following returns before it's finished, and needs to finish
+// before other BGI code runs. Will need to rethink how this is implemented.
+//bgi.initFonts();
+
+function main ()
+{
+  let i, gd, gm;
+  setbkcolor(BGI.BLACK);
+  cleardevice();
+  
+  //line (x1, y1, x2, y2, color = this.info.fgcolor, wmode, linestyle, thickness)
+  setcolor(BGI.RED);
+  line(0, 0, 200, 200);
+
+  //arc_bresenham(cx, cy, stangle, endangle, xradius, yradius, thickness)
+  //arc_lines (cx, cy, stangle, endangle, xradius, yradius, thickness)
+  //arc_pixels (cx, cy, stangle, endangle, xradius, yradius, thickness)
+  
+  let sa1 = 60, ea1 = 240;
+
+  //setcolor(BGI.LIGHTCYAN);
+  //arc_lines(200, 200, sa1, ea1, 100, 50, 1);
+
+  setcolor(BGI.CYAN);
+  arc_pixels(200, 200, sa1, ea1, 200, 100, 3);
+
+  setcolor(BGI.YELLOW);
+  arc_bresenham(200, 200, sa1, ea1, 200, 100, 1);
+
+  closegraph();
+  return 0;
+}
+
+</script>
+
+</body>
+</html>

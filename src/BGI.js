@@ -453,6 +453,19 @@ class BGI {
     //this._putpixel(x-1, y+1, color, wmode);
     this._putpixel(x  , y+1, color, wmode);
     //this._putpixel(x+1, y+1, color, wmode);
+
+    /*
+    // TESTing
+    this._putpixel(x-1, y-1, color, wmode);
+    this._putpixel(x  , y-1, color, wmode);
+    this._putpixel(x+1, y-1, color, wmode);
+    this._putpixel(x-1, y  , color, wmode);
+    //this._putpixel(x  , y  , color, wmode);
+    this._putpixel(x+1, y  , color, wmode);
+    this._putpixel(x-1, y+1, color, wmode);
+    this._putpixel(x  , y+1, color, wmode);
+    this._putpixel(x+1, y+1, color, wmode);
+    */
   }
 
   // NOT USED
@@ -476,6 +489,7 @@ class BGI {
   // Bresenham's ellipse algorithm
   ellipse_bresenham (cx, cy, xradius, yradius, thickness = this.info.line.thickness) {
 
+    //console.log('ellipse_bresenham') // DEBUG
     if (xradius < 1) { xradius = 1; }
     if (yradius < 1) { yradius = 1; }
     const putpix = (thickness === 3)
@@ -492,6 +506,69 @@ class BGI {
       putpix(cx + x, cy + y);
       putpix(cx + x, cy - y);
       putpix(cx - x, cy - y);
+      e2 = 2 * err;
+      if (e2 <= dy) { y++; dy += xrad2; err += dy; } // y step
+      if (e2 >= dx || (2 * err) > dy) { x++; dx += yrad2; err += dx; } // x step
+    } while (x <= 0);
+
+    // finish tip of ellipse (is this needed?)
+    while (y++ < yradius) {
+      putpix(cx, cy + y);
+      putpix(cx, cy - y);
+    }
+  }
+
+  // Draw an elliptical arc using Bresenham's algorithm.
+  // stangle and endangle are in degrees counterclockwise, 0=right, 90=up...
+  // NEW - TESTs show better than others
+  // (may run slower than past attempts)
+
+  arc_bresenham (cx, cy, stangle, endangle, xradius, yradius, thickness = this.info.line.thickness) {
+
+    //console.log('arc_bresenham') // DEBUG
+    if (xradius < 1) { xradius = 1; }
+    if (yradius < 1) { yradius = 1; }
+    let asp_ratio = (yradius / xradius);
+    const DEG_OVER_PI = 180.0 / Math.PI;
+    //console.log('asp_ratio: ' + asp_ratio); // DEBUG
+
+    // TODO: this is really close
+    // this causes the overall arc drawing to slow down, wish we could speed it up
+    let isInArc = (x, y) => {
+      var angle = Math.floor(Math.atan2(cy - y, Math.round((x - cx) * asp_ratio)) * DEG_OVER_PI);
+      if (angle < 0) { angle += 360 } // angle += 2 * Math.PI
+      //console.log('angle:' + angle + ' start:' + stangle + ' end:' + endangle) // DEBUG
+      return ((angle >= stangle) && (angle < endangle)) || (angle <= endangle - 360);
+    }
+
+    const putpix = (thickness === 3)
+      ? (a, b) => this.thick_putpixel(a, b)
+      : (a, b) => this._putpixel(a, b);
+
+    const xrad2 = 2 * xradius * xradius;
+    const yrad2 = 2 * yradius * yradius;
+    let x = -xradius, y = 0;
+    let e2 = yradius, dx = (1+2*x)*e2*e2;
+    let dy = x*x, err = dx+dy;
+
+    do {
+/*
+      let points = [
+        [cx - x, cy + y],
+        [cx + x, cy + y],
+        [cx + x, cy - y],
+        [cx - x, cy - y]
+      ];
+      for (let [px, py] of points) {
+        if (isInArc(px, py)) { putpix(px, py) }
+        //putpix(px, py)
+      }
+*/
+      if (isInArc(cx - x, cy + y)) { putpix(cx - x, cy + y) }
+      if (isInArc(cx + x, cy + y)) { putpix(cx + x, cy + y) }
+      if (isInArc(cx + x, cy - y)) { putpix(cx + x, cy - y) }
+      if (isInArc(cx - x, cy - y)) { putpix(cx - x, cy - y) }
+
       e2 = 2 * err;
       if (e2 <= dy) { y++; dy += xrad2; err += dy; } // y step
       if (e2 >= dx || (2 * err) > dy) { x++; dx += yrad2; err += dx; } // x step
@@ -1224,6 +1301,9 @@ class BGI {
     if (xradius < 1) { xradius = 1; }
     if (yradius < 1) { yradius = 1; }
 
+    // fix for some arcs
+    if (stangle > endangle) { endangle += 360 }
+
     // bresenham works well for thin lines,
     // while still need to find a solution for thick lines.
     //if (thickness === 1) {
@@ -1244,7 +1324,12 @@ class BGI {
       */
     }
     else {
-      this.arc_pixels(cx, cy, stangle, endangle, xradius, yradius, thickness);
+      //this.arc_pixels(cx, cy, stangle, endangle, xradius, yradius, thickness);
+      this.arc_bresenham(cx, cy, stangle, endangle, xradius, yradius, thickness);
+      //if (thickness === 3) {
+      //  this.arc_bresenham(cx, cy, stangle, endangle, xradius-1, yradius-1, 1);
+      //  this.arc_bresenham(cx, cy, stangle, endangle, xradius+1, yradius+1, 1);
+      //}
     }
   }
 
@@ -1982,11 +2067,12 @@ class BGI {
     this._ellipse(cx, cy, stangle, endangle, xradius, yradius);
 
     // calculate start and end pixels for pie wedge
+    let endangle2 = endangle % 360; // fix for specific case
     const twoPiD = 2 * Math.PI / 360;
-    let x1 = cx + Math.round(xradius * Math.cos(stangle * twoPiD));
-    let y1 = cy - Math.round(yradius * Math.sin(stangle * twoPiD));
-    let x2 = cx + Math.round(xradius * Math.cos(endangle * twoPiD));
-    let y2 = cy - Math.round(yradius * Math.sin(endangle * twoPiD));
+    let x1 = cx + Math.floor(xradius * Math.cos(stangle * twoPiD));
+    let y1 = cy - Math.floor(yradius * Math.sin(stangle * twoPiD));
+    let x2 = cx + Math.floor(xradius * Math.cos(endangle2 * twoPiD));
+    let y2 = cy - Math.floor(yradius * Math.sin(endangle2 * twoPiD));
 
     // draw pie wedge lines to center
     this._line(cx, cy, x1, y1);
