@@ -1545,6 +1545,12 @@ class RIPterm {
         }
       },
 
+      // RIP_COMMENT (!) v2.0
+      // (leave commented out so it shows red)
+      //'!': (args) => {
+        // do nothing
+      //},
+
       // RIP_NO_MORE (#)
       '#': (args) => {
         // do nothing

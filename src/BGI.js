@@ -489,9 +489,22 @@ class BGI {
   // Bresenham's ellipse algorithm
   ellipse_bresenham (cx, cy, xradius, yradius, thickness = this.info.line.thickness) {
 
+    //this.log('rip', `ellipse_bresenham: ${cx}, ${cy}, ${xradius}, ${yradius}, ${thickness}`); // DEBUG
+
     //console.log('ellipse_bresenham') // DEBUG
     if (xradius < 1) { xradius = 1; }
     if (yradius < 1) { yradius = 1; }
+
+    // TEST: adjusting thick ellipse
+    /*
+    if (thickness === 3) {
+      xradius -= 0.5;
+      cx -= 0.5;
+      yradius -= 0.5; // -0.5
+      //cy += 0.5;
+    }
+    */
+
     const putpix = (thickness === 3)
       ? (a, b) => this.thick_putpixel(a, b)
       : (a, b) => this._putpixel(a, b);
@@ -501,6 +514,8 @@ class BGI {
     let e2 = yradius, dx = (1+2*x)*e2*e2;
     let dy = x*x, err = dx+dy;
 
+    //this.log('rip', 'ellipse_bresenham TEST2'); // DEBUG
+
     do {
       putpix(cx - x, cy + y);
       putpix(cx + x, cy + y);
@@ -508,7 +523,9 @@ class BGI {
       putpix(cx - x, cy - y);
       e2 = 2 * err;
       if (e2 <= dy) { y++; dy += xrad2; err += dy; } // y step
+      //if (e2 < dy) { y++; dy += xrad2; err += dy; } // y step TEST
       if (e2 >= dx || (2 * err) > dy) { x++; dx += yrad2; err += dx; } // x step
+      //if (e2 >= dx || (2 * err) >= dy) { x++; dx += yrad2; err += dx; } // x step TEST
     } while (x <= 0);
 
     // finish tip of ellipse (is this needed?)
@@ -518,6 +535,86 @@ class BGI {
     }
   }
 
+  // FOR TESTING ONLY
+  // does poorly on tall ellipses, and draws extra points.
+  //
+  ellipse_naive8 (cx, cy, xradius, yradius, thickness = this.info.line.thickness) {
+
+    //this.log('rip', `ellipse_naive8: ${cx}, ${cy}, ${xradius}, ${yradius}, ${thickness}`); // DEBUG
+
+    const putpix = (thickness === 3)
+      ? (a, b) => this.thick_putpixel(a, b)
+      : (a, b) => this._putpixel(a, b);
+    const xrad2 = xradius * xradius;
+    const yasp = yradius / xradius;
+    let x = 0, y = 0, xe = 0, ye = 0;
+
+    do {
+      y = Math.sqrt(xrad2 - (x * x));
+      ye = y * yasp;
+      xe = x * yasp;
+      putpix(cx + x, cy + ye);
+      putpix(cx + y, cy + xe);
+      putpix(cx - x, cy + ye);
+      putpix(cx - y, cy + xe);
+      putpix(cx + x, cy - ye);
+      putpix(cx + y, cy - xe);
+      putpix(cx - x, cy - ye);
+      putpix(cx - y, cy - xe);
+      x += 1;
+    } while (x < y)
+  }
+
+  // Bresenham's ellipse algorithm (alt implementation)
+  // Trying to make this match RipTerm original, even if it's worse.
+  //
+  // Using this article to help develop this:
+  // https://funloop.org/post/2021-03-15-bresenham-circle-drawing-algorithm.html
+  //
+  ellipse_bresenham2 (cx, cy, xradius, yradius, thickness = this.info.line.thickness) {
+
+    // if not a circle, call the old function instead
+    if (xradius !== yradius) {
+      this.ellipse_bresenham(cx, cy, xradius, yradius, thickness);
+      return;
+    }
+
+    //this.log('rip', `ellipse_bresenham2: ${cx}, ${cy}, ${xradius}, ${yradius}, ${thickness}`); // DEBUG
+
+    // only works for circles for now
+    // (matches single thickness circles)
+
+    const putpix = (thickness === 3)
+      ? (a, b) => this.thick_putpixel(a, b)
+      : (a, b) => this._putpixel(a, b);
+    const r = xradius;
+    let x = 0, y = -r, fm = 1 - r, de = 3, dne = -(r << 1) + 5;
+    do {
+      putpix(cx + x, cy + y);
+      putpix(cx + y, cy + x);
+      putpix(cx - x, cy + y);
+      putpix(cx - y, cy + x);
+      putpix(cx + x, cy - y);
+      putpix(cx + y, cy - x);
+      putpix(cx - x, cy - y);
+      putpix(cx - y, cy - x);
+
+      if (fm < 0) {
+        fm += de;
+        dne += 2;
+      }
+      else {
+        fm += dne;
+        dne += 4;
+        y++;
+      }
+      de += 2;
+      x++;
+
+    } while (x < -y);
+
+  }
+
   // Draw an elliptical arc using Bresenham's algorithm.
   // stangle and endangle are in degrees counterclockwise, 0=right, 90=up...
   // NEW - TESTs show better than others
@@ -525,7 +622,8 @@ class BGI {
 
   arc_bresenham (cx, cy, stangle, endangle, xradius, yradius, thickness = this.info.line.thickness) {
 
-    //console.log('arc_bresenham') // DEBUG
+    //this.log('rip', `arc_bresenham: ${cx}, ${cy}, ${stangle}, ${endangle}, ${xradius}, ${yradius}, ${thickness}`); // DEBUG
+
     if (xradius < 1) { xradius = 1; }
     if (yradius < 1) { yradius = 1; }
     let asp_ratio = (yradius / xradius);
@@ -576,8 +674,8 @@ class BGI {
 
     // finish tip of ellipse (is this needed?)
     while (y++ < yradius) {
-      putpix(cx, cy + y);
-      putpix(cx, cy - y);
+      if (isInArc(cx, cy + y)) { putpix(cx, cy + y) }
+      if (isInArc(cx, cy - y)) { putpix(cx, cy - y) }
     }
   }
 
@@ -607,24 +705,28 @@ class BGI {
     //}
   }
 
-  // TEST, NOT USED
-  // draws an elliptical arc using slower method of trig and lines
+  // Draws an elliptical arc using slower method of trig and lines
+  // CLOSEST so far for thickness == 3!!
+  // thickness=3, off by 1 pixel at 0°,45°,135°??, ?, ?
+  //
   arc_lines (cx, cy, stangle, endangle, xradius, yradius, thickness = this.info.line.thickness) {
+
+    //this.log('rip', `arc_lines: ${cx}, ${cy}, ${stangle}, ${endangle}, ${xradius}, ${yradius}, ${thickness}`); // DEBUG
 
     // following copied from ripscript.js v2 drawOvalArc()
     // TODO: find smoother algorithm
 
     const twoPiD = 2 * Math.PI / 360;
     if (stangle > endangle) { endangle += 360; }
-    let x1 = cx + Math.round(xradius * Math.cos(stangle * twoPiD));
-    let y1 = cy - Math.round(yradius * Math.sin(stangle * twoPiD));
+    let x1 = cx + Math.floor(xradius * Math.cos(stangle * twoPiD));
+    let y1 = cy - Math.floor(yradius * Math.sin(stangle * twoPiD));
     let x2, y2;
 
     // draw arc counter-clockwise
     for (let n = stangle; n <= endangle; n += 1) {
       // test with: Math.floor() .round() .trunc()
-      x2 = cx + Math.round(xradius * Math.cos(n * twoPiD));
-      y2 = cy - Math.round(yradius * Math.sin(n * twoPiD));
+      x2 = cx + Math.floor(xradius * Math.cos(n * twoPiD));
+      y2 = cy - Math.floor(yradius * Math.sin(n * twoPiD));
       this._line(x1, y1, x2, y2, this.info.fgcolor, BGI.COPY_PUT, BGI.SOLID_LINE, thickness);
       x1 = x2; y1 = y2;
     }
@@ -1097,6 +1199,7 @@ class BGI {
   }
   _arc (cx, cy, stangle, endangle, radius, thickness = this.info.line.thickness) {
     // adjust radius based on aspect ratio
+    // TODO: this may be off?
     const yradius = Math.floor( radius * (this.aspect.xasp / this.aspect.yasp) );
     this.ellipse(cx, cy, stangle, endangle, radius, yradius, thickness);
   }
@@ -1309,7 +1412,15 @@ class BGI {
     //if (thickness === 1) {
     //if ((thickness === 1) && (stangle === 0) && (endangle === 360)) {
     if ((stangle === 0) && (endangle === 360)) {
-      this.ellipse_bresenham(cx, cy, xradius, yradius, thickness);
+      //this.ellipse_bresenham(cx, cy, xradius, yradius, thickness);
+      //this.ellipse_naive8(cx, cy, xradius, yradius, thickness); // TEST
+
+      if (thickness === 1) {
+        this.ellipse_bresenham(cx, cy, xradius, yradius, thickness);
+      }
+      else {
+        this.arc_lines(cx, cy, stangle, endangle, xradius, yradius, thickness);
+      }
 
       /*
       // TEST: trying alternate for thick ovals
@@ -1324,8 +1435,16 @@ class BGI {
       */
     }
     else {
+
+      if (thickness === 1) {
+        this.arc_bresenham(cx, cy, stangle, endangle, xradius, yradius, thickness);
+      }
+      else {
+        this.arc_lines(cx, cy, stangle, endangle, xradius, yradius, thickness);
+      }
+
       //this.arc_pixels(cx, cy, stangle, endangle, xradius, yradius, thickness);
-      this.arc_bresenham(cx, cy, stangle, endangle, xradius, yradius, thickness);
+      //this.arc_bresenham(cx, cy, stangle, endangle, xradius, yradius, thickness);
       //if (thickness === 3) {
       //  this.arc_bresenham(cx, cy, stangle, endangle, xradius-1, yradius-1, 1);
       //  this.arc_bresenham(cx, cy, stangle, endangle, xradius+1, yradius+1, 1);
@@ -2064,7 +2183,9 @@ class BGI {
     if (stangle > endangle) { let t = stangle; stangle = endangle; endangle = t; }
 
     // draw outline
-    this._ellipse(cx, cy, stangle, endangle, xradius, yradius);
+    // (doesn't use same algorithm as thick ellipses!)
+    //this._ellipse(cx, cy, stangle, endangle, xradius, yradius);
+    this.arc_bresenham(cx, cy, stangle, endangle, xradius, yradius);
 
     // calculate start and end pixels for pie wedge
     let endangle2 = endangle % 360; // fix for specific case

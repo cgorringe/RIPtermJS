@@ -198,10 +198,10 @@ class BGIsvg extends BGI {
 
     const twoPiD = 2 * Math.PI / 360;
     if (sa > ea) ea += 360;
-    let x0 = (xc + (xrad * Math.cos(sa * twoPiD))).toFixed(1);
-    let y0 = (yc - (yrad * Math.sin(sa * twoPiD))).toFixed(1);
-    let x1 = (xc + (xrad * Math.cos(ea * twoPiD))).toFixed(1);
-    let y1 = (yc - (yrad * Math.sin(ea * twoPiD))).toFixed(1);
+    let x0 = (xc + Math.floor(xrad * Math.cos(sa * twoPiD))).toFixed(1);
+    let y0 = (yc - Math.floor(yrad * Math.sin(sa * twoPiD))).toFixed(1);
+    let x1 = (xc + Math.floor(xrad * Math.cos(ea * twoPiD))).toFixed(1);
+    let y1 = (yc - Math.floor(yrad * Math.sin(ea * twoPiD))).toFixed(1);
     let largeArc = (ea - sa > 180) ? 1 : 0;
     let d;
     if (pieFlag) {
