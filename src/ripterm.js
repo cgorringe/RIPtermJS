@@ -228,8 +228,10 @@ class RIPterm {
   // send log messages to a div, if given logId option.
   log (type, msg) {
     if (this.logDiv) {
-      const typeStrings = { 'term':'trm', 'rip':'rip', 'bgi':'bgi', 'svg':'svg', 'err':'!!!', 'font':'fnt' }
-      const out = typeStrings[type] || '???';
+      // 'type' and 'out' are now the same
+      //const typeStrings = { 'term':'trm', 'rip':'rip', 'bgi':'bgi', 'svg':'svg', 'err':'!!!', 'font':'fnt' }
+      //const out = typeStrings[type] || type;
+      const out = type;
       this.logDiv.innerHTML += `<span class="${this.logId}-${type}">${out}</span> ${msg}<br>`;
       this.logDiv.scrollTop = this.logDiv.scrollHeight; // autoscrolls
     }
@@ -246,7 +248,7 @@ class RIPterm {
 
   // TODO: update for v3
   start () {
-    this.log('term', 'start()');
+    this.log('trm', 'start()');
     if (this.ctx && this.ripData && (this.ripData.length > 0)) {
       this.isRunning = true;
       if (this.cmdi >= this.ripData.length) { this.cmdi = 0; }
@@ -257,13 +259,13 @@ class RIPterm {
       this.refTimer = window.setTimeout(() => { this.refreshCanvas() }, this.opts.refreshInterval);
     }
     else {
-      this.log('term', 'Must set "canvasId" and load a RIP first.');
+      this.log('trm', 'Must set "canvasId" and load a RIP first.');
     }
   }
 
   // TODO: update for v3
   stop () {
-    this.log('term', 'stop()');
+    this.log('trm', 'stop()');
     this.isRunning = false;
     if (this.cmdTimer) { window.clearTimeout(this.cmdTimer); this.cmdTimer = null; }
     if (this.refTimer) { window.clearTimeout(this.refTimer); this.refTimer = null; }
@@ -271,7 +273,7 @@ class RIPterm {
   }
 
   reset () {
-    this.log('term', 'reset()');
+    this.log('trm', 'reset()');
     this.bgi.graphdefaults();
     this.bgi.cleardevice();
     this.clearAllButtons();
@@ -281,13 +283,13 @@ class RIPterm {
   }
 
   clear () {
-    this.log('term', 'clear()');
+    this.log('trm', 'clear()');
     this.bgi.cleardevice();
     this.refreshCanvas();
   }
 
   fullscreen () {
-    this.log('term', 'fullscreen()');
+    this.log('trm', 'fullscreen()');
     if (!this.canvas) { return }
     if (this.canvas.requestFullscreen) {
       this.canvas.requestFullscreen();
@@ -301,7 +303,7 @@ class RIPterm {
   fullscreenchange (event) {
     if (!this.isFullscreen) {
       // entering fullscreen
-      this.log('term', 'Entering Fullscreen'); // DEBUG
+      this.log('trm', 'Entering Fullscreen'); // DEBUG
       this.isFullscreen = true;
       this.backup.canvasWidth = event.target.style.width;
       this.backup.canvasHeight = event.target.style.height;
@@ -313,7 +315,7 @@ class RIPterm {
     }
     else {
       // exiting fullscreen
-      this.log('term', 'Exiting Fullscreen'); // DEBUG
+      this.log('trm', 'Exiting Fullscreen'); // DEBUG
       this.isFullscreen = false;
       event.target.style.width = this.backup.canvasWidth;
       event.target.style.height = this.backup.canvasHeight;
@@ -355,7 +357,7 @@ class RIPterm {
   // TODO: update for v3
   // returns an array of icon filenames used in RIP file, else empty array.
   readFile (url) {
-    this.log('term', 'readFile(): ' + url);
+    this.log('trm', 'readFile(): ' + url);
 
     let iconNames = [];
     this.cmdi = 0;
@@ -367,7 +369,7 @@ class RIPterm {
       req.open("GET", url, false);
       req.overrideMimeType('text/plain; charset=x-user-defined');  // allows ASCII control chars in input
       req.send(null);
-      if (req.status != 200) { this.log('term', 'Error downloading: ' + url); return; }
+      if (req.status != 200) { this.log('trm', 'Error downloading: ' + url); return; }
       let text = req.responseText;
 
       // output to commandsDiv
@@ -417,7 +419,7 @@ class RIPterm {
     this.reset();
 
     // console.log(this.ripData); // DEBUG
-    // this.log('term', `icons: ${iconNames}`); // DEBUG
+    // this.log('trm', `icons: ${iconNames}`); // DEBUG
 
     return iconNames;
   }
@@ -425,7 +427,7 @@ class RIPterm {
   // Load and draw a screenshot image file inside a canvas
   // if this.ctxSS ('ssId' option) is set.
   readScreenshot (url) {
-    this.log('term', 'readScreenshot(): ' + url);
+    this.log('trm', 'readScreenshot(): ' + url);
 
     if (this.canvasSS && this.ctxSS) {
       this.ctxSS.clearRect(0, 0, this.canvasSS.width, this.canvasSS.height);
@@ -783,7 +785,7 @@ class RIPterm {
 
     // TODO: $ variables & host command templates
 
-    this.log('term', 'send to host: ' + text);
+    this.log('trm', 'send to host: ' + text);
   }
 
 

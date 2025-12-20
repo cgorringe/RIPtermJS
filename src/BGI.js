@@ -847,7 +847,7 @@ class BGI {
       return;
     }
     const url = this.fontsPath + '/' + filename;
-    this.log('font', 'Fetching CHR font: ' + url);
+    this.log('fnt', 'Fetching CHR font: ' + url);
 
     let request = new Request(url);
     fetch(request)
@@ -903,7 +903,7 @@ class BGI {
           this.fonts[filename] = font; // TODO: may rethink this
         }
         else {
-          this.log('font', 'CHR file marker not correct');
+          this.log('fnt', 'CHR file marker not correct');
         }
 
       }); // end fetch()
@@ -922,7 +922,7 @@ class BGI {
 
     // check for valid input
     if ((fontname in this.fonts) === false) {
-      this.log('font', 'drawChar() font not found!');
+      this.log('fnt', 'drawChar() font not found!');
       return;
     }
 
@@ -931,7 +931,7 @@ class BGI {
     const actualScale = (scale < BGI.fontScales.length) ? BGI.fontScales[scale] : 1;
 
     if ((value < font.firstchar) || (value >= font.firstchar + font.numchars)) {
-      this.log('font', 'drawChar() value out of range! ' + value);
+      this.log('fnt', 'drawChar() value out of range! ' + value);
       return;
     }
 
@@ -999,7 +999,7 @@ class BGI {
       return;
     }
     const url = this.fontsPath + '/' + filename;
-    this.log('font', 'Fetching PNG font: ' + url);
+    this.log('fnt', 'Fetching PNG font: ' + url);
 
     let img = new Image();
     img.onload = () => {
