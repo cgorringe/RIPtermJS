@@ -489,7 +489,7 @@ class BGI {
   // Bresenham's ellipse algorithm
   ellipse_bresenham (cx, cy, xradius, yradius, thickness = this.info.line.thickness) {
 
-    //this.log('rip', `ellipse_bresenham: ${cx}, ${cy}, ${xradius}, ${yradius}, ${thickness}`); // DEBUG
+    //this.log('bgi', `ellipse_bresenham: ${cx}, ${cy}, ${xradius}, ${yradius}, ${thickness}`); // DEBUG
 
     //console.log('ellipse_bresenham') // DEBUG
     if (xradius < 1) { xradius = 1; }
@@ -512,19 +512,20 @@ class BGI {
     const yrad2 = 2 * yradius * yradius;
     let x = -xradius, y = 0;
     let e2 = yradius, dx = (1+2*x)*e2*e2;
+    //let e2 = yradius, dx = (2*x)*e2*e2; // TEST
     let dy = x*x, err = dx+dy;
 
-    //this.log('rip', 'ellipse_bresenham TEST2'); // DEBUG
+    //this.log('bgi', 'ellipse_bresenham TEST2'); // DEBUG
 
     do {
       putpix(cx - x, cy + y);
       putpix(cx + x, cy + y);
       putpix(cx + x, cy - y);
       putpix(cx - x, cy - y);
-      e2 = 2 * err;
+      e2 = err << 1;
       if (e2 <= dy) { y++; dy += xrad2; err += dy; } // y step
       //if (e2 < dy) { y++; dy += xrad2; err += dy; } // y step TEST
-      if (e2 >= dx || (2 * err) > dy) { x++; dx += yrad2; err += dx; } // x step
+      if (e2 >= dx || (err << 1) > dy) { x++; dx += yrad2; err += dx; } // x step
       //if (e2 >= dx || (2 * err) >= dy) { x++; dx += yrad2; err += dx; } // x step TEST
     } while (x <= 0);
 
@@ -540,7 +541,7 @@ class BGI {
   //
   ellipse_naive8 (cx, cy, xradius, yradius, thickness = this.info.line.thickness) {
 
-    //this.log('rip', `ellipse_naive8: ${cx}, ${cy}, ${xradius}, ${yradius}, ${thickness}`); // DEBUG
+    //this.log('bgi', `ellipse_naive8: ${cx}, ${cy}, ${xradius}, ${yradius}, ${thickness}`); // DEBUG
 
     const putpix = (thickness === 3)
       ? (a, b) => this.thick_putpixel(a, b)
@@ -579,16 +580,19 @@ class BGI {
       return;
     }
 
-    //this.log('rip', `ellipse_bresenham2: ${cx}, ${cy}, ${xradius}, ${yradius}, ${thickness}`); // DEBUG
+    //this.log('bgi', `ellipse_bresenham2: ${cx}, ${cy}, ${xradius}, ${yradius}, ${thickness}`); // DEBUG
 
     // only works for circles for now
     // (matches single thickness circles)
+
+    // elipse equation is:
+    // (x^2 / xrad^2) + (y^2 / yrad^2) = 1
 
     const putpix = (thickness === 3)
       ? (a, b) => this.thick_putpixel(a, b)
       : (a, b) => this._putpixel(a, b);
     const r = xradius;
-    let x = 0, y = -r, fm = 1 - r, de = 3, dne = -(r << 1) + 5;
+    let x = 0, y = -yradius, fm = 1 - r, de = 3, dne = -(r << 1) + 5;
     do {
       putpix(cx + x, cy + y);
       putpix(cx + y, cy + x);
@@ -622,7 +626,7 @@ class BGI {
 
   arc_bresenham (cx, cy, stangle, endangle, xradius, yradius, thickness = this.info.line.thickness) {
 
-    //this.log('rip', `arc_bresenham: ${cx}, ${cy}, ${stangle}, ${endangle}, ${xradius}, ${yradius}, ${thickness}`); // DEBUG
+    //this.log('bgi', `arc_bresenham: ${cx}, ${cy}, ${stangle}, ${endangle}, ${xradius}, ${yradius}, ${thickness}`); // DEBUG
 
     if (xradius < 1) { xradius = 1; }
     if (yradius < 1) { yradius = 1; }
@@ -682,6 +686,8 @@ class BGI {
   // Bresenham's ellipse algorithm modified for filling
   fillellipse_bresenham (cx, cy, xradius, yradius) {
 
+    //this.log('bgi', `fillellipse_bresenham: ${cx}, ${cy}, ${xradius}, ${yradius}`); // DEBUG
+
     const xrad2 = 2 * xradius * xradius;
     const yrad2 = 2 * yradius * yradius;
     let x = -xradius, y = 0;
@@ -711,7 +717,7 @@ class BGI {
   //
   arc_lines (cx, cy, stangle, endangle, xradius, yradius, thickness = this.info.line.thickness) {
 
-    //this.log('rip', `arc_lines: ${cx}, ${cy}, ${stangle}, ${endangle}, ${xradius}, ${yradius}, ${thickness}`); // DEBUG
+    //this.log('bgi', `arc_lines: ${cx}, ${cy}, ${stangle}, ${endangle}, ${xradius}, ${yradius}, ${thickness}`); // DEBUG
 
     // following copied from ripscript.js v2 drawOvalArc()
     // TODO: find smoother algorithm
