@@ -662,7 +662,7 @@ class RIPterm {
       const bstyle = b.style;
       if ((bstyle.flags & 2) || (bstyle.flags & 4096)) {
         // button is invertable or a Hot Icon
-        const bevsize = (bstyle.flags & 512) ? bstyle.bevsize : 0;
+        const bevsize = (bstyle.flags & 512) ? ((bstyle.bevsize > 0) ? bstyle.bevsize : 1) : 0;
         this.drawButton(b.ax1 + bevsize, b.ay1 + bevsize, b.ax2 - bevsize, b.ay2 - bevsize, b, isDown);
       }
     }
@@ -855,7 +855,7 @@ class RIPterm {
   createButton (x1, y1, x2, y2, hotkey, flags, text, bstyle = this.buttonStyle) {
 
     const [icon_name, label_text, host_cmd] = text.split("<>");
-    const bevsize = (bstyle.flags & 512) ? bstyle.bevsize : 0;
+    const bevsize = (bstyle.flags & 512) ? ((bstyle.bevsize > 0) ? bstyle.bevsize : 1) : 0;
 
     let button = {};
     button.isButton = true;
@@ -948,12 +948,14 @@ class RIPterm {
     }
 
     const [icon_name, label_text, host_cmd] = button.text.split("<>");
-    const bevsize = (bstyle.flags & 512) ? bstyle.bevsize : 0;
+    const bevsize = (bstyle.flags & 512) ? ((bstyle.bevsize > 0) ? bstyle.bevsize : 1) : 0;
     let dback = bstyle.dback;
     let dfore = bstyle.dfore;
     let uline_col = bstyle.uline_col;
     let down = 0, isInverted = false;
     if (button.flags & 1) { isSelected = true; }
+
+    //this.log('rip', `${label_text.padStart(10, "_")} : ${bstyle.flags.toString(2).padStart(16, "0")} : ${bstyle.flags2.toString(2).padStart(8, "0")}`); // DEBUG
 
     // set actual size
     let left = x1, top = y1, right = x2, bot = y2;
@@ -1060,11 +1062,14 @@ class RIPterm {
     }
 
     // auto-stamp image onto clipboard
+    // TODO: according to spec, this flag modifies future buttons! (see spec)
+    // FIXME: RipTerm moves label down 1 pixel when this flag is set?
     if (bstyle.flags & 64) {
       // TODO: not sure if coords are correct (need to test with recess)
       this.clipboard = this.bgi._getimage(left - bevsize, top - bevsize, right + bevsize - 1, bot + bevsize - 1);
       this.log('rip', 'Auto-stamped button image onto Clipboard.');
       // clear auto-stamp flag so that clipboard save only occurs once
+      // TODO: may rethink this? could store in another var instead of clearing flag
       bstyle.flags = (bstyle.flags & ~64);
     }
 
@@ -1074,22 +1079,23 @@ class RIPterm {
     let var_h = this.bgi.textheight(label_text, BGI.VAR_HEIGHT); // VAR_HEIGHT, FULL_HEIGHT
     let main_h = this.bgi.textheight(label_text, BGI.MAIN_HEIGHT);
     let above_h = this.bgi.textheight(label_text, BGI.ABOVE_HEIGHT);
+    let label_h = main_h;
 
     //console.log({ left, top, right, bot, orient: bstyle.orient }); // DEBUG
     //console.log({ var_h, main_h, above_h }); // DEBUG
     //console.log({ tw, th }); // DEBUG
 
     // start with button center
-    let tx = left + Math.round((right - left) / 2);
-    let ty = top + Math.round((bot - top) / 2) + 1;
+    let tx = left + Math.floor((right - left) / 2);
+    let ty = top + Math.floor((bot - top) / 2) + 1;
 
     //console.log({ tx, ty }); // DEBUG
 
     // adjust vertical centering of label
     if (bstyle.flags & 8192) {
       // when set, add descenders to height, except when orient = LEFT or RIGHT.
-      // TODO
-      console.log(`Flag set to adjust vertical centering for button: ${label_text}`); // DEBUG
+      label_h = var_h;
+      //this.log('rip', `adjust vert: ${label_text} main_h=${main_h} var_h=${var_h} above_h=${above_h}`); // DEBUG
     }
 
     //console.log({ tw, th }); // DEBUG
@@ -1097,7 +1103,7 @@ class RIPterm {
     // position using orientation
     switch (bstyle.orient) {
       case 0: // above (TODO)
-        th += main_h;
+        th += label_h;
         tx -= Math.floor(tw / 2);
         ty = top - th - th + 2; // - bevsize // ??
         break;
@@ -1108,8 +1114,8 @@ class RIPterm {
         break;
       case 2: // center (testing...)
         // sometimes off by 1 in x or y.
-        th += main_h;
-        tx -= Math.round(tw / 2) - down;
+        th += label_h;
+        tx -= Math.round(tw / 2) - down; // or floor ?
         ty -= Math.round(th / 2) + above_h - down;
         break;
       case 3: // right (testing...)
@@ -1124,7 +1130,18 @@ class RIPterm {
       default:
     }
 
-    //console.log({ tx, ty, th }); // DEBUG
+    // reposition if left or right aligned
+    // TODO: need to consider non-center buttons
+    if (bstyle.flags2 & 8) {
+      // left-justified
+      tx = left + 7; // ?? TODO: increase if chisel is ON?
+    }
+    else if (bstyle.flags2 & 16) {
+      // right-justified
+      tx = right - tw - 7; // ??
+    }
+
+    //this.log('rip', `tx=${tx}, ty=${ty}, tw=${tw}, th=${th}, above_h=${above_h}`); // DEBUG
 
     // draw label dropshadow
     if (bstyle.flags & 32) {

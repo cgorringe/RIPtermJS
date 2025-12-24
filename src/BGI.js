@@ -2391,6 +2391,16 @@ class BGI {
     this.info.writeMode = mode;
   }
 
+  // check every char in text and return true if at least 1 char has a descender.
+  _textHasDescender (text) {
+    let drop = false;
+    text.split('').forEach(c => {
+      let cvalue = c.charCodeAt(0) & 0xFF; // strip out 2nd byte
+      if (BGI.charDescenders[cvalue] === 1) { drop = true; }
+    });
+    return drop;
+  }
+
   // Takes current font size and multiplication factor, and determines the height of text in pixels.
   // flags (optional):
   //   0 = BGI.VAR_HEIGHT:
@@ -2407,9 +2417,11 @@ class BGI {
     const scale = this.info.text.charsize;
 
     if (fontnum === BGI.DEFAULT_FONT) {
+      let dropv = this._textHasDescender(text) ? 1 : 0;
       switch (flags) {
+        case BGI.VAR_HEIGHT: th = scale * (8 + dropv); break;
         case BGI.MAIN_HEIGHT: th = scale * 8; break;
-        case BGI.DROP_HEIGHT: th = scale; break;
+        case BGI.DROP_HEIGHT: th = scale * dropv; break;
         case BGI.ABOVE_HEIGHT: th = 0; break;
         default: th = scale * 8; // full height
       }
@@ -2424,12 +2436,7 @@ class BGI {
         switch (flags) {
           case BGI.VAR_HEIGHT:
             // check every char in text and add drop height only if at least 1 char has a descender.
-            let drop = false;
-            text.split('').forEach(c => {
-              let cvalue = c.charCodeAt(0) & 0xFF; // strip out 2nd byte
-              if (BGI.charDescenders[cvalue] === 1) { drop = true; }
-            });
-            h = (drop) ? (font.top - font.bottom) : font.top;
+            h = this._textHasDescender(text) ? (font.top - font.bottom) : font.top;
             th = Math.trunc(h * actualScale);
             break;
 
