@@ -907,7 +907,8 @@ class RIPterm {
 
     // send host command immediately if pre-selected in a Radio or Checkbox group
     if ((button.flags & 1) && ((bstyle.flags & 16384) || (bstyle.flags2 & 1))) {
-      this.sendHostCommand(host_cmd);
+      // the spec contradicts itself on this matter, so disabling this for now
+      //this.sendHostCommand(host_cmd);
     }
 
     // only add to list if it's a Mouse Button, and it's a valid button
@@ -1083,7 +1084,7 @@ class RIPterm {
       this.log('rip', 'Auto-stamped button image onto Clipboard.');
       // clear auto-stamp flag so that clipboard save only occurs once
       // TODO: may rethink this? could store in another var instead of clearing flag
-      bstyle.flags = (bstyle.flags & ~64);
+      //bstyle.flags = (bstyle.flags & ~64);
     }
 
     // calculate label text position
@@ -1165,29 +1166,61 @@ class RIPterm {
     this.bgi.setcolor(dfore);
     this.bgi.outtextxy(tx, ty, label_text);
 
-    // draw hotkey over prior text (only if mouse button)
-    // underline or highlight first char in text if underline or hilight flag set.
-    if (bstyle.flags & 1024) {
-      if (bstyle.flags2 & 2) {
-        // highlight hotkey character using bstyle.uline_col
-        let hotchar = String.fromCharCode(button.hotkey);
-        let idx = label_text.indexOf(hotchar);
-        if (idx === 0) {
-          // draw the first char again as hotkey
+    // only do if a mouse button,
+    // underline or highlight first char in label if flags set
+    if ((bstyle.flags & 1024) && ((bstyle.flags & 2048) || (bstyle.flags2 & 2))) {
+
+      // find index of hotkey character
+      let hotchar = String.fromCharCode(button.hotkey);
+      let idx = label_text.indexOf(hotchar);
+
+      if (idx === 0) {
+        // highlight first char again as hotkey
+        if (bstyle.flags2 & 2) {
           this.bgi.setcolor(uline_col);
           this.bgi.outtextxy(tx, ty, hotchar);
         }
-        else if (idx > 0) {
-          // draw prefix text again, then highlighted hotkey (NOT TESTED)
-          this.bgi.setcolor(dfore);
-          this.bgi.outtextxy(tx, ty, label_text.slice(0, idx));
+        // underline first char as hotkey (not perfect)
+        if (bstyle.flags & 2048) {
+          // chars with descenders have underline drawn slightly lower
+          let cvalue = button.hotkey & 0xFF; // clip to 0-255
+          let under_yoff = (BGI.charDescenders[cvalue] === 0) ? 2 : 3;
+          if (bstyle.flags & 32) {
+            // draw dropshadow
+            this.bgi.setcolor(dback);
+            this.bgi.outtextxy(tx + 1, ty + under_yoff + 1, '_');
+          }
+          this.bgi.setcolor(uline_col);
+          this.bgi.outtextxy(tx, ty + under_yoff, '_');
+        }
+      }
+      else if (idx > 0) {
+        // draw prefix text again
+        this.bgi.setcolor(dfore);
+        this.bgi.outtextxy(tx, ty, label_text.slice(0, idx));
+
+        // highlight hotkey
+        if (bstyle.flags2 & 2) {
+          // TODO: NOT TESTED
           this.bgi.setcolor(uline_col);
           this.bgi.outtext(hotchar);
         }
-      }
-      if (bstyle.flags & 2048) {
-        // TODO: underline hotkey character
-        // chars with descenders have underline drawn slightly lower
+        // underline hotkey char (not perfect)
+        if (bstyle.flags & 2048) {
+          // TODO: NOT TESTED
+          // chars with descenders have underline drawn slightly lower
+          let cvalue = button.hotkey & 0xFF; // clip to 0-255
+          let under_yoff = (BGI.charDescenders[cvalue] === 0) ? 2 : 3;
+          let cur_tx = this.bgi.getx;
+          let cur_ty = this.bgi.gety;
+          if (bstyle.flags & 32) {
+            // draw dropshadow
+            this.bgi.setcolor(dback);
+            this.bgi.outtextxy(cur_tx + 1, cur_ty + under_yoff + 1, '_');
+          }
+          this.bgi.setcolor(uline_col);
+          this.bgi.outtextxy(cur_tx, cur_ty + under_yoff, '_');
+        }
       }
     }
 
