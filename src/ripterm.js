@@ -952,7 +952,7 @@ class RIPterm {
     let dback = bstyle.dback;
     let dfore = bstyle.dfore;
     let uline_col = bstyle.uline_col;
-    let down = 0, isInverted = false;
+    let down = 0, clip_down = 0, isInverted = false;
     if (button.flags & 1) { isSelected = true; }
 
     //this.log('rip', `${label_text.padStart(10, "_")} : ${bstyle.flags.toString(2).padStart(16, "0")} : ${bstyle.flags2.toString(2).padStart(8, "0")}`); // DEBUG
@@ -968,6 +968,7 @@ class RIPterm {
       // clipboard or icon image overrides button width & height
       right = left + button.image.width;
       bot = top + button.image.height;
+      clip_down = 1; // fix to move labels down by 1px (not in spec)
     }
 
     this.bgi.pushState();
@@ -991,6 +992,7 @@ class RIPterm {
         isInverted = true;
       }
       else {
+        // the alt button rendering shifts by 1 pixel down
         down = 1;
       }
     }
@@ -1011,12 +1013,16 @@ class RIPterm {
 
     // draw 1px recess (+/- 2 outside)
     if (bstyle.flags & 16) {
-      // draw 1px recess with corners
+      // draw 1px recess
       this.bgi.line(left-bevsize-1, top-bevsize-2, right+bevsize, top-bevsize-2, bstyle.dark, BGI.COPY_PUT);
       this.bgi.line(left-bevsize-2, top-bevsize-1, left-bevsize-2, bot+bevsize, bstyle.dark, BGI.COPY_PUT);
       this.bgi.line(right+bevsize+1, top-bevsize-1, right+bevsize+1, bot+bevsize, bstyle.bright, BGI.COPY_PUT);
       this.bgi.line(left-bevsize-1, bot+bevsize+1, right+bevsize, bot+bevsize+1, bstyle.bright, BGI.COPY_PUT);
-
+      // draw corner dots
+      this.bgi.putpixel(left-bevsize-2, top-bevsize-2, bstyle.corner_col, BGI.COPY_PUT);
+      this.bgi.putpixel(left-bevsize-2, bot+bevsize+1, bstyle.corner_col, BGI.COPY_PUT);
+      this.bgi.putpixel(right+bevsize+1, top-bevsize-2, bstyle.corner_col, BGI.COPY_PUT);
+      this.bgi.putpixel(right+bevsize+1, bot+bevsize+1, bstyle.corner_col, BGI.COPY_PUT);
       // draw 1px black box outline
       this.bgi.rectangle(left - bevsize - 1, top - bevsize - 1, right + bevsize, bot + bevsize, BGI.BLACK, BGI.COPY_PUT);
     }
@@ -1032,10 +1038,16 @@ class RIPterm {
 
     // draw sunken (inside)
     if (bstyle.flags & 32768) {
+      // draw 1px recess
       this.bgi.line(left, top, right-1, top, bstyle.dark, BGI.COPY_PUT);
       this.bgi.line(left, top, left, bot-1, bstyle.dark, BGI.COPY_PUT);
       this.bgi.line(right-1, top, right-1, bot-1, bstyle.bright, BGI.COPY_PUT);
       this.bgi.line(left, bot-1, right-1, bot-1, bstyle.bright, BGI.COPY_PUT);
+      // draw corner dots
+      this.bgi.putpixel(left, top, bstyle.corner_col, BGI.COPY_PUT);
+      this.bgi.putpixel(right-1, top, bstyle.corner_col, BGI.COPY_PUT);
+      this.bgi.putpixel(left, bot-1, bstyle.corner_col, BGI.COPY_PUT);
+      this.bgi.putpixel(right-1, bot-1, bstyle.corner_col, BGI.COPY_PUT);
     }
 
     // draw chisel on top of button image (inside)
@@ -1063,8 +1075,9 @@ class RIPterm {
 
     // auto-stamp image onto clipboard
     // TODO: according to spec, this flag modifies future buttons! (see spec)
-    // FIXME: RipTerm moves label down 1 pixel when this flag is set?
     if (bstyle.flags & 64) {
+      // RipTerm offsets the label by 1px down (not in spec)
+      clip_down = 1;
       // TODO: not sure if coords are correct (need to test with recess)
       this.clipboard = this.bgi._getimage(left - bevsize, top - bevsize, right + bevsize - 1, bot + bevsize - 1);
       this.log('rip', 'Auto-stamped button image onto Clipboard.');
@@ -1087,7 +1100,7 @@ class RIPterm {
 
     // start with button center
     let tx = left + Math.floor((right - left) / 2);
-    let ty = top + Math.floor((bot - top) / 2) + 1;
+    let ty = top + Math.floor((bot - top) / 2) + 1 + clip_down;
 
     //console.log({ tx, ty }); // DEBUG
 
