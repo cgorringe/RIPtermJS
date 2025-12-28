@@ -2403,7 +2403,7 @@ class BGI {
       this.info.vp.clip = clip;
       this.info.cp.x = 0;
       this.info.cp.y = 0;
-      this.log('bgi', `viewport set to (${x1},${y1})-(${x2},${y2})`);
+      this.log('bgi', `viewport set to (${x1},${y1})-(${x2},${y2})`); // DEBUG
     }
   }
 
@@ -2416,6 +2416,7 @@ class BGI {
   // mode = COPY_PUT (0), XOR_PUT (1)
   // works only with line(), linerel(), lineto(), rectangle(), drawpoly()
   setwritemode (mode) {
+    //this.log('bgi', `write mode set to ${mode}`); // DEBUG
     this.info.writeMode = mode;
   }
 

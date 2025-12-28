@@ -410,7 +410,8 @@ class RIPterm {
               // RIP command supported
               let o = this.cmd[d[0]](d[1]);
               let oText = `${c}: ` + (o ? JSON.stringify(o).replaceAll('"', ' ') : '');
-              outText += `<div class="rip-cmd" title="${oText}"><span class="cmd-ok">${d[0]}</span>${d[1]}<br></div>`;
+              let clickCode = `ripterm.invertCmd('${d[0]}','${d[1]}');`; // TEST
+              outText += `<div class="rip-cmd" title="${oText}" onclick="${clickCode}"><span class="cmd-ok">${d[0]}</span>${d[1]}<br></div>`;
             }
             else {
               // RIP command NOT supported
@@ -667,6 +668,22 @@ class RIPterm {
 
   }
 
+  // invert command by setting writemode to XOR
+  invertCmd (inst, args) {
+    if ( this.cmd[inst] ) {
+      //this.log('rip', `${inst}${args}`); // DEBUG
+      const mode = this.bgi.info.writeMode;
+      this.bgi.setwritemode(BGI.XOR_PUT);
+      const o = this.cmd[inst](args);
+      if (o && o.run) {
+        this.log('rip', `${inst}${args} ${JSON.stringify(o)}`); // DEBUG
+        o.run();
+        this.refreshCanvas();
+        //this.bgi.refresh();
+      }
+      this.bgi.setwritemode(mode); // restore
+    }
+  }
 
   ////////////////////////////////////////////////////////////////////////////////
   // Mouse event handlers
