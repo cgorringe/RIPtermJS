@@ -767,6 +767,7 @@ class BGI {
 
     const
       dx = Math.abs(x2 - x1),
+      //dy = Math.abs(y2 - y1) >> 1 << 1; // force even TEST #5 (didn't fix)
       dy = Math.abs(y2 - y1);
     let
       xi1, xi2, yi1, yi2, den, num, numadd,
@@ -778,6 +779,8 @@ class BGI {
       xi1 = yi2 = 0;
       den = dx;
       num = dx >> 1;
+      //den = dx - 1;   // TEST #2 didn't fix
+      //den = num << 1; // TEST #4 not that close
       numadd = dy;
       numpixels = dx;
     }
@@ -785,9 +788,31 @@ class BGI {
       xi2 = yi1 = 0;
       den = dy;
       num = dy >> 1;
+
+      // TESTING (TO REMOVE)
+      //den = dy - 1; // TEST #2 partial
+      //den = dy + 1; // TEST #6
+      //num = dy; // TEST #5
+      //den = num << 1; // TEST #4 on to something!? NOT same as TEST #2
+      // if dy=205, dy-1 = 204, and num<<1 = 204
+      // no difference, so why does it render differently??
+      // is it because den is forced to be an integer when using << ?
+      // AH, renders same for THAT case, but not in cases when dy is even!
+      //num = Math.round(dy / 2); // didn't fix
+      //num = dy / 2;  // try floats (no change!?)
+      //numadd = dx + 1;  // closer on lines, but not on rest TEST #6
+      //numadd = dx - 1;  // didn't fix
+      //numpixels = dy + 1;  // TEST #1
+
       numadd = dx;
       numpixels = dy;
     }
+
+    // TESTING (TO REMOVE)
+    //if ((dx % 2 === 1) && (dx > 6)) {
+    //if (x1 === 220) {
+    //  console.log({ x1, y1, x2, y2, dx, dy, den, num, numadd }); // DEBUG
+    //}
 
     for (let c=0; c <= numpixels; c++) {
       if ((upattern >> (c % 16)) & 1) {
@@ -795,6 +820,8 @@ class BGI {
       }
       num += numadd;
       if (num >= den) {
+      //if (num > den) {    // TEST didn't fix
+        //num -= (den - 1); // TEST #3 partial
         num -= den;
         x += xi1;
         y += yi1;
@@ -1894,19 +1921,20 @@ class BGI {
       tmp = x1; x1 = x2; x2 = tmp;
     }
 
-    // REMOVE (none of this fixes bug)
-    // trying to fix bottom edge lines in FRACTMTN.RIP
+    // TEST
+    // Trying to fix bottom edge lines in FRACTMTN.RIP
     // if points outside viewport, move to inside. Not sure if this should be canvas bounds.
-    //if (y1 < vp.top) { y1 = vp.top; }
-    //if (y1 > vp.bottom) { return; }
-    //if (y2 < vp.top) { return; }
+    // Moving point inside viewport fixes RIPDELIC.RIP
+    const vp = this.info.vp;
+    if (y1 < vp.top) { y1 = vp.top; }
+    if (y1 > vp.bottom) { return; }
+    if (y2 < vp.top) { return; }
     //if (y2 > vp.bottom) { y2 = vp.bottom + 1; }
-    /*
+    if (y2 > vp.bottom) { y2 = vp.bottom; }
     if (x1 < vp.left) { x1 = vp.left; }
-    if (x1 > vp.right) { x1 = vp.right; }
-    if (x2 < vp.left) { x2 = vp.left; }
+    if (x1 > vp.right) { return; }
+    if (x2 < vp.left) { return; }
     if (x2 > vp.right) { x2 = vp.right; }
-    */
 
     // set pattern
     // TODO: should this be here, or passed into line()?

@@ -332,7 +332,7 @@ class RIPterm {
     if (this.ripData && (this.cmdi < this.ripData.length)) {
       let d = this.ripData[this.cmdi];
       // console.log(d); // DEBUG
-      if ( this.cmd[d[0]] ) { this.cmd[d[0]](d[1]); }
+      if ( this.cmd[d[0]] ) { this.cmd[d[0]](d[1]); } // TODO: add .run() call
       if (this.opts.pauseOn.includes(d[0])) {
         if (!this.opts.floodFill && (d[0] == 'F')) { }
         else { this.stop(); }
@@ -398,15 +398,15 @@ class RIPterm {
             // output html to commandsDiv
             if (this.opts.pauseOn.includes(d[0])) {
               // RIP command paused
-              outText += '<span class="cmd-paused" title="'+ c +'">'+ d[0] + '</span>' + d[1] + '<br>';
+              outText += '<div class="rip-cmd"><span class="cmd-paused" title="'+ c +'">'+ d[0] + '</span>' + d[1] + '<br></div>';
             }
             else if (this.cmd[d[0]]) {
               // RIP command supported
-              outText += '<span class="cmd-ok" title="'+ c +'">'+ d[0] + '</span>' + d[1] + '<br>';
+              outText += '<div class="rip-cmd"><span class="cmd-ok" title="'+ c +'">'+ d[0] + '</span>' + d[1] + '<br></div>';
             }
             else {
               // RIP command NOT supported
-              outText += '<span class="cmd-not" title="'+ c +'">'+ d[0] + '</span>' + d[1] + '<br>';
+              outText += '<div><span class="cmd-not" title="'+ c +'">'+ d[0] + '</span>' + d[1] + '<br></div>';
             }
 
             this.ripData.push(d);  // store command + args in array
@@ -571,6 +571,29 @@ class RIPterm {
         case '*': ret.push( this.unescapeRIPtext(args.substr(pos)) ); break;
         default:
       }
+    });
+    return ret;
+  }
+
+  // takes in an array of keys (strings)
+  // returns an object using keys (strings) and values (ints)
+  parseRIPargs2 (args, fmt, keys) {
+    let pos=0, i=0, ret = { args };
+    Array.from(fmt).forEach(f => {
+      switch (f) {
+        case '1': ret[keys[i]] = parseInt(args.substr(pos, 1), 36); pos += 1; break;
+        case '2': ret[keys[i]] = parseInt(args.substr(pos, 2), 36); pos += 2; break;
+        case '3': ret[keys[i]] = parseInt(args.substr(pos, 3), 36); pos += 3; break;
+        case '4': ret[keys[i]] = parseInt(args.substr(pos, 4), 36); pos += 4; break;
+        case '5': ret[keys[i]] = parseInt(args.substr(pos, 5), 36); pos += 5; break;
+        case '6': ret[keys[i]] = parseInt(args.substr(pos, 6), 36); pos += 6; break;
+        case '7': ret[keys[i]] = parseInt(args.substr(pos, 7), 36); pos += 7; break;
+        case '8': ret[keys[i]] = parseInt(args.substr(pos, 8), 36); pos += 8; break;
+        case '9': ret[keys[i]] = parseInt(args.substr(pos, 9), 36); pos += 9; break;
+        case '*': ret[keys[i]] = this.unescapeRIPtext(args.substr(pos)); break;
+        default:
+      }
+      i += 1;
     });
     return ret;
   }
@@ -1250,8 +1273,14 @@ class RIPterm {
       // RIP_VIEWPORT (v)
       'v': (args) => {
         if (args.length >= 8) {
-          const [x0, y0, x1, y1] = this.parseRIPargs(args, '2222');
-          this.bgi.setviewport(x0, y0, x1, y1, true);
+          //const [x0, y0, x1, y1] = this.parseRIPargs(args, '2222');
+          //this.bgi.setviewport(x0, y0, x1, y1, true);
+          let o = this.parseRIPargs2(args, '2222', ['x0','y0','x1','y1']);
+          // TODO: FIXME 'this' below
+          //o.run = () => { this.bgi.setviewport(this.x0, this.y0, this.x1, this.y1, true); };
+          this.bgi.setviewport(o.x0, o.y0, o.x1, o.y1, true);
+          this.log('rip', `!|v${args} RIP_VIEWPORT ${JSON.stringify(o)}`); // DEBUG
+          return o;
         }
       },
 
@@ -1365,8 +1394,12 @@ class RIPterm {
       // RIP_LINE (L)
       'L': (args) => {
         if (args.length >= 8) {
-          const [x0, y0, x1, y1] = this.parseRIPargs(args, '2222');
-          this.bgi.line(x0, y0, x1, y1);
+          //const [x0, y0, x1, y1] = this.parseRIPargs(args, '2222');
+          //this.bgi.line(x0, y0, x1, y1);
+          let o = this.parseRIPargs2(args, '2222', ['x0','y0','x1','y1']);
+          this.bgi.line(o.x0, o.y0, o.x1, o.y1);
+          //this.log('rip', `!|L${args} RIP_LINE ${JSON.stringify(o)}`); // DEBUG
+          return o;
         }
       },
 
