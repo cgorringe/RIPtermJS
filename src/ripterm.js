@@ -332,7 +332,11 @@ class RIPterm {
     if (this.ripData && (this.cmdi < this.ripData.length)) {
       let d = this.ripData[this.cmdi];
       // console.log(d); // DEBUG
-      if ( this.cmd[d[0]] ) { this.cmd[d[0]](d[1]); } // TODO: add .run() call
+      if ( this.cmd[d[0]] ) {
+        const o = this.cmd[d[0]](d[1]);
+        if (o && o.run) { o.run(); }
+        //this.log('rip', `!|${d[0]}${d[1]} ${JSON.stringify(o)}`); // DEBUG
+      }
       if (this.opts.pauseOn.includes(d[0])) {
         if (!this.opts.floodFill && (d[0] == 'F')) { }
         else { this.stop(); }
@@ -398,11 +402,15 @@ class RIPterm {
             // output html to commandsDiv
             if (this.opts.pauseOn.includes(d[0])) {
               // RIP command paused
-              outText += '<div class="rip-cmd"><span class="cmd-paused" title="'+ c +'">'+ d[0] + '</span>' + d[1] + '<br></div>';
+              let o = this.cmd[d[0]](d[1]);
+              let oText = `${c}: ` + (o ? JSON.stringify(o).replaceAll('"', ' ') : '');
+              outText += `<div class="rip-cmd" title="${oText}"><span class="cmd-paused">${d[0]}</span>${d[1]}<br></div>`;
             }
             else if (this.cmd[d[0]]) {
               // RIP command supported
-              outText += '<div class="rip-cmd"><span class="cmd-ok" title="'+ c +'">'+ d[0] + '</span>' + d[1] + '<br></div>';
+              let o = this.cmd[d[0]](d[1]);
+              let oText = `${c}: ` + (o ? JSON.stringify(o).replaceAll('"', ' ') : '');
+              outText += `<div class="rip-cmd" title="${oText}"><span class="cmd-ok">${d[0]}</span>${d[1]}<br></div>`;
             }
             else {
               // RIP command NOT supported
@@ -578,7 +586,7 @@ class RIPterm {
   // takes in an array of keys (strings)
   // returns an object using keys (strings) and values (ints)
   parseRIPargs2 (args, fmt, keys) {
-    let pos=0, i=0, ret = { args };
+    let pos=0, i=0, ret = {};
     Array.from(fmt).forEach(f => {
       switch (f) {
         case '1': ret[keys[i]] = parseInt(args.substr(pos, 1), 36); pos += 1; break;
@@ -1273,13 +1281,13 @@ class RIPterm {
       // RIP_VIEWPORT (v)
       'v': (args) => {
         if (args.length >= 8) {
-          //const [x0, y0, x1, y1] = this.parseRIPargs(args, '2222');
-          //this.bgi.setviewport(x0, y0, x1, y1, true);
+          const outer = this;
           let o = this.parseRIPargs2(args, '2222', ['x0','y0','x1','y1']);
-          // TODO: FIXME 'this' below
-          //o.run = () => { this.bgi.setviewport(this.x0, this.y0, this.x1, this.y1, true); };
-          this.bgi.setviewport(o.x0, o.y0, o.x1, o.y1, true);
-          this.log('rip', `!|v${args} RIP_VIEWPORT ${JSON.stringify(o)}`); // DEBUG
+          o.desc = 'RIP_VIEWPORT';
+          o.run = function() {
+            outer.bgi.setviewport(this.x0, this.y0, this.x1, this.y1, true);
+          };
+          //this.log('rip', `!|v${args} RIP_VIEWPORT ${JSON.stringify(o)}`); // DEBUG
           return o;
         }
       },
@@ -1288,12 +1296,17 @@ class RIPterm {
       //   full text window 80x43, cursor to upper-left, clear screen, viewport to fullscreen
       //   fill with current bgcolor, clear mouse regions, clear clipboard, restore default palette
       '*': (args) => {
-        // don't reset colors & styles!
-        // TODO: set text window
-        this.bgi.cleardevice();
-        this.clearAllButtons();
-        this.clipboard = {};
-        // TODO: restore default palette
+        const outer = this;
+        let o = { desc: 'RIP_RESET_WINDOWS' };
+        o.run = function() {
+          // don't reset colors & styles!
+          // TODO: set text window
+          outer.bgi.cleardevice();
+          outer.clearAllButtons();
+          outer.clipboard = {};
+          // TODO: restore default palette
+        };
+        return o;
       },
 
       // RIP_ERASE_WINDOW (e)
@@ -1301,7 +1314,12 @@ class RIPterm {
 
       // RIP_ERASE_VIEW (E)
       'E': (args) => {
-        this.bgi.clearviewport();
+        const outer = this;
+        let o = { desc: 'RIP_ERASE_VIEW' };
+        o.run = function() {
+          outer.bgi.clearviewport();
+        };
+        return o;
       },
 
       // RIP_GOTOXY (g)
@@ -1311,8 +1329,13 @@ class RIPterm {
       // RIP_COLOR (c)
       'c': (args) => {
         if (args.length >= 2) {
-          const [color] = this.parseRIPargs(args, '2');
-          this.bgi.setcolor(color);
+          const outer = this;
+          let o = this.parseRIPargs2(args, '2', ['color']);
+          o.desc = 'RIP_COLOR';
+          o.run = function() {
+            outer.bgi.setcolor(this.color);
+          };
+          return o;
         }
       },
 
@@ -1320,14 +1343,19 @@ class RIPterm {
       'Q': (args) => {
         if (args.length >= 32) {
           // parse EGA palette values (0-63)
-          const palette = this.parseRIPargs(args, '2222222222222222');
-          for (let i=0; i < palette.length; i++) {
-            const c = palette[i];
-            if (c < 64) {
-              const [red, green, blue] = this.hex2rgb( RIPterm.paletteEGA64[c] );
-              this.bgi.setrgbpalette(i, red, green, blue);
+          const outer = this;
+          let o = { desc: 'RIP_SET_PALETTE' };
+          o.palette = this.parseRIPargs(args, '2222222222222222');
+          o.run = function() {
+            for (let i=0; i < this.palette.length; i++) {
+              const c = this.palette[i];
+              if (c < 64) {
+                const [red, green, blue] = outer.hex2rgb( RIPterm.paletteEGA64[c] );
+                outer.bgi.setrgbpalette(i, red, green, blue);
+              }
             }
-          }
+          };
+          return o;
         }
       },
 
@@ -1335,70 +1363,106 @@ class RIPterm {
       'a': (args) => {
         if (args.length >= 4) {
           // parse EGA palette values (0-63)
-          const [color, value] = this.parseRIPargs(args, '22');
-          if ((color < 16) && (value < 64)) {
-            const [red, green, blue] = this.hex2rgb( RIPterm.paletteEGA64[value] );
-            this.bgi.setrgbpalette(color, red, green, blue);
-          }
+          const outer = this;
+          let o = this.parseRIPargs2(args, '22', ['color','value']);
+          o.desc = 'RIP_ONE_PALETTE';
+          o.run = function() {
+            if ((this.color < 16) && (this.value < 64)) {
+              const [red, green, blue] = outer.hex2rgb( RIPterm.paletteEGA64[this.value] );
+              outer.bgi.setrgbpalette(this.color, red, green, blue);
+            }
+          };
+          return o;
         }
       },
 
       // RIP_WRITE_MODE (W)
       'W': (args) => {
         if (args.length >= 2) {
-          const [mode] = this.parseRIPargs(args, '2');
-          this.bgi.setwritemode(mode);
+          const outer = this;
+          let o = this.parseRIPargs2(args, '2', ['mode']);
+          o.desc = 'RIP_WRITE_MODE';
+          o.run = function() {
+            outer.bgi.setwritemode(this.mode);
+          };
+          return o;
         }
       },
 
       // RIP_MOVE (m)
       'm': (args) => {
         if (args.length >= 4) {
-          const [x, y] = this.parseRIPargs(args, '22');
-          this.bgi.moveto(x, y);
+          const outer = this;
+          let o = this.parseRIPargs2(args, '22', ['x','y']);
+          o.desc = 'RIP_MOVE';
+          o.run = function() {
+            outer.bgi.moveto(this.x, this.y);
+          };
+          return o;
         }
       },
 
       // RIP_TEXT (T)
       // uses and updates info.cp
       'T': (args) => {
-        const [text] = this.parseRIPargs(args, '*');
-        this.log('rip', 'RIP_TEXT: ' + text);
-        this.bgi.outtext(text);
+        const outer = this;
+        let o = this.parseRIPargs2(args, '*', ['text']);
+        o.desc = 'RIP_TEXT';
+        o.run = function() {
+          outer.bgi.outtext(this.text);
+        };
+        return o;
       },
 
       // RIP_TEXT_XY (@)
       // updates info.cp
       '@': (args) => {
-        const [x, y, text] = this.parseRIPargs(args, '22*');
-        this.log('rip', 'RIP_TEXT_XY: ' + text);
-        this.bgi.outtextxy(x, y, text);
+        const outer = this;
+        let o = this.parseRIPargs2(args, '22*', ['x','y','text']);
+        o.desc = 'RIP_TEXT_XY';
+        o.run = function() {
+          outer.bgi.outtextxy(this.x, this.y, this.text);
+          //outer.log('rip', 'RIP_TEXT_XY: ' + this.text); // DEBUG
+        };
+        return o;
       },
 
       // RIP_FONT_STYLE (Y)
       'Y': (args) => {
-        const [font, direction, size, res] = this.parseRIPargs(args, '2222');
-        this.bgi.settextstyle(font, direction, size);
+        const outer = this;
+        let o = this.parseRIPargs2(args, '2222', ['font','direction','size','res']);
+        o.desc = 'RIP_FONT_STYLE';
+        o.run = function() {
+          outer.bgi.settextstyle(this.font, this.direction, this.size);
+        };
+        return o;
       },
 
       // RIP_PIXEL (X)
       // spec says this doesn't use writeMode (mistake?)
       'X': (args) => {
         if (args.length >= 4) {
-          const [x, y] = this.parseRIPargs(args, '22');
-          // this.bgi.putpixel(x, y, this.bgi.getcolor(), BGI.COPY_PUT); // ignores writeMode
-          this.bgi.putpixel(x, y); // uses writeMode
+          const outer = this;
+          let o = this.parseRIPargs2(args, '22', ['x','y']);
+          o.desc = 'RIP_PIXEL';
+          o.run = function() {
+            // outer.bgi.putpixel(this.x, this.y, outer.bgi.getcolor(), BGI.COPY_PUT); // ignores writeMode
+            outer.bgi.putpixel(this.x, this.y); // uses writeMode
+          };
+          return o;
         }
       },
 
       // RIP_LINE (L)
       'L': (args) => {
         if (args.length >= 8) {
-          //const [x0, y0, x1, y1] = this.parseRIPargs(args, '2222');
-          //this.bgi.line(x0, y0, x1, y1);
+          const outer = this;
           let o = this.parseRIPargs2(args, '2222', ['x0','y0','x1','y1']);
-          this.bgi.line(o.x0, o.y0, o.x1, o.y1);
-          //this.log('rip', `!|L${args} RIP_LINE ${JSON.stringify(o)}`); // DEBUG
+          o.desc = 'RIP_LINE';
+          o.run = function() {
+            outer.bgi.line(this.x0, this.y0, this.x1, this.y1);
+            //outer.log('rip', `!|L${args} RIP_LINE ${JSON.stringify(this)}`); // DEBUG
+          };
           return o;
         }
       },
@@ -1406,8 +1470,13 @@ class RIPterm {
       // RIP_RECTANGLE (R)
       'R': (args) => {
         if (args.length >= 8) {
-          const [x0, y0, x1, y1] = this.parseRIPargs(args, '2222');
-          this.bgi.rectangle(x0, y0, x1, y1);
+          const outer = this;
+          let o = this.parseRIPargs2(args, '2222', ['x0','y0','x1','y1']);
+          o.desc = 'RIP_RECTANGLE';
+          o.run = function() {
+            outer.bgi.rectangle(this.x0, this.y0, this.x1, this.y1);
+          };
+          return o;
         }
       },
 
@@ -1416,17 +1485,27 @@ class RIPterm {
       // spec says this doesn't use writeMode (mistake?)
       'B': (args) => {
         if (args.length >= 8) {
-          const [x0, y0, x1, y1] = this.parseRIPargs(args, '2222');
-          // this.bgi.bar(x0, y0, x1, y1, this.bgi.info.fill.color, BGI.COPY_PUT); // ignores writeMode
-          this.bgi.bar(x0, y0, x1, y1); // uses writeMode
+          const outer = this;
+          let o = this.parseRIPargs2(args, '2222', ['x0','y0','x1','y1']);
+          o.desc = 'RIP_BAR';
+          o.run = function() {
+            // outer.bgi.bar(this.x0, this.y0, this.x1, this.y1, outer.bgi.info.fill.color, BGI.COPY_PUT); // ignores writeMode
+            outer.bgi.bar(this.x0, this.y0, this.x1, this.y1); // uses writeMode
+          };
+          return o;
         }
       },
 
       // RIP_CIRCLE (C)
       'C': (args) => {
         if (args.length >= 6) {
-          let [x, y, radius] = this.parseRIPargs(args, '222');
-          this.bgi.circle(x, y, radius);
+          const outer = this;
+          let o = this.parseRIPargs2(args, '222', ['x','y','radius']);
+          o.desc = 'RIP_CIRCLE';
+          o.run = function() {
+            outer.bgi.circle(this.x, this.y, this.radius);
+          };
+          return o;
         }
       },
 
@@ -1434,23 +1513,35 @@ class RIPterm {
       // does same as RIP_OVAL_ARC (V)
       // weird that this includes start & end angles
       'O': (args) => {
-        this.cmd['V'](args);
+        let o = this.cmd['V'](args);
+        o.desc = 'RIP_OVAL';
+        return o;
       },
 
       // RIP_FILLED_OVAL (o)
       'o': (args) => {
         if (args.length >= 8) {
-          let [x, y, x_rad, y_rad] = this.parseRIPargs(args, '2222');
-          this.bgi.fillellipse(x, y, x_rad, y_rad);
-          this.bgi.ellipse(x, y, 0, 360, x_rad, y_rad); // may be included in fillellipse() ?
+          const outer = this;
+          let o = this.parseRIPargs2(args, '2222', ['x','y','x_rad','y_rad']);
+          o.desc = 'RIP_FILLED_OVAL';
+          o.run = function() {
+            outer.bgi.fillellipse(this.x, this.y, this.x_rad, this.y_rad);
+            outer.bgi.ellipse(this.x, this.y, 0, 360, this.x_rad, this.y_rad); // may be included in fillellipse() ?
+          };
+          return o;
         }
       },
 
       // RIP_ARC (A)
       'A': (args) => {
         if (args.length >= 10) {
-          let [x, y, start_ang, end_ang, radius] = this.parseRIPargs(args, '22222');
-          this.bgi.arc(x, y, start_ang, end_ang, radius);
+          const outer = this;
+          let o = this.parseRIPargs2(args, '22222', ['x','y','start_ang','end_ang','radius']);
+          o.desc = 'RIP_ARC';
+          o.run = function() {
+            outer.bgi.arc(this.x, this.y, this.start_ang, this.end_ang, this.radius);
+          };
+          return o;
         }
       },
 
@@ -1458,66 +1549,107 @@ class RIPterm {
       // does same as RIP_OVAL (O)
       'V': (args) => {
         if (args.length >= 12) {
-          let [x, y, st_ang, e_ang, radx, rady] = this.parseRIPargs(args, '222222');
-          this.bgi.ellipse(x, y, st_ang, e_ang, radx, rady);
+          const outer = this;
+          let o = this.parseRIPargs2(args, '222222', ['x','y','st_ang','e_ang','radx','rady']);
+          o.desc = 'RIP_OVAL_ARC';
+          o.run = function() {
+            outer.bgi.ellipse(this.x, this.y, this.st_ang, this.e_ang, this.radx, this.rady);
+          };
+          return o;
         }
       },
 
       // RIP_PIE_SLICE (I)
       'I': (args) => {
         if (args.length >= 10) {
-          let [x, y, start_ang, end_ang, radius] = this.parseRIPargs(args, '22222');
-          this.bgi.pieslice(x, y, start_ang, end_ang, radius);
+          const outer = this;
+          let o = this.parseRIPargs2(args, '22222', ['x','y','start_ang','end_ang','radius']);
+          o.desc = 'RIP_PIE_SLICE';
+          o.run = function() {
+            outer.bgi.pieslice(this.x, this.y, this.start_ang, this.end_ang, this.radius);
+          };
+          return o;
         }
       },
 
       // RIP_OVAL_PIE_SLICE (i)
       'i': (args) => {
         if (args.length >= 12) {
-          let [x, y, st_ang, e_ang, radx, rady] = this.parseRIPargs(args, '222222');
-          this.bgi.sector(x, y, st_ang, e_ang, radx, rady);
+          const outer = this;
+          let o = this.parseRIPargs2(args, '222222', ['x','y','st_ang','e_ang','radx','rady']);
+          o.desc = 'RIP_OVAL_PIE_SLICE';
+          o.run = function() {
+            outer.bgi.sector(this.x, this.y, this.st_ang, this.e_ang, this.radx, this.rady);
+          };
+          return o;
         }
       },
 
       // RIP_BEZIER (Z)
       'Z': (args) => {
         if (args.length >= 18) {
+          const outer = this;
+          let o = { desc: 'RIP_BEZIER' };
           let points = this.parseRIPargs(args, '222222222'); // 9 ints
-          let cnt = points.pop();
-          this.bgi.drawbezier(cnt, points);
+          o.cnt = points.pop();
+          o.points = points;
+          o.run = function() {
+            outer.bgi.drawbezier(this.cnt, this.points);
+          };
+          return o;
         }
       },
 
       // RIP_POLYGON (P)
       'P': (args) => {
+        const outer = this;
         let pp = this.parseRIPpoly(args);
         let npoints = pp.shift();
-        this.bgi.drawpoly(npoints, pp);
+        let o = { desc: 'RIP_POLYGON', npoints, pp };
+        o.run = function() {
+          outer.bgi.drawpoly(this.npoints, this.pp);
+        };
+        return o;
       },
 
       // RIP_FILL_POLYGON (p)
       'p': (args) => {
+        const outer = this;
         let pp = this.parseRIPpoly(args);
         let npoints = pp.shift();
         // draw both a filled polygon using fill color & bgcolor,
         // and polygon outline using fgcolor, line style, and thickness.
-        this.bgi.fillpoly(npoints, pp);
-        // drawpoly() is called in fillpoly()
+        let o = { desc: 'RIP_FILL_POLYGON', npoints, pp };
+        o.run = function() {
+          outer.bgi.fillpoly(this.npoints, this.pp);
+          // drawpoly() is called in fillpoly()
+        };
+        return o;
       },
 
       // RIP_POLYLINE (l)
       // this was introduced in RIPscrip v1.54 (not present in v1.52)
       'l': (args) => {
+        const outer = this;
         let pp = this.parseRIPpoly(args);
         let npoints = pp.shift();
-        this.bgi.drawpolyline(npoints, pp);
+        let o = { desc: 'RIP_POLYLINE', npoints, pp };
+        o.run = function() {
+          outer.bgi.drawpolyline(this.npoints, this.pp);
+        };
+        return o;
       },
 
       // RIP_FILL (F)
       'F': (args) => {
         if (args.length >= 6) {
-          const [x, y, border] = this.parseRIPargs(args, '222');
-          this.bgi.floodfill(x, y, border);
+          const outer = this;
+          let o = this.parseRIPargs2(args, '222', ['x','y','border']);
+          o.desc = 'RIP_FILL';
+          o.run = function() {
+            outer.bgi.floodfill(this.x, this.y, this.border);
+          };
+          return o;
         }
       },
 
@@ -1525,38 +1657,63 @@ class RIPterm {
       // pre-defined styles introduced in RIPscrip v1.54 (only custom-defined in v1.52 ??)
       '=': (args) => {
         if (args.length >= 8) {
-          const [style, user_pat, thick] = this.parseRIPargs(args, '242');
-          this.bgi.setlinestyle(style, user_pat, thick);
+          const outer = this;
+          let o = this.parseRIPargs2(args, '242', ['style','user_pat','thick']);
+          o.desc = 'RIP_LINE_STYLE';
+          o.run = function() {
+            outer.bgi.setlinestyle(this.style, this.user_pat, this.thick);
+          };
+          return o;
         }
       },
 
       // RIP_FILL_STYLE (S)
       'S': (args) => {
         if (args.length >= 4) {
-          const [pattern, color] = this.parseRIPargs(args, '22');
-          this.bgi.setfillstyle(pattern, color);
+          const outer = this;
+          let o = this.parseRIPargs2(args, '22', ['pattern','color']);
+          o.desc = 'RIP_FILL_STYLE';
+          o.run = function() {
+            outer.bgi.setfillstyle(this.pattern, this.color);
+          };
+          return o;
         }
       },
 
       // RIP_FILL_PATTERN (s)
       's': (args) => {
         if (args.length >= 18) {
-          const [c1, c2, c3, c4, c5, c6, c7, c8, color] = this.parseRIPargs(args, '222222222');
-          this.bgi.setfillpattern([c1, c2, c3, c4, c5, c6, c7, c8], color);
+          const outer = this;
+          let o = this.parseRIPargs2(args, '222222222', ['c1','c2','c3','c4','c5','c6','c7','c8','color']);
+          o.desc = 'RIP_FILL_PATTERN';
+          o.run = function() {
+            outer.bgi.setfillpattern([this.c1, this.c2, this.c3, this.c4, this.c5, this.c6, this.c7, this.c8], this.color);
+          };
+          return o;
         }
       },
 
       // RIP_MOUSE (1M)
       '1M': (args) => {
         if (args.length >= 17) {
-          const [num, x0, y0, x1, y1, clk, clr, res, text] = this.parseRIPargs(args, '22222115*');
-          this.createMouseRegion(x0, y0, x1, y1, clk, clr, text);
+          const outer = this;
+          let o = this.parseRIPargs2(args, '22222115*', ['num','x0','y0','x1','y1','clk','clr','res','text']);
+          o.desc = 'RIP_MOUSE';
+          o.run = function() {
+            outer.createMouseRegion(this.x0, this.y0, this.x1, this.y1, this.clk, this.clr, this.text);
+          };
+          return o;
         }
       },
 
       // RIP_KILL_MOUSE_FIELDS (1K)
       '1K': (args) => {
-        this.clearAllButtons();
+        const outer = this;
+        let o = { desc: 'RIP_KILL_MOUSE_FIELDS' };
+        o.run = function() {
+          outer.clearAllButtons();
+        };
+        return o;
       },
 
       // RIP_BEGIN_TEXT (1T)
@@ -1566,16 +1723,26 @@ class RIPterm {
       // RIP_GET_IMAGE (1C)
       '1C': (args) => {
         if (args.length >= 9) {
-          const [x0, y0, x1, y1, res] = this.parseRIPargs(args, '22221');
-          this.clipboard = this.bgi.getimage(x0, y0, x1, y1);
+          const outer = this;
+          let o = this.parseRIPargs2(args, '22221', ['x0','y0','x1','y1','res']);
+          o.desc = 'RIP_GET_IMAGE';
+          o.run = function() {
+            outer.clipboard = outer.bgi.getimage(this.x0, this.y0, this.x1, this.y1);
+          };
+          return o;
         }
       },
 
       // RIP_PUT_IMAGE (1P)
       '1P': (args) => {
         if (args.length >= 7) {
-          const [x, y, mode, res] = this.parseRIPargs(args, '2221');
-          this.bgi.putimage(x, y, this.clipboard, mode);
+          const outer = this;
+          let o = this.parseRIPargs2(args, '2221', ['x','y','mode','res']);
+          o.desc = 'RIP_PUT_IMAGE';
+          o.run = function() {
+            outer.bgi.putimage(this.x, this.y, outer.clipboard, this.mode);
+          };
+          return o;
         }
       },
 
@@ -1584,44 +1751,50 @@ class RIPterm {
       // RIP_LOAD_ICON (1I)
       '1I': (args) => {
         if (args.length >= 9) {
-          const [x, y, mode, clipflag, res, filename] = this.parseRIPargs(args, '22212*');
-          const fname = this.fixIconFilename(filename);
-          this.log('rip', 'RIP_LOAD_ICON: ' + fname);
+          const outer = this;
+          let o = this.parseRIPargs2(args, '22212*', ['x','y','mode','clipflag','res','filename']);
+          o.desc = 'RIP_LOAD_ICON';
+          o.run = function() {
+            const fname = outer.fixIconFilename(this.filename);
+            outer.log('rip', 'RIP_LOAD_ICON: ' + fname);
 
-          // FIXME: for now this only retrieves images from the cache
-          if (fname) {
-            const img = this.bgi.readimagefile(fname);
-            this.bgi.putimage(x, y, img, mode);
-            if (clipflag === 1) {
-              this.clipboard = img;
+            // FIXME: for now this only retrieves images from the cache
+            if (fname) {
+              const img = outer.bgi.readimagefile(fname);
+              outer.bgi.putimage(this.x, this.y, img, this.mode);
+              if (this.clipflag === 1) {
+                outer.clipboard = img;
+              }
             }
-          }
+          };
+          return o;
         }
       },
-
 
       // RIP_BUTTON_STYLE (1B)
       '1B': (args) => {
         if (args.length >= 30) {
-          const [
-            wid, hgt, orient, flags, bevsize,
-            dfore, dback, bright, dark, surface,
-            grp_no, flags2, uline_col, corner_col // res:6
-          ] = this.parseRIPargs(args, '22242222222222');
-          this.buttonStyle = {
-            wid, hgt, orient, flags, bevsize,
-            dfore, dback, bright, dark, surface,
-            grp_no, flags2, uline_col, corner_col
+          const outer = this;
+          let o = this.parseRIPargs2(args, '22242222222222', ['wid','hgt','orient','flags','bevsize','dfore','dback','bright','dark','surface','grp_no','flags2','uline_col','corner_col']);
+          o.desc = 'RIP_BUTTON_STYLE';
+          o.run = function() {
+            outer.buttonStyle = this; // doesn't need .desc or .run
           };
+          return o;
         }
       },
 
       // RIP_BUTTON (1U)
       '1U': (args) => {
         if (args.length >= 9) {
-          const [x0, y0, x1, y1, hotkey, flags, res, text] = this.parseRIPargs(args, '2222211*');
-          let b = this.createButton(x0, y0, x1, y1, hotkey, flags, text);
-          this.drawButton(x0, y0, x1, y1, b, false);
+          const outer = this;
+          let o = this.parseRIPargs2(args, '2222211*', ['x0','y0','x1','y1','hotkey','flags','res','text']);
+          o.desc = 'RIP_BUTTON';
+          o.run = function() {
+            let btn = outer.createButton(this.x0, this.y0, this.x1, this.y1, this.hotkey, this.flags, this.text);
+            outer.drawButton(this.x0, this.y0, this.x1, this.y1, btn, false);
+          };
+          return o;
         }
       },
 
@@ -1636,10 +1809,15 @@ class RIPterm {
       // RIP_HEADER (h) - RIPscrip v2.0
       'h': (args) => {
         if (args.length >= 8) {
-          const [revision, flags, res] = this.parseRIPargs(args, '242');
-          if (revision > 0) {
-            this.log('rip', 'RIPscrip 2.0 or above NOT SUPPORTED at this time!');
-          }
+          const outer = this;
+          let o = this.parseRIPargs2(args, '242', ['revision','flags','res']);
+          o.desc = 'RIP_HEADER';
+          o.run = function() {
+            if (this.revision > 0) {
+              outer.log('rip', 'RIPscrip 2.0 or above NOT SUPPORTED at this time!');
+            }
+          };
+          return o;
         }
       },
 
@@ -1652,7 +1830,12 @@ class RIPterm {
       // RIP_NO_MORE (#)
       '#': (args) => {
         // do nothing
-        this.activateMouseEvents(true);
+        const outer = this;
+        let o = { desc: 'RIP_NO_MORE' };
+        o.run = function() {
+          outer.activateMouseEvents(true);
+        };
+        return o;
       }
     }
   }
