@@ -715,6 +715,9 @@ class BGI {
   // CLOSEST so far for thickness == 3!!
   // thickness=3, off by 1 pixel at 0°,45°,135°??, ?, ?
   //
+  // FIXME: doesn't work well with writeMode = BGI.XOR_PUT and thickness = 3
+  // due to same pixels drawn multiple times.
+  //
   arc_lines (cx, cy, stangle, endangle, xradius, yradius, thickness = this.info.line.thickness) {
 
     //this.log('bgi', `arc_lines: ${cx}, ${cy}, ${stangle}, ${endangle}, ${xradius}, ${yradius}, ${thickness}`); // DEBUG
@@ -1512,22 +1515,27 @@ class BGI {
       // build node list
       j = numpoints - 1;
       for (i=0; i < numpoints; i++) {
-        if ( ((pp[i*2+1] < y) && (pp[j*2+1] >= y)) || ((pp[j*2+1] < y) && (pp[i*2+1] >= y)) ) {
+        const tx1 = pp[j*2], ty1 = pp[j*2+1];
+        const tx2 = pp[i*2], ty2 = pp[i*2+1];
+
+        //if ( ((pp[i*2+1] < y) && (pp[j*2+1] >= y)) || ((pp[j*2+1] < y) && (pp[i*2+1] >= y)) ) {
+        //if ( ((ty2 < y) && (ty1 >= y)) || ((ty1 < y) && (ty2 >= y)) ) {
+        if ( ((ty2 <= y) && (ty1 > y)) || ((ty1 <= y) && (ty2 > y)) ) {
+        //if ( ((ty2 <= y) && (ty1 > y)) || ((ty1 <= y) && (ty2 > y)) || ((ty1 === y) && (ty2 === y)) ) {
+        //if ( ((ty2 <= y) && (ty1 >= y)) || ((ty1 <= y) && (ty2 >= y)) ) {
 
           // FIXME: there are off-by-one pixels along edges of polygons.
           // I tried lots of combinations, but could not solve it...
-          // (see CAPITOL.RIP)
 
-          xval = (y - pp[i*2+1]) / (pp[j*2+1] - pp[i*2+1]) * (pp[j*2] - pp[i*2]) + pp[i*2];
+          //xval = (y - pp[i*2+1]) / (pp[j*2+1] - pp[i*2+1]) * (pp[j*2] - pp[i*2]) + pp[i*2];
 
-          /* TO REMOVE
+          // divide by 0 if ty1 - ty2 == 0
+          //xval = (y - ty2) / (ty1 - ty2) * (tx1 - tx2) + tx2;
+          xval = (ty1 === ty2) ? tx2 : (y - ty2) / (ty1 - ty2) * (tx1 - tx2) + tx2;
+
+          //TO REMOVE
           // tried this, didn't solve bug
-          const tx1 = pp[j*2];
-          const ty1 = pp[j*2+1];
-          const tx2 = pp[i*2];
-          const ty2 = pp[i*2+1];
-          xval = (y - ty2) / (ty1 - ty2) * (tx1 - tx2) + tx2;
-
+          /*
           const oct = this.octant(tx2 - tx1, ty1 - ty2);
           if ((oct === 1) || (oct === 4) || (oct ===5) || (oct === 8)) {
             xnode.push( Math.ceil(xval) );
@@ -1539,11 +1547,10 @@ class BGI {
 
           // tried all these (REMOVE)
           //xnode.push( Math.ceil(xval) );
-          //xnode.push( Math.floor(xval) );
+          xnode.push( Math.floor(xval) );
           //xnode.push( Math.trunc(xval) );
           //xnode.push( xval | 0 ); // same as trunc() but slightly faster?
-
-          xnode.push( Math.round(xval) );
+          //xnode.push( Math.round(xval) );
         }
         j = i;
       }
@@ -1555,7 +1562,7 @@ class BGI {
       // draw pixels between node pairs
       for (i=0; i < xnode.length; i+=2) {
         for (x = xnode[i]; x <= xnode[i+1]; x++) {
-          this.ff_putpixel(x, y, this.info.fill.color, BGI.COPY_PUT);
+          this.ff_putpixel(x, y);
         }
       }
     }
@@ -2405,6 +2412,11 @@ class BGI {
       this.info.cp.y = 0;
       this.log('bgi', `viewport set to (${x1},${y1})-(${x2},${y2})`); // DEBUG
     }
+  }
+
+  _resetViewport () {
+    this.info.vp = { left: 0, top: 0, right: (this.width - 1), bottom: (this.height - 1),
+      width: this.width, height: this.height, clip: false };
   }
 
   // likely won't implement (STUB)

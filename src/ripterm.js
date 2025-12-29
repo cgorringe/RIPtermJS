@@ -163,6 +163,7 @@ class RIPterm {
         this.canvasDiff = document.getElementById(opts.diffId);
         this.ctxDiff = (this.canvasDiff && this.canvasDiff.getContext) ? this.canvasDiff.getContext('2d') : null;
       }
+      this.hiliteCmdFlag = false;
 
       // init canvas
       this.canvas = document.getElementById(opts.canvasId);
@@ -209,6 +210,8 @@ class RIPterm {
         // TODO: may want to move outside constructor?
         this.bgi.initFonts();
       }
+
+      this.setupCmdHover();
     }
     else {
       console.error('RIPterm() missing canvasId!');
@@ -410,8 +413,9 @@ class RIPterm {
               // RIP command supported
               let o = this.cmd[d[0]](d[1]);
               let oText = `${c}: ` + (o ? JSON.stringify(o).replaceAll('"', ' ') : '');
-              let clickCode = `ripterm.invertCmd('${d[0]}','${d[1]}');`; // TEST
-              outText += `<div class="rip-cmd" title="${oText}" onclick="${clickCode}"><span class="cmd-ok">${d[0]}</span>${d[1]}<br></div>`;
+              //let clickCode = `ripterm.clickCmd('${d[0]}','${d[1]}');`; // TEST
+              //outText += `<div class="rip-cmd" title="${oText}" onclick="${clickCode}"><span class="cmd-ok">${d[0]}</span>${d[1]}<br></div>`;
+              outText += `<div class="rip-cmd" title="${oText}"><span class="cmd-ok">${d[0]}</span>${d[1]}<br></div>`;
             }
             else {
               // RIP command NOT supported
@@ -663,26 +667,141 @@ class RIPterm {
   // TODO
   runCommand (inst) {
 
-    let [c, args] = parseRIPcmd(inst);
+    let [c, args] = this.parseRIPcmd(inst);
     this.cmd[c](args);
 
   }
 
-  // invert command by setting writemode to XOR
-  invertCmd (inst, args) {
-    if ( this.cmd[inst] ) {
-      //this.log('rip', `${inst}${args}`); // DEBUG
-      const mode = this.bgi.info.writeMode;
-      this.bgi.setwritemode(BGI.XOR_PUT);
-      const o = this.cmd[inst](args);
-      if (o && o.run) {
-        this.log('rip', `${inst}${args} ${JSON.stringify(o)}`); // DEBUG
-        o.run();
-        this.refreshCanvas();
-        //this.bgi.refresh();
+  // Setup events for click, mouseover, and mouseout of individual RIP commands.
+  // only call this once
+  setupCmdHover () {
+    console.log('setupCmdHover()'); // DEBUG
+
+    this.hoverTimer = null;
+    this.HOVER_DELAY = 300;
+
+    document.addEventListener("click", (event) => {
+      if (event.target.classList.contains("rip-cmd")) {
+        const inst = event.target.textContent;
+        this.onClickCmd(inst);
       }
-      this.bgi.setwritemode(mode); // restore
+    });
+
+    document.addEventListener("mouseover", (event) => {
+      const item = event.target.closest(".rip-cmd");
+      if (!item) return;
+      if (!item.contains(event.relatedTarget)) {
+        this.hoverTimer = setTimeout(() => {
+          const inst = event.target.textContent;
+          //console.log("mouseover: " + inst); // DEBUG
+          this.onHoverCmd(inst);
+          this.hoverTimer = null;
+        }, this.HOVER_DELAY);
+      }
+      // if (event.target.classList.contains("rip-cmd")) { }
+    });
+
+    document.addEventListener("mouseout", (event) => {
+      const item = event.target.closest(".rip-cmd");
+      if (!item) return;
+      if (!item.contains(event.relatedTarget)) {
+        if (this.hoverTimer) {
+          clearTimeout(this.hoverTimer);
+          this.hoverTimer = null;
+        }
+        else {
+          const inst = event.target.textContent;
+          //console.log("mouse out: " + inst); // DEBUG
+          this.onHoverCmd(inst);
+        }
+      }
+    });
+  }
+
+  // onClick handler for commands in commandsDiv. (no longer used)
+  clickCmd (cmd0, args) {
+    this.highlightCmd(cmd0, args, true);
+  }
+
+  // Click event handler that outputs RIP command details to log.
+  onClickCmd (inst) {
+    const [c, args] = this.parseRIPcmd(inst);
+    if (this.cmd[c]) {
+      const o = this.cmd[c](args);
+      if (o) {
+        this.log('rip', `!|${inst} ${JSON.stringify(o)}`);
+      }
     }
+  }
+
+  // Event handler called on mouseover & mouseout of RIP commands
+  // to highlight RIP commands in the canvas. hiliteCmdFlag must be set true.
+  // inst is a full RIP command string (cmd + args).
+  //
+  onHoverCmd (inst) {
+    if (this.hiliteCmdFlag) {
+      const [cmd0, args] = this.parseRIPcmd(inst);
+      this.highlightCmd(cmd0, args, false);
+    }
+  }
+
+  // Highlight command by setting writemode to XOR then redraw it.
+  highlightCmd (cmd0, args, logFlag = false) {
+
+    // handling these RIP commands
+    const runCmdSet = new Set(['X','L','R','B','C','O','o','A','V','I','i','Z','P','p','l']);
+    const coordsCmdSet = new Set(['1M','1C','1U']);
+    const customCmdSet = new Set(['v','1P']);
+    const allCmdSet = runCmdSet.union(coordsCmdSet).union(customCmdSet);
+    // can't highlight '@' text, as size depends on previously stored font info that changes.
+
+    if (this.cmd[cmd0]) {
+      const o = this.cmd[cmd0](args);
+      if (o) {
+        if (allCmdSet.has(cmd0) && o.run) {
+
+          if (logFlag) { this.log('rip', `${cmd0}${args} ${JSON.stringify(o)}`); }
+
+          // prepare to draw using XOR
+          this.bgi.pushState();
+          this.bgi.setwritemode(BGI.XOR_PUT);
+          this.bgi.setcolor(BGI.LIGHTRED);
+          this.bgi.setbkcolor(BGI.YELLOW);
+          this.bgi.setlinestyle(BGI.SOLID_LINE, 0xFFFF, BGI.NORM_WIDTH);
+          //this.bgi.setlinestyle(BGI.SOLID_LINE, 0xFFFF, BGI.THICK_WIDTH); // buggy
+          // thick ovals don't draw correctly using XOR
+          // line options: BGI.SOLID_LINE or BGI.DASHED_LINE
+          this.bgi.setfillstyle(BGI.SOLID_FILL, BGI.YELLOW);
+
+          if (runCmdSet.has(cmd0)) {
+            // draw shape directly
+            o.run();
+          }
+          else if (coordsCmdSet.has(cmd0)) {
+            // don't run directly, instead draw a filled rectangle
+            // these must contain {x0, y0, x1, y1}
+            this.bgi.fillrect(o.x0, o.y0, o.x1, o.y1);
+          }
+          else if (cmd0 === 'v') {
+            // reset RIP_VIEWPORT then draw using absolute coords
+            this.bgi._resetViewport();
+            this.bgi.fillrect(o.x0, o.y0, o.x1, o.y1);
+          }
+          else if (cmd0 === '1P') {
+            // given {x, y} extract size from the clipboard.
+            // FIXME: this will not work correctly, as the current clipboard may change!
+            if (('width' in this.clipboard) && ('height' in this.clipboard)) {
+              //this.bgi.fillrect(o.x, o.y, o.x + this.clipboard.width, o.y + this.clipboard.height);
+            }
+          }
+
+          // draw and restore state
+          this.refreshCanvas();
+          this.bgi.popState();
+        }
+      }
+    }
+
   }
 
   ////////////////////////////////////////////////////////////////////////////////
