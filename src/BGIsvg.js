@@ -249,13 +249,20 @@ class BGIsvg extends BGI {
     }
   }
 
-  /*
-  // TODO: already calls arc() (may need to fix)
-  circle (cx, cy, radius, thickness = this.info.line.thickness) {
-    super.circle(cx, cy, radius, thickness);
-    // calls arc() which calls ellipse()
+  // Draw a circular arc centered at (x, y), from stangle to endangle in degrees,
+  // counterclockwise with 0 = 3 o'clock, 90 = 12 o'clock, etc.
+  // doesn't use linestyle.
+  arc (cx, cy, stangle, endangle, radius, thickness = this.info.line.thickness) {
+    // adjust radius based on aspect ratio
+    // TODO: this may be off?
+    const yradius = Math.floor( radius * (this.aspect.xasp / this.aspect.yasp) );
+    this.ellipse(cx, cy, stangle, endangle, radius, yradius, thickness);
   }
-  */
+
+  circle (cx, cy, radius, thickness = this.info.line.thickness) {
+    // calls arc() which calls ellipse()
+    this.arc(cx, cy, 0, 360, radius);
+  }
 
   // TODO: check
   cleardevice (bgcolor = this.info.bgcolor) {
@@ -375,6 +382,7 @@ class BGIsvg extends BGI {
   }
 
   // only draw fill without the outline, since super.fillpoly() calls drawpoly()
+  // TODO: this is no longer the case, so need to draw outline now?
   // FIXME: incorrect stroke colors
   fillpoly (numpoints, pp) {
     super.fillpoly(numpoints, pp);

@@ -1114,7 +1114,7 @@ class BGI {
               x1 = x0 + (y * scale);
               y1 = y0 - (x * scale);
             }
-            this._bar (x1, y1, x1 + scale - 1, y1 + scale - 1,
+            this._bar(x1, y1, x1 + scale - 1, y1 + scale - 1,
               this.info.fgcolor, this.info.writeMode, BGI.SOLID_FILL);
           }
           else {
@@ -1237,7 +1237,7 @@ class BGI {
     // adjust radius based on aspect ratio
     // TODO: this may be off?
     const yradius = Math.floor( radius * (this.aspect.xasp / this.aspect.yasp) );
-    this.ellipse(cx, cy, stangle, endangle, radius, yradius, thickness);
+    this._ellipse(cx, cy, stangle, endangle, radius, yradius, thickness);
   }
 
   // Draws and fills a rectangle, using fill style and color. Has no border. (see fillrect)
@@ -1316,7 +1316,10 @@ class BGI {
 
   // doesn't use linestyle
   circle (cx, cy, radius, thickness = this.info.line.thickness) {
-    this.arc(cx, cy, 0, 360, radius);
+    this._arc(cx, cy, 0, 360, radius);
+  }
+  _circle (cx, cy, radius, thickness = this.info.line.thickness) {
+    this._arc(cx, cy, 0, 360, radius);
   }
 
   // Clears the screen, filling it with the current background color.
@@ -1363,6 +1366,9 @@ class BGI {
   // (x1, y1) and (x4, y4) are on the curve, while others are not.
   // uses line style, thickness, and write mode.
   drawbezier (numsegments, cntpoints) {
+    this._drawbezier(numsegments, cntpoints);
+  }
+  _drawbezier (numsegments, cntpoints) {
 
     // TODO: I don't know if this matches the one used in original RipTerm.
     // Should test against original images.
@@ -1414,6 +1420,9 @@ class BGI {
   // polypoints is an array of ints: [x1, y1, x2, y2, ... xn, yn]
   // where n = numpoints.
   drawpolyline (numpoints, polypoints, color = this.info.fgcolor) {
+    this._drawpolyline(numpoints, polypoints, color);
+  }
+  _drawpolyline (numpoints, polypoints, color = this.info.fgcolor) {
     // polypoints array of ints
 
     if (!(numpoints && polypoints && (numpoints >= 2) && (polypoints.length >= numpoints * 2))) {
@@ -1489,6 +1498,9 @@ class BGI {
   }
 
   fillellipse (cx, cy, xradius, yradius) {
+    this._fillellipse(cx, cy, xradius, yradius);
+  }
+  _fillellipse (cx, cy, xradius, yradius) {
 
     // TODO: don't know if these are correct, or should we exit?
     if (xradius < 1) { xradius = 1; }
@@ -1502,6 +1514,9 @@ class BGI {
   // pp is an array of ints: [x1, y1, x2, y2, ... xn, yn]
   // where n = numpoints.
   fillpoly (numpoints, pp) {
+    _fillpoly(numpoints, pp);
+  }
+  _fillpoly (numpoints, pp) {
     // polypoints array of ints
 
     // code based on: http://alienryderflex.com/polygon_fill/
@@ -1630,6 +1645,10 @@ class BGI {
   fillrect (left, top, right, bottom) {
     this.bar(left, top, right, bottom);
     this.rectangle(left, top, right, bottom);
+  }
+  _fillrect (left, top, right, bottom) {
+    this._bar(left, top, right, bottom);
+    this._rectangle(left, top, right, bottom);
   }
 
   // Flood Fill
@@ -1983,6 +2002,13 @@ class BGI {
     this.info.cp.x = x;
     this.info.cp.y = y;
   }
+  _lineto (x, y, color = this.info.fgcolor, wmode = this.info.writeMode,
+        linestyle = this.info.line.style, thickness = this.info.line.thickness) {
+
+    this._line(this.info.cp.x, this.info.cp.y, x, y, color, wmode, linestyle, thickness);
+    this.info.cp.x = x;
+    this.info.cp.y = y;
+  }
 
   // Moves the CP by (dx, dy) pixels.
   moverel (dx, dy) {
@@ -1998,6 +2024,9 @@ class BGI {
 
   // Draws text using current info.cp position, info.text.charsize and info.text.direction
   outtext (text) {
+    this._outtext(text);
+  }
+  _outtext (text) {
 
     // set yoffset for scalable fonts first
     let yoffset = 0;
@@ -2037,15 +2066,23 @@ class BGI {
     this.moveto(x, y);
     this.outtext(text);
   }
+  _outtextxy (x, y, text) {
+    this.moveto(x, y);
+    this._outtext(text);
+  }
 
   // fills with fill color and pattern.
   // outlines with fgcolor and thickness. doesn't use line style.
   pieslice (cx, cy, stangle, endangle, radius) {
-
-    if ((radius < 1) || (stangle === endangle)) { return } // TODO: test against reference
+    if ((radius < 1) || (stangle === endangle)) { return; } // TODO: test against reference
     // adjust radius based on aspect ratio
     const yradius = Math.floor( radius * (this.aspect.xasp / this.aspect.yasp) );
     this.sector(cx, cy, stangle, endangle, radius, yradius);
+  }
+  _pieslice (cx, cy, stangle, endangle, radius) {
+    if ((radius < 1) || (stangle === endangle)) { return; } // TODO: test against reference
+    const yradius = Math.floor( radius * (this.aspect.xasp / this.aspect.yasp) );
+    this._sector(cx, cy, stangle, endangle, radius, yradius);
   }
 
   // Put byte array of image data on to pixels[]
@@ -2177,6 +2214,9 @@ class BGI {
 
   // draws in current line style, thickness, and drawing color
   rectangle (left, top, right, bottom, color = this.info.fgcolor, wmode = this.info.writeMode) {
+    _rectangle(left, top, right, bottom, color, wmode);
+  }
+  _rectangle (left, top, right, bottom, color = this.info.fgcolor, wmode = this.info.writeMode) {
 
     // swap
     if (left > right) { let tmp = left; left = right; right = tmp; }
@@ -2204,6 +2244,9 @@ class BGI {
   }
 
   // Draws and fills an elliptical pie slice centered at (x, y).
+  _sector (cx, cy, stangle, endangle, xradius, yradius) {
+    this.sector(cx, cy, stangle, endangle, xradius, yradius);
+  }
   sector (cx, cy, stangle, endangle, xradius, yradius) {
     // Outlines using current color, filled using pattern & color.
     // from setfillstyle & setfillpattern.
