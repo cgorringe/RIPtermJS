@@ -1514,7 +1514,7 @@ class BGI {
   // pp is an array of ints: [x1, y1, x2, y2, ... xn, yn]
   // where n = numpoints.
   fillpoly (numpoints, pp) {
-    _fillpoly(numpoints, pp);
+    this._fillpoly(numpoints, pp);
   }
   _fillpoly (numpoints, pp) {
     // polypoints array of ints
@@ -2214,7 +2214,7 @@ class BGI {
 
   // draws in current line style, thickness, and drawing color
   rectangle (left, top, right, bottom, color = this.info.fgcolor, wmode = this.info.writeMode) {
-    _rectangle(left, top, right, bottom, color, wmode);
+    this._rectangle(left, top, right, bottom, color, wmode);
   }
   _rectangle (left, top, right, bottom, color = this.info.fgcolor, wmode = this.info.writeMode) {
 
