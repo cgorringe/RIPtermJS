@@ -24,16 +24,14 @@ The most popular terminal program for accessing RIP-enabled BBSs was an MS-DOS p
 - [x] Filled Circles, Ovals, &amp; Pie Slices (DONE)
 - [x] Drawing Text using .CHR fonts (DONE)
 - [x] Default Text Font (8x8 font DONE)
-- [ ] Buttons &amp; Mouse regions (in progress)
-- [ ] Loading &amp; drawing of Icons
+- [x] Buttons &amp; Mouse regions (DONE)
+- [x] Loading &amp; drawing of Icons (DONE)
 - [ ] WebSockets to BBS on server
 - [ ] Text windows &amp; ANSI emulation
 - [ ] $ Variables
 
 
 Visit my [demo page](http://carl.gorringe.org/pub/code/javascript/RIPtermJS/).
-
-[![](img/badge_demo.png)](http://carl.gorringe.org/pub/code/javascript/RIPtermJS/)
 
 
 |     |     |     |
