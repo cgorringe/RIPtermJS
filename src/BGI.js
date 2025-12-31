@@ -489,6 +489,8 @@ class BGI {
   // Bresenham's ellipse algorithm
   ellipse_bresenham (cx, cy, xradius, yradius, thickness = this.info.line.thickness) {
 
+    // FIXME: thin ellipses not drawn correctly in C_WELL.RIP
+
     //this.log('bgi', `ellipse_bresenham: ${cx}, ${cy}, ${xradius}, ${yradius}, ${thickness}`); // DEBUG
 
     //console.log('ellipse_bresenham') // DEBUG
@@ -517,6 +519,10 @@ class BGI {
 
     //this.log('bgi', 'ellipse_bresenham TEST2'); // DEBUG
 
+    // draw x-axis pixels twice to correct XOR_PUT mode
+    putpix(cx - x, cy);
+    putpix(cx + x, cy);
+
     do {
       putpix(cx - x, cy + y);
       putpix(cx + x, cy + y);
@@ -527,12 +533,13 @@ class BGI {
       //if (e2 < dy) { y++; dy += xrad2; err += dy; } // y step TEST
       if (e2 >= dx || (err << 1) > dy) { x++; dx += yrad2; err += dx; } // x step
       //if (e2 >= dx || (2 * err) >= dy) { x++; dx += yrad2; err += dx; } // x step TEST
-    } while (x <= 0);
+    } while (x < 0);
 
-    // finish tip of ellipse (is this needed?)
-    while (y++ < yradius) {
+    // finish tip of ellipse (keep)
+    while (y <= yradius) {
       putpix(cx, cy + y);
       putpix(cx, cy - y);
+      y++;
     }
   }
 
@@ -653,6 +660,10 @@ class BGI {
     let e2 = yradius, dx = (1+2*x)*e2*e2;
     let dy = x*x, err = dx+dy;
 
+    // draw x-axis pixels twice to correct XOR_PUT mode
+    if (isInArc(cx - x, cy)) { putpix(cx - x, cy) }
+    if (isInArc(cx + x, cy)) { putpix(cx + x, cy) }
+
     do {
 /*
       let points = [
@@ -674,12 +685,13 @@ class BGI {
       e2 = 2 * err;
       if (e2 <= dy) { y++; dy += xrad2; err += dy; } // y step
       if (e2 >= dx || (2 * err) > dy) { x++; dx += yrad2; err += dx; } // x step
-    } while (x <= 0);
+    } while (x < 0);
 
-    // finish tip of ellipse (is this needed?)
-    while (y++ < yradius) {
+    // finish tip of ellipse (keep)
+    while (y <= yradius) {
       if (isInArc(cx, cy + y)) { putpix(cx, cy + y) }
       if (isInArc(cx, cy - y)) { putpix(cx, cy - y) }
+      y++;
     }
   }
 
@@ -694,20 +706,31 @@ class BGI {
     let e2 = yradius, dx = (1+2*x)*e2*e2;
     let dy = x*x, err = dx+dy;
 
+    // center line fix for XOR_PUT mode
+    for (let px = x; px <= -x; px++) {
+      this.ff_putpixel(cx + px, cy);
+    }
+
+    let last_y = y;
     do {
-      for (let px = x; px <= -x; px++) {
-        this.ff_putpixel(cx + px, cy - y);
-        this.ff_putpixel(cx + px, cy + y);
+      if (y != last_y) {
+        // prevent repeat drawing same line for XOR_PUT mode.
+        for (let px = x; px <= -x; px++) {
+          this.ff_putpixel(cx + px, cy - y);
+          this.ff_putpixel(cx + px, cy + y);
+        }
+        last_y = y;
       }
       e2 = 2 * err;
       if (e2 <= dy) { y++; dy += xrad2; err += dy; } // y step
       if (e2 >= dx || (2 * err) > dy) { x++; dx += yrad2; err += dx; } // x step
     } while (x <= 0);
 
-    // finish tip of ellipse (is this needed?)
-    //while (y++ < yradius) {
+    // finish tip of ellipse (likely not needed?)
+    //while (y <= yradius) {
     //  this._putpixel(cx, cy + y);
     //  this._putpixel(cx, cy - y);
+    //  y++;
     //}
   }
 
@@ -2288,6 +2311,7 @@ class BGI {
     // which I haven't figured out how to do yet...
 
     // Alternately use floodfill, which is not perfect.
+    // also floodfill likely wouldn't work in XOR_PUT write mode!
 
     // To pick a point for the floodfill, take the angle
     // halfway between the start & end, find that point

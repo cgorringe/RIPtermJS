@@ -748,10 +748,14 @@ class RIPterm {
   // Highlight command by setting writemode to XOR then redraw it.
   highlightCmd (cmd0, args, logFlag = false) {
 
+    // FIXME: pie slices will flood canvas ['I','i']
+    // need to fix bgi.sector() so that it doesn't call bgi.floodfill()
+    // instead draw a box around it.
+
     // handling these RIP commands
-    const runCmdSet = new Set(['X','L','R','B','C','O','o','A','V','I','i','Z','P','p','l']);
+    const runCmdSet = new Set(['X','L','R','B','C','O','o','A','V','Z','P','p','l']);
     const coordsCmdSet = new Set(['1M','1C','1U']);
-    const customCmdSet = new Set(['v','1P']);
+    const customCmdSet = new Set(['v','1P','I','i']);
     const allCmdSet = runCmdSet.union(coordsCmdSet).union(customCmdSet);
     // can't highlight '@' text, as size depends on previously stored font info that changes.
 
@@ -793,6 +797,16 @@ class RIPterm {
             if (('width' in this.clipboard) && ('height' in this.clipboard)) {
               //this.bgi._fillrect(o.x, o.y, o.x + this.clipboard.width, o.y + this.clipboard.height);
             }
+          }
+          else if (cmd0 === 'I') {
+            // RIP_PIE_SLICE {x, y, radius}
+            // temp solution: draw a box around it
+            this.bgi._fillrect(o.x-o.radius, o.y-o.radius, o.x+o.radius, o.y+o.radius);
+          }
+          else if (cmd0 === 'i') {
+            // RIP_OVAL_PIE_SLICE {x, y, radx, rady}
+            // temp solution: draw a box around it
+            this.bgi._fillrect(o.x-o.radx, o.y-o.rady, o.x+o.radx, o.y+o.rady);
           }
 
           // draw and restore state
