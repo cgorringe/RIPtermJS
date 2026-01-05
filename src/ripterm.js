@@ -258,7 +258,7 @@ class RIPterm {
       // timers
       if (this.cmdTimer) { window.clearTimeout(this.cmdTimer); this.cmdTimer = null; }
       if (this.refTimer) { window.clearTimeout(this.refTimer); this.refTimer = null; }
-      this.cmdTimer = window.setTimeout(() => { this.drawNext() }, this.opts.timeInterval);
+      this.cmdTimer = window.setTimeout(async () => { await this.drawNext() }, this.opts.timeInterval);
       this.refTimer = window.setTimeout(() => { this.refreshCanvas() }, this.opts.refreshInterval);
     }
     else {
@@ -330,14 +330,14 @@ class RIPterm {
   // copied from ripterm.js v2
 
   // TODO: update for v3
-  drawNext () {
+  async drawNext () {
     if (!this.isRunning) { return }
     if (this.ripData && (this.cmdi < this.ripData.length)) {
       let d = this.ripData[this.cmdi];
       // console.log(d); // DEBUG
       if ( this.cmd[d[0]] ) {
         const o = this.cmd[d[0]](d[1]);
-        if (o && o.run) { o.run({}); }
+        if (o && o.run) { await o.run({}); }
         //this.log('rip', `!|${d[0]}${d[1]} ${JSON.stringify(o)}`); // DEBUG
       }
       if (this.opts.pauseOn.includes(d[0])) {
@@ -345,7 +345,7 @@ class RIPterm {
         else { this.stop(); }
       }
       this.cmdi++;
-      this.timer = window.setTimeout(() => { this.drawNext() }, this.opts.timeInterval);
+      this.timer = window.setTimeout(async () => { await this.drawNext() }, this.opts.timeInterval);
     }
     else {
       this.stop();
@@ -520,12 +520,10 @@ class RIPterm {
   }
 
   // fetches the given array of icon files and caches them.
-  // TODO: load in serial, and return a Promise
-  loadIcons (filenames) {
-
-    for (let fname of filenames) {
-      this.bgi.fetchIcon(fname);
-    }
+  async loadIcons (filenames) {
+    return (await Promise.all(filenames.map(async fname => {
+      this.bgi.icons[fname] = await this.bgi.fetchIcon(fname);
+    })));
   }
 
 
@@ -691,17 +689,17 @@ class RIPterm {
       const item = event.target.closest(".rip-cmd");
       if (!item) return;
       if (!item.contains(event.relatedTarget)) {
-        this.hoverTimer = setTimeout(() => {
+        this.hoverTimer = setTimeout(async () => {
           const inst = event.target.textContent;
           //console.log("mouseover: " + inst); // DEBUG
-          this.onHoverCmd(inst);
+          await this.onHoverCmd(inst);
           this.hoverTimer = null;
         }, this.HOVER_DELAY);
       }
       // if (event.target.classList.contains("rip-cmd")) { }
     });
 
-    document.addEventListener("mouseout", (event) => {
+    document.addEventListener("mouseout", async (event) => {
       const item = event.target.closest(".rip-cmd");
       if (!item) return;
       if (!item.contains(event.relatedTarget)) {
@@ -712,15 +710,15 @@ class RIPterm {
         else {
           const inst = event.target.textContent;
           //console.log("mouse out: " + inst); // DEBUG
-          this.onHoverCmd(inst);
+          await this.onHoverCmd(inst);
         }
       }
     });
   }
 
   // onClick handler for commands in commandsDiv. (no longer used)
-  clickCmd (cmd0, args) {
-    this.highlightCmd(cmd0, args, true);
+  async clickCmd (cmd0, args) {
+    await this.highlightCmd(cmd0, args, true);
   }
 
   // Click event handler that outputs RIP command details to log.
@@ -738,15 +736,15 @@ class RIPterm {
   // to highlight RIP commands in the canvas. hiliteCmdFlag must be set true.
   // inst is a full RIP command string (cmd + args).
   //
-  onHoverCmd (inst) {
+  async onHoverCmd (inst) {
     if (this.hiliteCmdFlag) {
       const [cmd0, args] = this.parseRIPcmd(inst);
-      this.highlightCmd(cmd0, args, false);
+      await this.highlightCmd(cmd0, args, false);
     }
   }
 
   // Highlight command by setting writemode to XOR then redraw it.
-  highlightCmd (cmd0, args, logFlag = false) {
+  async highlightCmd (cmd0, args, logFlag = false) {
 
     // FIXME: pie slices will flood canvas ['I','i']
     // need to fix bgi.sector() so that it doesn't call bgi.floodfill()
@@ -779,7 +777,7 @@ class RIPterm {
 
           if (runCmdSet.has(cmd0)) {
             // draw shape directly
-            o.run({ nosvg: true });
+            await o.run({ nosvg: true });
           }
           else if (coordsCmdSet.has(cmd0)) {
             // don't run directly, instead draw a filled rectangle
@@ -1033,7 +1031,7 @@ class RIPterm {
   // Implements RIP_BUTTON & RIP_BUTTON_STYLE
   // uses this.bgi, this.clipboard, and modifies this.buttonStyle
   //
-  createButton (x1, y1, x2, y2, hotkey, flags, text, bstyle = this.buttonStyle) {
+  async createButton (x1, y1, x2, y2, hotkey, flags, text, bstyle = this.buttonStyle) {
 
     const [icon_name, label_text, host_cmd] = text.split("<>");
     const bevsize = (bstyle.flags & 512) ? ((bstyle.bevsize > 0) ? bstyle.bevsize : 1) : 0;
@@ -1056,7 +1054,7 @@ class RIPterm {
     if (bstyle.flags & 128) {
       const fname = this.fixIconFilename(icon_name);
       if (fname) {
-        button.image = this.bgi.readimagefile(fname);
+        button.image = await this.bgi.readimagefile(fname);
       }
     }
 
@@ -1075,7 +1073,7 @@ class RIPterm {
     if (bstyle.flags & 4096) {
       const hotname = this.hotIconFilename(icon_name);
       if (hotname) {
-        button.hoticon = this.bgi.readimagefile(hotname);
+        button.hoticon = await this.bgi.readimagefile(hotname);
       }
     }
 
@@ -1434,7 +1432,7 @@ class RIPterm {
           const outer = this;
           let o = this.parseRIPargs2(args, '2222', ['x0','y0','x1','y1']);
           o.desc = 'RIP_VIEWPORT';
-          o.run = function(ob) {
+          o.run = async function(ob) {
             outer.bgi.setviewport(this.x0, this.y0, this.x1, this.y1, true);
           };
           //this.log('rip', `!|v${args} RIP_VIEWPORT ${JSON.stringify(o)}`); // DEBUG
@@ -1448,7 +1446,7 @@ class RIPterm {
       '*': (args) => {
         const outer = this;
         let o = { desc: 'RIP_RESET_WINDOWS' };
-        o.run = function(ob) {
+        o.run = async function(ob) {
           // don't reset colors & styles!
           // TODO: set text window
           outer.bgi.cleardevice();
@@ -1466,7 +1464,7 @@ class RIPterm {
       'E': (args) => {
         const outer = this;
         let o = { desc: 'RIP_ERASE_VIEW' };
-        o.run = function(ob) {
+        o.run = async function(ob) {
           outer.bgi.clearviewport();
         };
         return o;
@@ -1482,7 +1480,7 @@ class RIPterm {
           const outer = this;
           let o = this.parseRIPargs2(args, '2', ['color']);
           o.desc = 'RIP_COLOR';
-          o.run = function(ob) {
+          o.run = async function(ob) {
             outer.bgi.setcolor(this.color);
           };
           return o;
@@ -1496,7 +1494,7 @@ class RIPterm {
           const outer = this;
           let o = { desc: 'RIP_SET_PALETTE' };
           o.palette = this.parseRIPargs(args, '2222222222222222');
-          o.run = function(ob) {
+          o.run = async function(ob) {
             for (let i=0; i < this.palette.length; i++) {
               const c = this.palette[i];
               if (c < 64) {
@@ -1516,7 +1514,7 @@ class RIPterm {
           const outer = this;
           let o = this.parseRIPargs2(args, '22', ['color','value']);
           o.desc = 'RIP_ONE_PALETTE';
-          o.run = function(ob) {
+          o.run = async function(ob) {
             if ((this.color < 16) && (this.value < 64)) {
               const [red, green, blue] = outer.hex2rgb( RIPterm.paletteEGA64[this.value] );
               outer.bgi.setrgbpalette(this.color, red, green, blue);
@@ -1532,7 +1530,7 @@ class RIPterm {
           const outer = this;
           let o = this.parseRIPargs2(args, '2', ['mode']);
           o.desc = 'RIP_WRITE_MODE';
-          o.run = function(ob) {
+          o.run = async function(ob) {
             outer.bgi.setwritemode(this.mode);
           };
           return o;
@@ -1545,7 +1543,7 @@ class RIPterm {
           const outer = this;
           let o = this.parseRIPargs2(args, '22', ['x','y']);
           o.desc = 'RIP_MOVE';
-          o.run = function(ob) {
+          o.run = async function(ob) {
             outer.bgi.moveto(this.x, this.y);
           };
           return o;
@@ -1558,7 +1556,7 @@ class RIPterm {
         const outer = this;
         let o = this.parseRIPargs2(args, '*', ['text']);
         o.desc = 'RIP_TEXT';
-        o.run = function(ob = {}) {
+        o.run = async function(ob = {}) {
           if (ob.nosvg) {
             outer.bgi._outtext(this.text);
           } else {
@@ -1574,7 +1572,7 @@ class RIPterm {
         const outer = this;
         let o = this.parseRIPargs2(args, '22*', ['x','y','text']);
         o.desc = 'RIP_TEXT_XY';
-        o.run = function(ob = {}) {
+        o.run = async function(ob = {}) {
           if (ob.nosvg) {
             outer.bgi._outtextxy(this.x, this.y, this.text);
           } else {
@@ -1590,7 +1588,7 @@ class RIPterm {
         const outer = this;
         let o = this.parseRIPargs2(args, '2222', ['font','direction','size','res']);
         o.desc = 'RIP_FONT_STYLE';
-        o.run = function(ob) {
+        o.run = async function(ob) {
           outer.bgi.settextstyle(this.font, this.direction, this.size);
         };
         return o;
@@ -1603,7 +1601,7 @@ class RIPterm {
           const outer = this;
           let o = this.parseRIPargs2(args, '22', ['x','y']);
           o.desc = 'RIP_PIXEL';
-          o.run = function(ob = {}) {
+          o.run = async function(ob = {}) {
             if (ob.nosvg) {
               outer.bgi._putpixel(this.x, this.y);
             } else {
@@ -1621,7 +1619,7 @@ class RIPterm {
           const outer = this;
           let o = this.parseRIPargs2(args, '2222', ['x0','y0','x1','y1']);
           o.desc = 'RIP_LINE';
-          o.run = function(ob = {}) {
+          o.run = async function(ob = {}) {
             if (ob.nosvg) {
               outer.bgi._line(this.x0, this.y0, this.x1, this.y1);
             } else {
@@ -1638,7 +1636,7 @@ class RIPterm {
           const outer = this;
           let o = this.parseRIPargs2(args, '2222', ['x0','y0','x1','y1']);
           o.desc = 'RIP_RECTANGLE';
-          o.run = function(ob = {}) {
+          o.run = async function(ob = {}) {
             if (ob.nosvg) {
               outer.bgi._rectangle(this.x0, this.y0, this.x1, this.y1);
             } else {
@@ -1657,7 +1655,7 @@ class RIPterm {
           const outer = this;
           let o = this.parseRIPargs2(args, '2222', ['x0','y0','x1','y1']);
           o.desc = 'RIP_BAR';
-          o.run = function(ob = {}) {
+          o.run = async function(ob = {}) {
             if (ob.nosvg) {
               outer.bgi._bar(this.x0, this.y0, this.x1, this.y1);
             } else {
@@ -1675,7 +1673,7 @@ class RIPterm {
           const outer = this;
           let o = this.parseRIPargs2(args, '222', ['x','y','radius']);
           o.desc = 'RIP_CIRCLE';
-          o.run = function(ob = {}) {
+          o.run = async function(ob = {}) {
             if (ob.nosvg) {
               outer.bgi._circle(this.x, this.y, this.radius);
             } else {
@@ -1701,7 +1699,7 @@ class RIPterm {
           const outer = this;
           let o = this.parseRIPargs2(args, '2222', ['x','y','x_rad','y_rad']);
           o.desc = 'RIP_FILLED_OVAL';
-          o.run = function(ob = {}) {
+          o.run = async function(ob = {}) {
             if (ob.nosvg) {
               outer.bgi.fillellipse(this.x, this.y, this.x_rad, this.y_rad);
               outer.bgi.ellipse(this.x, this.y, 0, 360, this.x_rad, this.y_rad); // may be included in fillellipse() ?
@@ -1720,7 +1718,7 @@ class RIPterm {
           const outer = this;
           let o = this.parseRIPargs2(args, '22222', ['x','y','start_ang','end_ang','radius']);
           o.desc = 'RIP_ARC';
-          o.run = function(ob = {}) {
+          o.run = async function(ob = {}) {
             if (ob.nosvg) {
               outer.bgi._arc(this.x, this.y, this.start_ang, this.end_ang, this.radius);
             } else {
@@ -1738,7 +1736,7 @@ class RIPterm {
           const outer = this;
           let o = this.parseRIPargs2(args, '222222', ['x','y','st_ang','e_ang','radx','rady']);
           o.desc = 'RIP_OVAL_ARC';
-          o.run = function(ob = {}) {
+          o.run = async function(ob = {}) {
             if (ob.nosvg) {
               outer.bgi._ellipse(this.x, this.y, this.st_ang, this.e_ang, this.radx, this.rady);
             } else {
@@ -1755,7 +1753,7 @@ class RIPterm {
           const outer = this;
           let o = this.parseRIPargs2(args, '22222', ['x','y','start_ang','end_ang','radius']);
           o.desc = 'RIP_PIE_SLICE';
-          o.run = function(ob = {}) {
+          o.run = async function(ob = {}) {
             if (ob.nosvg) {
               outer.bgi._pieslice(this.x, this.y, this.start_ang, this.end_ang, this.radius);
             } else {
@@ -1772,7 +1770,7 @@ class RIPterm {
           const outer = this;
           let o = this.parseRIPargs2(args, '222222', ['x','y','st_ang','e_ang','radx','rady']);
           o.desc = 'RIP_OVAL_PIE_SLICE';
-          o.run = function(ob = {}) {
+          o.run = async function(ob = {}) {
             if (ob.nosvg) {
               outer.bgi._sector(this.x, this.y, this.st_ang, this.e_ang, this.radx, this.rady);
             } else {
@@ -1791,7 +1789,7 @@ class RIPterm {
           let points = this.parseRIPargs(args, '222222222'); // 9 ints
           o.cnt = points.pop();
           o.points = points;
-          o.run = function(ob = {}) {
+          o.run = async function(ob = {}) {
             if (ob.nosvg) {
               outer.bgi._drawbezier(this.cnt, this.points);
             } else {
@@ -1808,7 +1806,7 @@ class RIPterm {
         let pp = this.parseRIPpoly(args);
         let npoints = pp.shift();
         let o = { desc: 'RIP_POLYGON', npoints, pp };
-        o.run = function(ob = {}) {
+        o.run = async function(ob = {}) {
           if (ob.nosvg) {
             outer.bgi._drawpoly(this.npoints, this.pp);
           } else {
@@ -1826,7 +1824,7 @@ class RIPterm {
         // draw both a filled polygon using fill color & bgcolor,
         // and polygon outline using fgcolor, line style, and thickness.
         let o = { desc: 'RIP_FILL_POLYGON', npoints, pp };
-        o.run = function(ob = {}) {
+        o.run = async function(ob = {}) {
           if (ob.nosvg) {
             // _fillpoly() calls _drawpoly()
             outer.bgi._fillpoly(this.npoints, this.pp);
@@ -1844,7 +1842,7 @@ class RIPterm {
         let pp = this.parseRIPpoly(args);
         let npoints = pp.shift();
         let o = { desc: 'RIP_POLYLINE', npoints, pp };
-        o.run = function(ob = {}) {
+        o.run = async function(ob = {}) {
           if (ob.nosvg) {
             outer.bgi._drawpolyline(this.npoints, this.pp);
           } else {
@@ -1860,7 +1858,7 @@ class RIPterm {
           const outer = this;
           let o = this.parseRIPargs2(args, '222', ['x','y','border']);
           o.desc = 'RIP_FILL';
-          o.run = function(ob = {}) {
+          o.run = async function(ob = {}) {
             if (ob.nosvg) {
               outer.bgi._floodfill(this.x, this.y, this.border);
             } else {
@@ -1878,7 +1876,7 @@ class RIPterm {
           const outer = this;
           let o = this.parseRIPargs2(args, '242', ['style','user_pat','thick']);
           o.desc = 'RIP_LINE_STYLE';
-          o.run = function(ob) {
+          o.run = async function(ob) {
             outer.bgi.setlinestyle(this.style, this.user_pat, this.thick);
           };
           return o;
@@ -1891,7 +1889,7 @@ class RIPterm {
           const outer = this;
           let o = this.parseRIPargs2(args, '22', ['pattern','color']);
           o.desc = 'RIP_FILL_STYLE';
-          o.run = function(ob) {
+          o.run = async function(ob) {
             outer.bgi.setfillstyle(this.pattern, this.color);
           };
           return o;
@@ -1904,7 +1902,7 @@ class RIPterm {
           const outer = this;
           let o = this.parseRIPargs2(args, '222222222', ['c1','c2','c3','c4','c5','c6','c7','c8','color']);
           o.desc = 'RIP_FILL_PATTERN';
-          o.run = function(ob) {
+          o.run = async function(ob) {
             outer.bgi.setfillpattern([this.c1, this.c2, this.c3, this.c4, this.c5, this.c6, this.c7, this.c8], this.color);
           };
           return o;
@@ -1917,7 +1915,7 @@ class RIPterm {
           const outer = this;
           let o = this.parseRIPargs2(args, '22222115*', ['num','x0','y0','x1','y1','clk','clr','res','text']);
           o.desc = 'RIP_MOUSE';
-          o.run = function(ob) {
+          o.run = async function(ob) {
             outer.createMouseRegion(this.x0, this.y0, this.x1, this.y1, this.clk, this.clr, this.text);
           };
           return o;
@@ -1928,7 +1926,7 @@ class RIPterm {
       '1K': (args) => {
         const outer = this;
         let o = { desc: 'RIP_KILL_MOUSE_FIELDS' };
-        o.run = function(ob) {
+        o.run = async function(ob) {
           outer.clearAllButtons();
         };
         return o;
@@ -1944,7 +1942,7 @@ class RIPterm {
           const outer = this;
           let o = this.parseRIPargs2(args, '22221', ['x0','y0','x1','y1','res']);
           o.desc = 'RIP_GET_IMAGE';
-          o.run = function(ob = {}) {
+          o.run = async function(ob = {}) {
             if (ob.nosvg) {
               outer.clipboard = outer.bgi._getimage(this.x0, this.y0, this.x1, this.y1);
             } else {
@@ -1961,7 +1959,7 @@ class RIPterm {
           const outer = this;
           let o = this.parseRIPargs2(args, '2221', ['x','y','mode','res']);
           o.desc = 'RIP_PUT_IMAGE';
-          o.run = function(ob = {}) {
+          o.run = async function(ob = {}) {
             if (ob.nosvg) {
               outer.bgi._putimage(this.x, this.y, outer.clipboard, this.mode);
             } else {
@@ -1980,13 +1978,11 @@ class RIPterm {
           const outer = this;
           let o = this.parseRIPargs2(args, '22212*', ['x','y','mode','clipflag','res','filename']);
           o.desc = 'RIP_LOAD_ICON';
-          o.run = function(ob) {
+          o.run = async function(ob) {
             const fname = outer.fixIconFilename(this.filename);
             outer.log('rip', 'RIP_LOAD_ICON: ' + fname);
-
-            // FIXME: for now this only retrieves images from the cache
             if (fname) {
-              const img = outer.bgi.readimagefile(fname);
+              const img = await outer.bgi.readimagefile(fname);
               outer.bgi.putimage(this.x, this.y, img, this.mode);
               if (this.clipflag === 1) {
                 outer.clipboard = img;
@@ -2003,7 +1999,7 @@ class RIPterm {
           const outer = this;
           let o = this.parseRIPargs2(args, '22242222222222', ['wid','hgt','orient','flags','bevsize','dfore','dback','bright','dark','surface','grp_no','flags2','uline_col','corner_col']);
           o.desc = 'RIP_BUTTON_STYLE';
-          o.run = function(ob) {
+          o.run = async function(ob) {
             outer.buttonStyle = this; // doesn't need .desc or .run
           };
           return o;
@@ -2016,8 +2012,8 @@ class RIPterm {
           const outer = this;
           let o = this.parseRIPargs2(args, '2222211*', ['x0','y0','x1','y1','hotkey','flags','res','text']);
           o.desc = 'RIP_BUTTON';
-          o.run = function(ob) {
-            let btn = outer.createButton(this.x0, this.y0, this.x1, this.y1, this.hotkey, this.flags, this.text);
+          o.run = async function(ob) {
+            let btn = await outer.createButton(this.x0, this.y0, this.x1, this.y1, this.hotkey, this.flags, this.text);
             outer.drawButton(this.x0, this.y0, this.x1, this.y1, btn, false);
           };
           return o;
@@ -2038,7 +2034,7 @@ class RIPterm {
           const outer = this;
           let o = this.parseRIPargs2(args, '242', ['revision','flags','res']);
           o.desc = 'RIP_HEADER';
-          o.run = function(ob) {
+          o.run = async function(ob) {
             if (this.revision > 0) {
               outer.log('rip', 'RIPscrip 2.0 or above NOT SUPPORTED at this time!');
             }
@@ -2058,7 +2054,7 @@ class RIPterm {
         // do nothing
         const outer = this;
         let o = { desc: 'RIP_NO_MORE' };
-        o.run = function(ob) {
+        o.run = async function(ob) {
           outer.activateMouseEvents(true);
         };
         return o;

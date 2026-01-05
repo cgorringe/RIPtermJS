@@ -239,6 +239,7 @@ class BGI {
   }
 
   // Loads all the vector font .CHR files in BGI.fontFileList[]
+  // TODO: make async
   initFonts () {
 
     // TODO: may want to try to not load them all at the same time!
@@ -1168,8 +1169,10 @@ class BGI {
   // Assumes 16-color images, 4-bits per pixel.
   // filename = filename without path.
   // uses this.iconsPath
-  // TODO: callback or Promise returned?
-  fetchIcon (filename) {
+  // returns: image object or undefined.
+  // { width:int, height:int, data:Uint8ClampedArray }
+  //
+  async fetchIcon (filename) {
 
     if (typeof filename !== 'string') {
       this.log('err', 'fetchIcon() missing "filename"!');
@@ -1188,9 +1191,10 @@ class BGI {
     this.log('bgi', 'Fetching icon: ' + url);
 
     let request = new Request(url);
-    fetch(request)
-      .then(response => response.arrayBuffer())
-      .then(buffer => {
+    try {
+      const response = await fetch(request);
+      if (!response.ok) throw new Error("Request failed");
+      const buffer = await response.arrayBuffer();
 
         // no magic number in ICN files to test against
         const dview = new DataView(buffer);
@@ -1231,17 +1235,17 @@ class BGI {
               o += 8;
             }
           }
-
-          let image = { width: imgWidth, height: imgHeight, data: data };
-
-          // TODO: should return image in a callback or Promise
-          // which should then store in the icons cache instead of here
-          this.icons[filename] = image;
+          return { width: imgWidth, height: imgHeight, data: data };
         }
         else {
           this.log('bgi', `invalid icon? (${imgWidth} x ${imgHeight}) ${url}`);
+          return;
         }
-      }); // end fetch()
+    }
+    catch (e) {
+      this.log('bgi', `fetchIcon error: ${e}`);
+      return;
+    }
   }
 
 
@@ -2217,19 +2221,20 @@ class BGI {
     return Math.floor(Math.random() * range);
   }
 
-  // TODO
-  readimagefile (filename) {
+  // Fetch an ICN file from cache or online.
+  // returns an image or empty object
+  //
+  async readimagefile (filename) {
+
   // readimagefile (filename, left, top, right, bottom) {
     // const char* filename=NULL, int left=0, int top=0, int right=INT_MAX, int bottom=INT_MAX
     // reads a BMP, GIF, JPG, ICON, EMF, or WMF image file.
     // displays it in part of the current active window.
     // unknown: would x2,y2 crop the image if under size of image? (I'd think so)
-    // nothing returned
-
     // NOT DONE: need to check BGI spec!
 
-    // retrieve image from cache, if available
-    let image = this.icons[filename] || {};
+    // retrieve image from cache first, if available
+    let image = this.icons[filename] || await this.fetchIcon(filename) || {};
 
     // this doesn't display the image, but instead returns it for use in putimage()
     return image;
