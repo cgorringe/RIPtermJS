@@ -206,17 +206,18 @@ class RIPterm {
 
         // must do once
         this.handleMouseEvents = this.handleMouseEvents.bind(this);
-
-        // TODO: may want to move outside constructor?
-        this.bgi.initFonts();
+        this.setupCmdHover();
       }
-
-      this.setupCmdHover();
     }
     else {
       console.error('RIPterm() missing canvasId!');
     }
 
+  }
+
+  // call this after new RIPterm() to load all the fonts.
+  async initFonts () {
+    await this.bgi.initFonts();
   }
 
   initFullScreen (canvas) {

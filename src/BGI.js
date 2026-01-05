@@ -239,22 +239,19 @@ class BGI {
   }
 
   // Loads all the vector font .CHR files in BGI.fontFileList[]
-  // TODO: make async
-  initFonts () {
-
-    // TODO: may want to try to not load them all at the same time!
+  async initFonts () {
 
     // load vector fonts
-    BGI.fontFileList.forEach(filename => {
-      if (filename.length > 3) {
-        this.fetchCHRFont(filename);
+    await Promise.all(BGI.fontFileList.map(async fname => {
+      if (fname.length > 3) {
+        this.fonts[fname] = await this.fetchCHRFont(fname);
       }
-    })
+    }));
 
     // load bitmap fonts
-    this.fetchPNGFont('8x8.png', 0, 8, 8);
-    this.fetchPNGFont('8x14.png', 2, 8, 14);
-
+    // index is font size: 0=8x8, 1=7x8, 2=8x14, 3=7x14, 4=16x14.
+    this.bitfonts[0] = await this.fetchPNGFont('8x8.png', 8, 8);
+    this.bitfonts[2] = await this.fetchPNGFont('8x14.png', 8, 14);
   }
 
   // TODO: rethink this or replace
@@ -889,8 +886,9 @@ class BGI {
   // download and parse given .CHR font file.
   // filename = filename without path, including '.CHR' (e.g. 'BOLD.CHR')
   // uses this.fontsPath
-  // TODO: callback or Promise returned?
-  fetchCHRFont (filename) {
+  // returns font object or undefined.
+  //
+  async fetchCHRFont (filename) {
 
     if (typeof filename !== 'string') {
       this.log('err', 'fetchCHRFont() missing "filename"!');
@@ -902,11 +900,11 @@ class BGI {
     }
     const url = this.fontsPath + '/' + filename;
     this.log('fnt', 'Fetching CHR font: ' + url);
-
     let request = new Request(url);
-    fetch(request)
-      .then(response => response.arrayBuffer())
-      .then(buffer => {
+    try {
+      const response = await fetch(request);
+      if (!response.ok) throw new Error("Request failed");
+      const buffer = await response.arrayBuffer();
 
         const dview = new DataView(buffer);
         if (dview.getUint8(0x80) === 43) { // 43 = '+'
@@ -953,17 +951,17 @@ class BGI {
             font.data.push( defdata.slice(spos, pos) );
           }
 
-          // TODO: how to return the font object?
-          this.fonts[filename] = font; // TODO: may rethink this
+          return font;
         }
         else {
           this.log('fnt', 'CHR file marker not correct');
+          return;
         }
-
-      }); // end fetch()
-
-      // TODO: return a Promise that can run code when finished loading?
-
+    }
+    catch (e) {
+      this.log('err', `fetchCHRFont error: ${e}`);
+      return;
+    }
   } // end fetchCHRFont()
 
   // uses and updates this.info.cp, and this.fonts
@@ -1038,10 +1036,11 @@ class BGI {
   // OFF pixels are black (0,0,0), else they are ON pixels.
   // filename = filename without path, including '.png' (e.g. '8x8.png')
   // will use this.fontsPath + '/' + filename for full path.
-  // fontnum = font size value for bitmapped fonts (0-4) to index into this.bitfonts[]
-  // TODO: return a Promise?
-
-  fetchPNGFont (filename, fontnum, xsize, ysize) {
+  // Returns an array of 256 elements for each ASCII char,
+  //   each element is an array of ints, each being a scanline of height values.
+  //   e.g. [65][2] is ASCII char 65, 3rd scanline which returns an 8-bit int.
+  //
+  async fetchPNGFont (filename, xsize, ysize) {
 
     // checking args
     if (typeof filename !== 'string') {
@@ -1056,52 +1055,57 @@ class BGI {
     this.log('fnt', 'Fetching PNG font: ' + url);
 
     let img = new Image();
-    img.onload = () => {
+    return new Promise((resolve, reject) => {
+      img.onload = () => {
+        const imgW = img.naturalWidth;
+        const imgH = img.naturalHeight;
 
-      const imgW = img.naturalWidth;
-      const imgH = img.naturalHeight;
-
-      // PNG size must be at least (16 * xsize) by (16 * ysize) pixels.
-      const minW = xsize * 16, minH = ysize * 16;
-      if ((imgW < minW) || (imgH < minH)) {
-        this.log('err', `PNG size is ${imgW}x${imgH} but needs to be at least ${minW}x${minH}!`);
-        return;
-      }
-
-      // preparing font image
-      const can1 = document.createElement('canvas');
-      can1.setAttribute('width', imgW);
-      can1.setAttribute('height', imgH);
-      const ctx1 = can1.getContext('2d');
-      ctx1.drawImage(img, 0, 0);
-      const imgdata1 = ctx1.getImageData(0, 0, imgW, imgH);
-      // imgdata1.data is Uint8ClampedArray(w * h * 4) // RGBA
-
-      // for every ASCII char
-      this.bitfonts[fontnum] = [];
-      let pos = 0, bit = 0;
-      for (let i=0; i < 256; i++) {
-        // upper-left pixel of char in PNG
-        let x0 = (i % 16) * xsize;
-        let y0 = Math.floor(i / 16) * ysize;
-        let bitchar = []; // array of scanline values (1 for each row)
-
-        for (let y=0; y < ysize; y++) {
-          let scanline = 0;
-          // looping x in reverse so bits are shifted on scanline in reverse order
-          for (let x = xsize - 1; x >= 0; x--) {
-            pos = ((y0 + y) * imgW + x0 + x) * 4;
-            bit = (imgdata1.data[pos] != 0) ? 1 : 0; // just checking red value
-            scanline = (scanline << 1) | bit;
-          }
-          bitchar.push(scanline);
+        // PNG size must be at least (16 * xsize) by (16 * ysize) pixels.
+        const minW = xsize * 16, minH = ysize * 16;
+        if ((imgW < minW) || (imgH < minH)) {
+          //this.log('err', `PNG size is ${imgW}x${imgH} but needs to be at least ${minW}x${minH}!`);
+          reject(new Error(`PNG size is ${imgW}x${imgH} but needs to be at least ${minW}x${minH}!`));
         }
-        this.bitfonts[fontnum].push(bitchar);
-      }
-    } // end onload
 
-    img.src = url;
-    // TODO: return a Promise
+        // preparing font image
+        const can1 = document.createElement('canvas');
+        can1.setAttribute('width', imgW);
+        can1.setAttribute('height', imgH);
+        const ctx1 = can1.getContext('2d');
+        ctx1.drawImage(img, 0, 0);
+        const imgdata1 = ctx1.getImageData(0, 0, imgW, imgH);
+        // imgdata1.data is Uint8ClampedArray(w * h * 4) // RGBA
+
+        // for every ASCII char
+        let abitfont = [];
+        let pos = 0, bit = 0;
+        for (let i=0; i < 256; i++) {
+          // upper-left pixel of char in PNG
+          let x0 = (i % 16) * xsize;
+          let y0 = Math.floor(i / 16) * ysize;
+          let bitchar = []; // array of scanline values (1 for each row)
+
+          for (let y=0; y < ysize; y++) {
+            let scanline = 0;
+            // looping x in reverse so bits are shifted on scanline in reverse order
+            for (let x = xsize - 1; x >= 0; x--) {
+              pos = ((y0 + y) * imgW + x0 + x) * 4;
+              bit = (imgdata1.data[pos] != 0) ? 1 : 0; // just checking red value
+              scanline = (scanline << 1) | bit;
+            }
+            bitchar.push(scanline);
+          }
+          abitfont.push(bitchar);
+        }
+        resolve(abitfont);
+      }; // end onload
+
+      img.onerror = (error) => {
+        reject(new Error("Failed to load PNG font"));
+      };
+
+      img.src = url;
+    }); // end Promise
   }
 
   // uses and updates this.info.cp, this.bitfonts, info.fgcolor
@@ -1243,7 +1247,7 @@ class BGI {
         }
     }
     catch (e) {
-      this.log('bgi', `fetchIcon error: ${e}`);
+      this.log('err', `fetchIcon error: ${e}`);
       return;
     }
   }
