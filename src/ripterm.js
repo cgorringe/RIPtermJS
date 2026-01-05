@@ -1701,11 +1701,11 @@ class RIPterm {
           o.desc = 'RIP_FILLED_OVAL';
           o.run = async function(ob = {}) {
             if (ob.nosvg) {
-              outer.bgi.fillellipse(this.x, this.y, this.x_rad, this.y_rad);
-              outer.bgi.ellipse(this.x, this.y, 0, 360, this.x_rad, this.y_rad); // may be included in fillellipse() ?
-            } else {
               outer.bgi._fillellipse(this.x, this.y, this.x_rad, this.y_rad);
               outer.bgi._ellipse(this.x, this.y, 0, 360, this.x_rad, this.y_rad); // may be included in fillellipse() ?
+            } else {
+              outer.bgi.fillellipse(this.x, this.y, this.x_rad, this.y_rad);
+              outer.bgi.ellipse(this.x, this.y, 0, 360, this.x_rad, this.y_rad); // may be included in fillellipse() ?
             }
           };
           return o;
