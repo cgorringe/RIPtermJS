@@ -130,8 +130,8 @@
   }
 
   /* debug log colors */
-  .rip-log-term { color: #888; }
-  .rip-log-font { color: #b8f; }
+  .rip-log-trm { color: #888; }
+  .rip-log-fnt { color: #b8f; }
   .rip-log-rip { color: #88f; }
   .rip-log-bgi { color: #8ff; }
   .rip-log-svg { color: #8f8; }
@@ -140,6 +140,10 @@
   .cmd-ok  { color: #88f; }
   .cmd-not { color: #f88; }
   .cmd-paused { color: #ff8; }
+  .rip-cmd:hover {
+    background: #666;
+    cursor: pointer;
+  }
 
 </style>
 <div>
@@ -224,6 +228,8 @@
     <option value="rips/test/L_LINE">Test Line Styles #1 (L)(=)</option>
     <option value="rips/test/L_LINE2">Test Line Styles #2 (L)(=)</option>
     <option value="rips/test/COVAI">Test Circ/Oval/Arc/Pie (COVAIoi)</option>
+    <option value="rips/test/V_ARC">Test Large Arcs (V)</option>
+    <option value="rips/test/C_WELL">Test Wishing Well Circles (C)</option>
     <option value="rips/test/v_VIEW">Test Viewport (v)</option>
     <option value="rips/test/Y_FONT">Test Fonts (Y)</option>
     <option value="rips/test/BUTTONS">Test Buttons (1B)(1U)</option>
@@ -319,6 +325,12 @@
 
   <div id="rip-commands" class="rip-frame-height framed">
   </div>
+  <div>
+    <label>
+      <h6><input type="checkbox" id="hilite-opt" onchange="toggleHilite()" style="margin-left:1em">
+        <span style="padding-left:0.3em">Highlight RIP</span></h6>
+    </label>
+  </div>
   <div class="clear"></div>
 
   <hr>
@@ -363,11 +375,12 @@
     iconsPath: 'icons',
     logQuiet: true
   });
+  ripterm.initFonts();
 
   function selectRIP() {
   }
 
-  function loadRIP() {
+  async function loadRIP() {
     let url = document.getElementById('rip-files').value;
     ripterm.readScreenshot(url + '.png');
     ripterm.readFile(url + '.RIP');
@@ -394,6 +407,11 @@
     $(viewId).show();
   }
 
+  function toggleHilite() {
+    const cbox = document.getElementById('hilite-opt');
+    ripterm.hiliteCmdFlag = cbox.checked;
+  }
+
   function clearLog() {
     document.getElementById('rip-log').innerHTML = '';
   }
@@ -410,7 +428,7 @@
     <!-- Footer -->
     <div id="footer">
       <ul class="copyright">
-        <li>&copy; 2021 Carl Gorringe</li>
+        <li>&copy; 2025 Carl Gorringe</li>
       </ul>
     </div>
 

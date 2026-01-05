@@ -674,7 +674,6 @@ class RIPterm {
   // Setup events for click, mouseover, and mouseout of individual RIP commands.
   // only call this once
   setupCmdHover () {
-    console.log('setupCmdHover()'); // DEBUG
 
     this.hoverTimer = null;
     this.HOVER_DELAY = 300;
