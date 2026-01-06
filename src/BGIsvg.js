@@ -28,7 +28,7 @@ class BGIsvg extends BGI {
       this.svgViewCount = 0;
       this.svgFillCount = 0;
       this.svgFillId = this.svgPrefix + '-fill0';
-      this.svgDashArray = [];
+      this.svgDashArray = [1, 0]; // SOLID_LINE
 
       if (args.svg instanceof SVGElement) {
         this.svg = args.svg;
@@ -127,7 +127,9 @@ class BGIsvg extends BGI {
   // SVG "stroke-dasharray" attribute.  Since dash arrays must begin with 'on' pixels
   // before any 'off' gaps, the result may be phase-shifted from the original linePattern
   // if it begins with 0s.
-
+  // Returns an empty array for no or transparent stroke.
+  // TODO: use "stroke-dashoffset" to fix above?
+  //
   svgMakeDashArray (linePattern) {
 
     let dashes = [], pat = linePattern;
@@ -306,13 +308,14 @@ class BGIsvg extends BGI {
   drawpoly (numpoints, polypoints, color = this.info.fgcolor) {
     super.drawpoly(numpoints, polypoints, color);
 
-    if (this.svgView) {
+    const dashArray = this.svgGetDashArray(this.info.line.style);
+    if (this.svgView && dashArray.length) {
       polypoints = this.offsetPoints(this.info.vp.left, this.info.vp.top, polypoints);
       this.svgView.appendChild( this.svgNode('polygon', {
         // 'points': polypoints.join(' '),
         'points': polypoints.map(x => x + 0.5).join(' '),
         'stroke': this.pal2hex(color), 'stroke-width': this.info.line.thickness,
-        'stroke-dasharray': this.svgDashArray.join(','),
+        'stroke-dasharray': dashArray.join(','),
         'stroke-linejoin': 'bevel', 'stroke-linecap': 'round',
         'fill': 'none' //, 'fill-rule': 'evenodd' // not necessary?
       }));
@@ -322,14 +325,16 @@ class BGIsvg extends BGI {
   drawpolyline (numpoints, polypoints, color = this.info.fgcolor) {
     super.drawpolyline(numpoints, polypoints, color);
 
-    if (this.svgView) {
+    const dashArray = this.svgGetDashArray(this.info.line.style);
+    if (this.svgView && dashArray.length) {
+      // draw only if dash array isn't empty
       polypoints = this.offsetPoints(this.info.vp.left, this.info.vp.top, polypoints);
       // TODO: remove stroke-dasharray if solid? is fill: none default?
       this.svgView.appendChild( this.svgNode('polyline', {
         // 'points': polypoints.join(' '),
         'points': polypoints.map(x => x + 0.5).join(' '),
         'stroke': this.pal2hex(color), 'stroke-width': this.info.line.thickness,
-        'stroke-dasharray': this.svgDashArray.join(','),
+        'stroke-dasharray': dashArray.join(','),
         'stroke-linejoin': 'bevel', 'stroke-linecap': 'round',
         'fill': 'none' //, 'fill-rule': 'evenodd' // not necessary?
       }));
@@ -383,20 +388,20 @@ class BGIsvg extends BGI {
 
   // only draw fill without the outline, since super.fillpoly() calls drawpoly()
   // TODO: this is no longer the case, so need to draw outline now?
-  // FIXME: incorrect stroke colors
   fillpoly (numpoints, pp) {
     super.fillpoly(numpoints, pp);
 
+    const dashArray = this.svgGetDashArray(this.info.line.style);
     if (this.svgView) {
       pp = this.offsetPoints(this.info.vp.left, this.info.vp.top, pp);
       const fillcolor = (this.info.fill.style === BGI.EMPTY_FILL) ? this.info.bgcolor : this.info.fill.color;
       const fill = (this.info.fill.style === BGI.SOLID_FILL) ? this.pal2hex(fillcolor) : `url(#${this.svgFillId})`;
-      const stroke = (this.info.fgcolor === this.info.bgcolor) ? 'transparent' : this.pal2hex(this.info.fgcolor);
+      const stroke = ((this.info.fgcolor === this.info.bgcolor) || (dashArray.length === 0)) ? 'transparent' : this.pal2hex(this.info.fgcolor);
       this.svgView.appendChild( this.svgNode('polygon', {
         //'points': pp.join(' '),
         'points': pp.map(x => x + 0.5).join(' '),
         'stroke': stroke, 'stroke-width': this.info.line.thickness,
-        'stroke-dasharray': this.svgDashArray.join(','),
+        'stroke-dasharray': dashArray.join(','),
         'stroke-linejoin': 'bevel', 'stroke-linecap': 'round',
         'fill': fill, 'fill-rule': 'evenodd'
       }));
@@ -425,7 +430,9 @@ class BGIsvg extends BGI {
 
     super.line(x1, y1, x2, y2, color, wmode, linestyle, thickness);
 
-    if (this.svgView) {
+    const dashArray = this.svgGetDashArray(linestyle);
+    if (this.svgView && dashArray.length) {
+      // draw only if dash array isn't empty
       const vp = this.info.vp;
       x1 += vp.left; x2 += vp.left;
       y1 += vp.top; y2 += vp.top;
@@ -433,7 +440,7 @@ class BGIsvg extends BGI {
       this.svgView.appendChild( this.svgNode('line', {
         'x1': (x1 + 0.5), 'y1': (y1 + 0.5), 'x2': (x2 + 0.5), 'y2': (y2 + 0.5),
         'stroke': this.pal2hex(color), 'stroke-width': thickness,
-        'stroke-dasharray': this.svgDashArray.join(',')
+        'stroke-dasharray': dashArray.join(',')
       }));
     }
   }
@@ -485,14 +492,16 @@ class BGIsvg extends BGI {
   rectangle (left, top, right, bottom, color = this.info.fgcolor, wmode = this.info.writeMode) {
     super.rectangle(left, top, right, bottom, color, wmode);
 
-    if (this.svgView) {
+    const dashArray = this.svgGetDashArray(this.info.line.style);
+    if (this.svgView && dashArray.length) {
+      // draw only if dash array isn't empty
       const vp = this.info.vp;
       left += vp.left; right += vp.left;
       top += vp.top; bottom += vp.top;
       this.svgView.appendChild( this.svgNode('rect', {
         'x': (left + 0.5), 'y': (top + 0.5), 'width': (right - left), 'height': (bottom - top),
         'stroke': this.pal2hex(color), 'stroke-width': this.info.line.thickness,
-        'stroke-dasharray': this.svgDashArray.join(','),
+        'stroke-dasharray': dashArray.join(','),
         'fill': 'none' //, 'fill-rule': 'evenodd' // not necessary?
       }));
     }
@@ -542,16 +551,24 @@ class BGIsvg extends BGI {
     }
   }
 
+  svgGetDashArray (linestyle, upattern = this.info.line.upattern) {
+    // array represents [dash, gap, dash, gap, ...]
+    // empty array for no line.
+    let dashArray = [1,0];
+    switch (linestyle) {
+      case 0: dashArray = [1,0]; break;     // SOLID_LINE
+      case 1: dashArray = [2,2]; break;     // DOTTED_LINE
+      case 2: dashArray = [4,3,6,3]; break; // CENTER_LINE
+      case 3: dashArray = [5,3,5,3]; break; // DASHED_LINE
+      case 4: dashArray = this.svgMakeDashArray(upattern); // USERBIT_LINE
+    }
+    return dashArray;
+  }
+
   setlinestyle (linestyle, upattern = 0xFFFF, thickness = 1) {
     super.setlinestyle(linestyle, upattern, thickness);
-
-    switch (linestyle) {
-      case 0: this.svgDashArray = []; break;
-      case 1: this.svgDashArray = [2,2]; break;
-      case 2: this.svgDashArray = [4,3,6,3]; break;
-      case 3: this.svgDashArray = [5,3,5,3]; break;
-      case 4: this.svgDashArray = this.svgMakeDashArray(upattern);
-    }
+    this.svgDashArray = this.svgGetDashArray(linestyle, upattern);
+    //this.log('svg', `upattern: ${upattern.toString(16).padStart(4, '0')}, stroke-dasharray: ${this.svgDashArray}`); // DEBUG
   }
 
   // Sets the current viewport for graphics output.
