@@ -1108,18 +1108,20 @@ class BGI {
     }); // end Promise
   }
 
-  // uses and updates this.info.cp, this.bitfonts, info.fgcolor
+  // Uses and updates this.info.cp, this.bitfonts, info.fgcolor
   // value: ASCII code value of a single character as int.
   // fontnum: size value 0-4
   // scale: 1 to 10 ?
   // dir: 0 = horizontal, 1 = vertical
-  drawPNGChar (value, fontnum, scale, dir) {
+  // TODO: should pass in info.fgcolor ?
+  // TODO: pass in flag to prevent overriding this.info.cp ?
+  //
+  drawPNGChar (value, fontnum, scale, dir, x0 = this.info.cp.x, y0 = this.info.cp.y) {
 
     if (value < 0 || value > 255) { return; }
     if (scale < 1) { scale = 1; }
-    let x0 = this.info.cp.x;
-    let y0 = this.info.cp.y;
     let bitchar = this.bitfonts[fontnum][value]; // FIXME: may be undefined!
+    if (bitchar === undefined) { return; }
 
     const ysize = bitchar.length;
     const xsize = 8; // TODO: need to store sizes in lookup table!
