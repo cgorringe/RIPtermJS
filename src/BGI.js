@@ -1626,11 +1626,13 @@ class BGI {
       if (xnode.length == 0) continue;
       xnode.sort(function(a, b) { return a - b; });
 
+      /*
       // DEBUG: must set y to value to test
       const TEST_Y = 200;
       if (debugFlag && (y === TEST_Y)) {
         this.log('bgi', `fillpoly: y=${y}, xnode=${xnode}`); // DEBUG
       }
+      */
 
       // draw pixels between node pairs
       for (i=0; i < xnode.length; i+=2) {
