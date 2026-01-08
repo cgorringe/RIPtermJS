@@ -859,7 +859,7 @@ class RIPterm {
         this.coordsDiv.innerHTML = '';
       }
       else if (e.type === "mousemove") {
-        this.coordsDiv.innerHTML = `(${x}, ${y})`;
+        this.coordsDiv.innerHTML = `${x}, ${y}`;
       }
     }
   }
