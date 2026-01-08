@@ -151,6 +151,7 @@ class RIPterm {
       // debug options
       this.commandsDiv = ('commandsId' in opts) ? document.getElementById(opts.commandsId) : null;
       this.counterDiv = ('counterId' in opts) ? document.getElementById(opts.counterId) : null;
+      this.coordsDiv = ('coordsId' in opts) ? document.getElementById(opts.coordsId) : null;
       if ('logId' in opts) {
         this.logId = opts.logId;
         this.logDiv = document.getElementById(opts.logId);
@@ -207,6 +208,7 @@ class RIPterm {
         // must do once
         this.handleMouseEvents = this.handleMouseEvents.bind(this);
         this.setupCmdHover();
+        this.setupCoordsMouseEvents();
       }
     }
     else {
@@ -821,12 +823,45 @@ class RIPterm {
 
   // Calculate mouse coordinates.
   // provided Event e, returns translated mouse coords [x, y]
+  // FIXME: may be off by 1 pixel?
   mouseCoords (e) {
 
     // clientWidth or Height could be off if canvas padding not 0?
-    const x = Math.round(e.offsetX * (this.canvas.width / this.canvas.clientWidth));
-    const y = Math.round(e.offsetY * (this.canvas.height / this.canvas.clientHeight));
+    const x = Math.floor(e.offsetX * (e.target.width / e.target.clientWidth)) - 1;
+    const y = Math.floor(e.offsetY * (e.target.height / e.target.clientHeight)) - 1;
     return [x, y];
+  }
+
+  // setup mouse events for debug coords display
+  setupCoordsMouseEvents () {
+
+    // binding 'this' in event handler to class instance
+    this.handleCoordsMouseEvents = this.handleCoordsMouseEvents.bind(this);
+    this.canvas.addEventListener('mousemove', this.handleCoordsMouseEvents);
+    this.canvas.addEventListener('mouseout', this.handleCoordsMouseEvents);
+    if (this.canvasSS) {
+      this.canvasSS.addEventListener('mousemove', this.handleCoordsMouseEvents);
+      this.canvasSS.addEventListener('mouseout', this.handleCoordsMouseEvents);
+    }
+    if (this.canvasDiff) {
+      this.canvasDiff.addEventListener('mousemove', this.handleCoordsMouseEvents);
+      this.canvasDiff.addEventListener('mouseout', this.handleCoordsMouseEvents);
+    }
+  }
+
+  // event handler for displaying mouse coords
+  handleCoordsMouseEvents (e) {
+
+    // debug coords display
+    if (this.coordsDiv) {
+      const [x, y] = this.mouseCoords(e);
+      if ((e.type === "mouseout") || (x < 0) || (y < 0)) {
+        this.coordsDiv.innerHTML = '';
+      }
+      else if (e.type === "mousemove") {
+        this.coordsDiv.innerHTML = `(${x}, ${y})`;
+      }
+    }
   }
 
   // Draws a Button or Mouse Region, then refreshes canvas.
@@ -906,6 +941,8 @@ class RIPterm {
 
   // Event listener handler for mouseup, mousedown, mousemove, and mouseleave events.
   // uses: this.buttons[], this.buttonClicked, this.withinButton
+  // 'this' is binded to class instance using this.handleMouseEvents.bind(this)
+  //
   handleMouseEvents (e) {
 
     let [x, y] = this.mouseCoords(e);
