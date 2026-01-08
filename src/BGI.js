@@ -1549,7 +1549,8 @@ class BGI {
   fillpoly (numpoints, pp) {
     this._fillpoly(numpoints, pp);
   }
-  _fillpoly (numpoints, pp) {
+  //_fillpoly (numpoints, pp) { // TODO: uncomment after done testing
+  _fillpoly (numpoints, pp, debugFlag = false) { // temp
     // polypoints array of ints
 
     // code based on: http://alienryderflex.com/polygon_fill/
@@ -1565,21 +1566,31 @@ class BGI {
       for (i=0; i < numpoints; i++) {
         const tx1 = pp[j*2], ty1 = pp[j*2+1];
         const tx2 = pp[i*2], ty2 = pp[i*2+1];
+        //const tx1 = pp[j*2] + 1, ty1 = pp[j*2+1]; // TEST
+        //const tx2 = pp[i*2] + 1, ty2 = pp[i*2+1]; // TEST
 
         //if ( ((pp[i*2+1] < y) && (pp[j*2+1] >= y)) || ((pp[j*2+1] < y) && (pp[i*2+1] >= y)) ) {
-        //if ( ((ty2 < y) && (ty1 >= y)) || ((ty1 < y) && (ty2 >= y)) ) {
-        if ( ((ty2 <= y) && (ty1 > y)) || ((ty1 <= y) && (ty2 > y)) ) {
+        //if ( ((ty2 < y) && (ty1 >= y)) || ((ty1 < y) && (ty2 >= y)) ) { // orig
+        if ( ((ty2 <= y) && (ty1 > y)) || ((ty1 <= y) && (ty2 > y)) ) { // better for SKATE.RIP
         //if ( ((ty2 <= y) && (ty1 > y)) || ((ty1 <= y) && (ty2 > y)) || ((ty1 === y) && (ty2 === y)) ) {
         //if ( ((ty2 <= y) && (ty1 >= y)) || ((ty1 <= y) && (ty2 >= y)) ) {
 
           // FIXME: there are off-by-one pixels along edges of polygons.
           // I tried lots of combinations, but could not solve it...
 
-          //xval = (y - pp[i*2+1]) / (pp[j*2+1] - pp[i*2+1]) * (pp[j*2] - pp[i*2]) + pp[i*2];
+          // Note for GHOST.RIP: off pixels are always on left-hand side
+          // while polyline wraps around clockwise. Off-pixel increases left side +1.
 
-          // divide by 0 if ty1 - ty2 == 0
-          //xval = (y - ty2) / (ty1 - ty2) * (tx1 - tx2) + tx2;
+          //xval = (y - pp[i*2+1]) / (pp[j*2+1] - pp[i*2+1]) * (pp[j*2] - pp[i*2]) + pp[i*2];
+          //xval = (y - ty2) / (ty1 - ty2) * (tx1 - tx2) + tx2; // orig
+
+          // fix for divide by 0 if ty1 - ty2 == 0
           xval = (ty1 === ty2) ? tx2 : (y - ty2) / (ty1 - ty2) * (tx1 - tx2) + tx2;
+
+          // TEST #1: still not solving it (TO REMOVE)
+          //xval = (ty1 === ty2) ? tx2 : (y - ty2) / (ty1 - ty2) * (tx1 - tx2 + 1) + tx2;
+          //xval = (ty1 === ty2) ? tx2 : Math.trunc((y - ty2) / (ty1 - ty2)) * (tx1 - tx2) + tx2; // REMOVE
+          //xval = (ty1 === ty2) ? tx2 : (y - ty2) * (tx1 - tx2) / (ty1 - ty2) + tx2; // TEST (same)
 
           //TO REMOVE
           // tried this, didn't solve bug
@@ -1595,10 +1606,18 @@ class BGI {
 
           // tried all these (REMOVE)
           //xnode.push( Math.ceil(xval) );
-          xnode.push( Math.floor(xval) );
+          //xnode.push( Math.floor(xval) ); // orig
           //xnode.push( Math.trunc(xval) );
           //xnode.push( xval | 0 ); // same as trunc() but slightly faster?
-          //xnode.push( Math.round(xval) );
+          //xnode.push( Math.round(xval) | 0 );
+
+          // TEST #2
+          // this solves trees in SKATE.RIP
+          // doesn't solve GHOST.RIP, OUT-AD.RIP, or others.
+          //xnode.push( ((ty1 - ty2) > 0) ? Math.ceil(xval) : Math.floor(xval) );
+
+          // TEST #3: store floats (getting closer)
+          xnode.push(xval);
         }
         j = i;
       }
@@ -1607,9 +1626,19 @@ class BGI {
       if (xnode.length == 0) continue;
       xnode.sort(function(a, b) { return a - b; });
 
+      // DEBUG: must set y to value to test
+      const TEST_Y = 200;
+      if (debugFlag && (y === TEST_Y)) {
+        this.log('bgi', `fillpoly: y=${y}, xnode=${xnode}`); // DEBUG
+      }
+
       // draw pixels between node pairs
       for (i=0; i < xnode.length; i+=2) {
-        for (x = xnode[i]; x <= xnode[i+1]; x++) {
+
+        //const x0 = xnode[i], x1 = xnode[i+1]; // orig
+        const x0 = Math.ceil(xnode[i]), x1 = Math.floor(xnode[i+1]); // TEST #3 (getting closer)
+
+        for (x = x0; x <= x1; x++) {
           this.ff_putpixel(x, y);
         }
       }

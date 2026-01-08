@@ -1827,7 +1827,8 @@ class RIPterm {
         o.run = async function(ob = {}) {
           if (ob.nosvg) {
             // _fillpoly() calls _drawpoly()
-            outer.bgi._fillpoly(this.npoints, this.pp);
+            //outer.bgi._fillpoly(this.npoints, this.pp); // TODO: uncomment after done testing
+            outer.bgi._fillpoly(this.npoints, this.pp, true); // DEBUG TEST
           } else {
             outer.bgi.fillpoly(this.npoints, this.pp);
           }
