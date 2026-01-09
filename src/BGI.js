@@ -119,6 +119,7 @@ class BGI {
     this.bitfonts = [];
     this.stateStack = [];
     this.icons = {}; // key is uppercased file+ext, e.g. 'EXAMPLE.ICN', value is image obj used in putimage().
+    this.svgActive = false;
 
     // log callback function
     if ('log' in args) {
@@ -1188,10 +1189,10 @@ class BGI {
       this.log('err', 'must pass in "iconsPath" to BGI()!');
       return;
     }
-    if (this.icons[filename]) {
-      // icon already in cache
-      return;
-    }
+    //if (this.icons[filename]) {
+    //  // icon already in cache
+    //  return;
+    //}
 
     const url = this.iconsPath + '/' + filename;
     this.log('bgi', 'Fetching icon: ' + url);
@@ -2271,10 +2272,16 @@ class BGI {
     // NOT DONE: need to check BGI spec!
 
     // retrieve image from cache first, if available
-    let image = this.icons[filename] || await this.fetchIcon(filename) || {};
-
+    let image = this.icons[filename];
+    if (!image) {
+      image = await this.fetchIcon(filename);
+      if (image) {
+        // store in cache
+        this.icons[filename] = image;
+      }
+    }
     // this doesn't display the image, but instead returns it for use in putimage()
-    return image;
+    return image || {};
   }
 
   // draws in current line style, thickness, and drawing color

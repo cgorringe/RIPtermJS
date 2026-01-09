@@ -29,6 +29,7 @@ class BGIsvg extends BGI {
       this.svgFillCount = 0;
       this.svgFillId = this.svgPrefix + '-fill0';
       this.svgDashArray = [1, 0]; // SOLID_LINE
+      this.svgActive = true;
 
       if (args.svg instanceof SVGElement) {
         this.svg = args.svg;
@@ -95,7 +96,7 @@ class BGIsvg extends BGI {
     // vp is an object: {left:, top:, right:, bottom:}
     // uses this.svg, this.svgView, this.svgViewCount
 
-    if (this.svg && vp) {
+    if (this.svg && this.svgActive && vp) {
       let id = this.svgPrefix + '-vp' + this.svgViewCount;
       let defs = this.svgNode('defs', {});
       let clipPath = this.svgNode('clipPath', { 'id': id });
@@ -112,7 +113,7 @@ class BGIsvg extends BGI {
   }
 
   resetSVG () {
-    if (this.svg) {
+    if (this.svg && this.svgActive) {
       this.svgViewCount = 0;
       this.svg.innerHTML = '';
       this.svgSetViewport(this.info.vp);
@@ -176,7 +177,7 @@ class BGIsvg extends BGI {
 
   svgAppendFillPattern (fillPattern, color) {
 
-    if (this.svgView) {
+    if (this.svgView && this.svgActive) {
       this.svgFillId = this.svgPrefix + '-fill' + this.svgFillCount;
       this.svgFillCount++;
       let pathTxt = this.svgMakeFillPattern(fillPattern);
@@ -222,7 +223,7 @@ class BGIsvg extends BGI {
   putpixel (x, y, color = this.info.fgcolor, wmode = this.info.writeMode) {
     super.putpixel(x, y, color, wmode);
 
-    if (this.svgView) {
+    if (this.svgView && this.svgActive) {
       x += this.info.vp.left;
       y += this.info.vp.top;
       this.svgView.appendChild( this.svgNode('circle', {
@@ -239,7 +240,7 @@ class BGIsvg extends BGI {
     if (left > right) { let tmp = left; left = right; right = tmp; }
     if (top > bottom) { let tmp = top; top = bottom; bottom = tmp; }
 
-    if (this.svgView) {
+    if (this.svgView && this.svgActive) {
       const vp = this.info.vp;
       left += vp.left; right += vp.left;
       top += vp.top; bottom += vp.top;
@@ -276,7 +277,7 @@ class BGIsvg extends BGI {
   clearviewport (bgcolor = this.info.bgcolor) {
     super.clearviewport(bgcolor);
 
-    if (this.svgView) {
+    if (this.svgView && this.svgActive) {
       const vp = this.info.vp;
       this.svgView.appendChild( this.svgNode('rect', {
         'x': vp.left, 'y': vp.top,
@@ -290,7 +291,7 @@ class BGIsvg extends BGI {
   drawbezier (numsegments, cntpoints) {
     super.drawbezier(numsegments, cntpoints);
 
-    if (cntpoints && (cntpoints.length >= 8) && this.svgView) {
+    if (cntpoints && (cntpoints.length >= 8) && this.svgView && this.svgActive) {
       const [x1, y1, x2, y2, x3, y3, x4, y4] = this.offsetPoints(this.info.vp.left, this.info.vp.top, cntpoints);
       this.svgView.appendChild( this.svgNode('path', {
         // 'd': 'M'+(x1+0.5)+','+(y1+0.5)+' C '+(x2+0.5)+','+(y2+0.5)+' '+(x3+0.5)+','+(y3+0.5) +' '+(x4+0.5)+','+(y4+0.5),
@@ -309,7 +310,7 @@ class BGIsvg extends BGI {
     super.drawpoly(numpoints, polypoints, color);
 
     const dashArray = this.svgGetDashArray(this.info.line.style);
-    if (this.svgView && dashArray.length) {
+    if (this.svgView && this.svgActive && dashArray.length) {
       polypoints = this.offsetPoints(this.info.vp.left, this.info.vp.top, polypoints);
       this.svgView.appendChild( this.svgNode('polygon', {
         // 'points': polypoints.join(' '),
@@ -326,7 +327,7 @@ class BGIsvg extends BGI {
     super.drawpolyline(numpoints, polypoints, color);
 
     const dashArray = this.svgGetDashArray(this.info.line.style);
-    if (this.svgView && dashArray.length) {
+    if (this.svgView && this.svgActive && dashArray.length) {
       // draw only if dash array isn't empty
       polypoints = this.offsetPoints(this.info.vp.left, this.info.vp.top, polypoints);
       // TODO: remove stroke-dasharray if solid? is fill: none default?
@@ -344,7 +345,7 @@ class BGIsvg extends BGI {
   ellipse (cx, cy, stangle, endangle, xradius, yradius, thickness = this.info.line.thickness) {
     super.ellipse(cx, cy, stangle, endangle, xradius, yradius, thickness);
 
-    if (this.svgView) {
+    if (this.svgView && this.svgActive) {
       cx += this.info.vp.left;
       cy += this.info.vp.top;
       if (thickness === 1) {
@@ -372,7 +373,7 @@ class BGIsvg extends BGI {
   fillellipse (cx, cy, xradius, yradius) {
     super.fillellipse(cx, cy, xradius, yradius);
 
-    if (this.svgView) {
+    if (this.svgView && this.svgActive) {
       cx += this.info.vp.left;
       cy += this.info.vp.top;
       // draw filled ellipse, no outline
@@ -392,7 +393,7 @@ class BGIsvg extends BGI {
     super.fillpoly(numpoints, pp);
 
     const dashArray = this.svgGetDashArray(this.info.line.style);
-    if (this.svgView) {
+    if (this.svgView && this.svgActive) {
       pp = this.offsetPoints(this.info.vp.left, this.info.vp.top, pp);
       const fillcolor = (this.info.fill.style === BGI.EMPTY_FILL) ? this.info.bgcolor : this.info.fill.color;
       const fill = (this.info.fill.style === BGI.SOLID_FILL) ? this.pal2hex(fillcolor) : `url(#${this.svgFillId})`;
@@ -412,7 +413,7 @@ class BGIsvg extends BGI {
     super.floodfill(x0, y0, border);
 
     // requires 'potrace-modified.js'
-    if (this.svgView && this.fillpixels && (typeof Potrace !== 'undefined')) {
+    if (this.svgView && this.svgActive && this.fillpixels && (typeof Potrace !== 'undefined')) {
       Potrace.loadFromData(this.fillpixels, this.width, this.height);
       Potrace.process( function() { } );
       let pathTxt = Potrace.getPathD(1);
@@ -431,7 +432,7 @@ class BGIsvg extends BGI {
     super.line(x1, y1, x2, y2, color, wmode, linestyle, thickness);
 
     const dashArray = this.svgGetDashArray(linestyle);
-    if (this.svgView && dashArray.length) {
+    if (this.svgView && this.svgActive && dashArray.length) {
       // draw only if dash array isn't empty
       const vp = this.info.vp;
       x1 += vp.left; x2 += vp.left;
@@ -446,7 +447,7 @@ class BGIsvg extends BGI {
   }
 
   getimage (left, top, right, bottom) {
-    this.log('svg', 'RIP_GET_IMAGE (1C) not supported in SVGs.');
+    //if (this.svgActive) { this.log('svg', 'RIP_GET_IMAGE (1C) not supported in SVGs.'); }
     return super.getimage(left, top, right, bottom);
   }
 
@@ -454,7 +455,7 @@ class BGIsvg extends BGI {
   // Only outputs SVG text for default 8x8 font (0). Other fonts are drawn using lines.
   outtext (text) {
     const fontnum = this.info.text.font;
-    if (fontnum === 0) {
+    if (this.svgView && this.svgActive && (fontnum === 0)) {
       let scale = this.info.text.charsize;
       if (scale < 1) { scale = 1; }
       let fontSize = 8 * scale;
@@ -493,7 +494,7 @@ class BGIsvg extends BGI {
     super.rectangle(left, top, right, bottom, color, wmode);
 
     const dashArray = this.svgGetDashArray(this.info.line.style);
-    if (this.svgView && dashArray.length) {
+    if (this.svgView && this.svgActive && dashArray.length) {
       // draw only if dash array isn't empty
       const vp = this.info.vp;
       left += vp.left; right += vp.left;
@@ -511,7 +512,7 @@ class BGIsvg extends BGI {
   sector (cx, cy, stangle, endangle, xradius, yradius) {
     super.sector(cx, cy, stangle, endangle, xradius, yradius);
 
-    if (this.svgView) {
+    if (this.svgView && this.svgActive) {
       // don't draw if start & end angles the same.
       // (single pixel at center drawn in BGI)
       if (stangle === endangle) { return }
@@ -539,14 +540,14 @@ class BGIsvg extends BGI {
   // fpattern is an array of 8 ints (0-255), each byte is 8 pixels in the pattern.
   setfillpattern (fpattern, color) {
     super.setfillpattern(fpattern, color);
-    if (this.svgView && fpattern && (fpattern.length === 8)) {
+    if (this.svgView && this.svgActive && fpattern && (fpattern.length === 8)) {
       this.svgAppendFillPattern(fpattern, color);
     }
   }
 
   setfillstyle (style, color) {
     super.setfillstyle(style, color);
-    if (this.svgView && (style != 1)) {
+    if (this.svgView && this.svgActive && (style != 1)) {
       this.svgAppendFillPattern(this.info.fill.fpattern, color);
     }
   }
