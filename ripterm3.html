@@ -71,6 +71,15 @@
     margin-right: 4px;
   }
 
+  .rip-status-area {
+    padding: 0.5em 0 0 0;
+    font-size: 10pt;
+  }
+
+  #rip-files {
+    font-size: 12pt;
+  }
+
   #rip-commands {
     float:right;
     /* border:solid 1px #999; */
@@ -109,14 +118,21 @@
   .rip-select-views * {
     padding-right: 0.5em;
   }
+  .rip-select-left {
+    float: left;
+  }
+  .rip-select-right {
+    float: right;
+  }
 
   .clear { clear: both; }
 
   #rip-counter {
     float: right;
-    font-size: 12pt;
+    padding-right: 8px;
+    /* font-size: 12pt; */
     /* font-weight: bold; */
-    line-height: 30px;
+    /* line-height: 30px; */
     /* clear: both; */
   }
 
@@ -255,7 +271,11 @@
   <button onclick="ripterm.reset();">Reset</button>
   <button onclick="ripterm.fullscreen();">Full Screen</button>
 
-  <span id="rip-counter"></span>
+  <div class="clear"></div>
+
+  <div class="rip-status-area">x,y (<span id="rip-coords"></span>)
+    <span id="rip-counter"></span>
+  </div>
   <div class="clear"></div>
 
   <div class="rip-frame-width">
@@ -317,6 +337,9 @@
           <h6><b>Diff</b> - Highlights where pixels differ between Canvas and Original screenshot.</h6>
         </div>
         <div class="rip-caption-right">
+          <a onclick="this.setAttribute('href',getDiffPNG());" download="diff.png" class="noline">
+            <button>Save .PNG</button>
+          </a>
         </div>
       </div>
     </div>
@@ -335,16 +358,26 @@
 
   <hr>
   <div class="rip-select-views">
-    <strong>Select View:</strong>
-    <input type="radio" id="canvas-opt" name="view-options" onclick="showView('#canvas-view')" checked>
-      <label for="canvas-opt">Canvas</label>
-    <input type="radio" id="ss-opt" name="view-options" onclick="showView('#ss-view')">
-      <label for="ss-opt">Original</label>
-    <input type="radio" id="svg-opt" name="view-options" onclick="showView('#svg-view')">
-      <label for="svg-opt">SVG</label>
-    <input type="radio" id="diff-opt" name="view-options" onclick="showView('#diff-view')">
-      <label for="diff-opt">Diff</label>
+    <div class="rip-select-left">
+      <strong>Select View:</strong>
+      <input type="radio" id="canvas-opt" name="view-options" onclick="showView('#canvas-view')" checked>
+        <label for="canvas-opt">Canvas</label>
+      <input type="radio" id="ss-opt" name="view-options" onclick="showView('#ss-view')">
+        <label for="ss-opt">Original</label>
+      <input type="radio" id="svg-opt" name="view-options" onclick="showView('#svg-view')">
+        <label for="svg-opt">SVG</label>
+      <input type="radio" id="diff-opt" name="view-options" onclick="showView('#diff-view')">
+        <label for="diff-opt">Diff</label>
+    </div>
+    <div class="rip-select-right">
+      <strong>Render:</strong>
+      <input type="checkbox" id="render-svg-opt" onclick="toggleRenderOptions()" checked>
+        <label for="render-svg-opt">SVG</label>
+      <input type="checkbox" id="render-diff-opt" onclick="toggleRenderOptions()" checked>
+        <label for="render-diff-opt">Diff</label>
+    </div>
   </div>
+  <div class="clear"></div>
 
   <hr>
   <h6><b>Debug Log</b></h6>
@@ -369,6 +402,7 @@
     logId: 'rip-log',
     commandsId: 'rip-commands',
     counterId: 'rip-counter',
+    coordsId: 'rip-coords',
     timeInterval: 0,
     refreshInterval: 20,
     fontsPath: 'fonts',
@@ -390,6 +424,10 @@
     return document.getElementById('rip-canvas').toDataURL("image/png").replace("image/png", "image/octet-stream");
   }
 
+  function getDiffPNG() {
+    return document.getElementById('rip-diff-canvas').toDataURL("image/png").replace("image/png", "image/octet-stream");
+  }
+
   function toBase64 (str) {
     return window.btoa(unescape(encodeURIComponent(str)));
   }
@@ -405,6 +443,13 @@
   function showView(viewId) {
     $('.rip-all-views').hide();
     $(viewId).show();
+  }
+
+  function toggleRenderOptions() {
+    const svgBox = document.getElementById('render-svg-opt');
+    const diffBox = document.getElementById('render-diff-opt');
+    ripterm.bgi.svgActive = svgBox.checked;
+    ripterm.diffActive = diffBox.checked;
   }
 
   function toggleHilite() {

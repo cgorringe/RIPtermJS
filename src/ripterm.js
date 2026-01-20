@@ -152,6 +152,8 @@ class RIPterm {
       this.commandsDiv = ('commandsId' in opts) ? document.getElementById(opts.commandsId) : null;
       this.counterDiv = ('counterId' in opts) ? document.getElementById(opts.counterId) : null;
       this.coordsDiv = ('coordsId' in opts) ? document.getElementById(opts.coordsId) : null;
+      this.hiliteCmdFlag = false;
+      this.diffActive = false;
       if ('logId' in opts) {
         this.logId = opts.logId;
         this.logDiv = document.getElementById(opts.logId);
@@ -163,8 +165,8 @@ class RIPterm {
       if ('diffId' in opts) {
         this.canvasDiff = document.getElementById(opts.diffId);
         this.ctxDiff = (this.canvasDiff && this.canvasDiff.getContext) ? this.canvasDiff.getContext('2d') : null;
+        this.diffActive = true;
       }
-      this.hiliteCmdFlag = false;
 
       // init canvas
       this.canvas = document.getElementById(opts.canvasId);
@@ -283,6 +285,7 @@ class RIPterm {
     this.bgi.graphdefaults();
     this.bgi.cleardevice();
     this.clearAllButtons();
+    this.clearDiff();
     this.refreshCanvas();
     this.cmdi = 0;
     if (this.counterDiv) { this.counterDiv.innerHTML = this.cmdi + ' / ' + this.ripData.length; }
@@ -291,6 +294,7 @@ class RIPterm {
   clear () {
     this.log('trm', 'clear()');
     this.bgi.cleardevice();
+    this.clearDiff();
     this.refreshCanvas();
   }
 
@@ -358,7 +362,7 @@ class RIPterm {
   refreshCanvas () {
     if (this.counterDiv) { this.counterDiv.innerHTML = this.cmdi + ' / ' + this.ripData.length; }
     this.bgi.refresh();
-    this.refreshDiff();
+    if (this.diffActive) { this.refreshDiff(); }
     if (this.isRunning) {
       this.refTimer = window.setTimeout(() => { this.refreshCanvas() }, this.opts.refreshInterval);
     }
@@ -450,9 +454,22 @@ class RIPterm {
       let img = new Image();
       img.onload = () => {
         this.ctxSS.drawImage(img, 0, 0);
-        this.refreshDiff();
+        if (this.diffActive) {
+          this.refreshDiff();
+        } else {
+          this.clearDiff();
+        }
       }
       img.src = url;
+    }
+  }
+
+  clearDiff () {
+    if (this.ctxDiff) {
+      this.ctxDiff.save();
+      this.ctxDiff.fillStyle = this.opts.diffBGcolor;
+      this.ctxDiff.fillRect(0, 0, this.ctxDiff.canvas.width, this.ctxDiff.canvas.height);
+      this.ctxDiff.restore();
     }
   }
 

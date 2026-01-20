@@ -113,7 +113,7 @@ class BGIsvg extends BGI {
   }
 
   resetSVG () {
-    if (this.svg && this.svgActive) {
+    if (this.svg) {
       this.svgViewCount = 0;
       this.svg.innerHTML = '';
       this.svgSetViewport(this.info.vp);
