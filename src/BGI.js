@@ -111,6 +111,8 @@ class BGI {
     this.isBuffered = true; // true = copy pixels to context, false = using context data store
     this.colorMask = 0x0F;  // 0xF = 16-color mode, 0xFF = 256-color mode
     this.fonts = {}; // key is file, e.g. 'GOTH.CHR' (may rethink this later)
+    this.mouseX = 0;
+    this.mouseY = 0;
 
     // index is font size: 0=8x8, 1=7x8, 2=8x14, 3=7x14, 4=16x14.
     // value is an array of 256 elements for each ASCII char,
@@ -237,6 +239,12 @@ class BGI {
 
     // this pixel buffer is used during flood fill
     this.fillpixels = new Uint8ClampedArray(this.width * this.height)
+
+    // setup mousemove handler to update mouse positions whenever the mouse moves.
+    this.registermousehandler(0, (function(x, y) {
+      this.mouseX = x;
+      this.mouseY = y;
+    }).bind(this));
   }
 
   // Loads all the vector font .CHR files in BGI.fontFileList[]
@@ -2690,8 +2698,8 @@ class BGI {
     return 0;
   }
 
-  delay (millisec) {
-
+  async delay (millisec) {
+    return new Promise(resolve => setTimeout(resolve, millisec));
   }
 
   getactivepage (/* void */) {
@@ -2721,18 +2729,41 @@ class BGI {
 
   // returns the most recent x coord of the mouse within the graphics window.
   mousex (/* void */) {
-    return 0;
+    return this.mouseX;
   }
 
   // returns the most recent y coord of the mouse within the graphics window.
   mousey (/* void */) {
-    return 0;
+    return this.mouseY;
   }
 
-  // 2nd arg is a callback function sent x,y mouse position
-  registermousehandler (kind, callback) {
-    // registermousehandler(int kind, void h(int x, int y));
+  // Calculate mouse coordinates.
+  // provided Event e, returns translated mouse coords [x, y]
+  // FIXME: may be off by 1 pixel?
+  //
+  _mouseCoords (e) {
+    // clientWidth or Height could be off if canvas padding not 0?
+    const x = Math.floor(e.offsetX * (e.target.width / e.target.clientWidth)) - 1;
+    const y = Math.floor(e.offsetY * (e.target.height / e.target.clientHeight)) - 1;
+    return [x, y];
+  }
 
+  // 2nd arg is a callback function sent x,y mouse position,
+  // which is currently called whenever the mouse moves over canvas.
+  // 'kind' is an object, see "mouse events" class constants.
+  // original: registermousehandler(int kind, void h(int x, int y));
+  //
+  registermousehandler (kind, callback) {
+    const etype = kind.type || '';
+    const ebutton = kind.button;
+    if ((typeof callback === 'function') && (etype !== '')) {
+      this.ctx.canvas.addEventListener(etype, (e) => {
+        if ((e.button === ebutton) || (ebutton === -1)) {
+          const [x, y] = this._mouseCoords(e);
+          callback(x, y);
+        }
+      });
+    }
   }
 
   setcurrentwindow (win) {
@@ -2827,5 +2858,18 @@ class BGI {
     1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
     0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0
   ];
+
+  // windows mouse events
+  BGI.WM_MOUSEMOVE     = { type:'mousemove', button:-1}; // called whenever the mouse moves
+  BGI.WM_LBUTTONDBLCLK = { type:'dblclick',  button:0 }; // left mouse button is double clicked
+  BGI.WM_LBUTTONDOWN   = { type:'mousedown', button:0 }; // left mouse button is clicked down
+  BGI.WM_LBUTTONUP     = { type:'mouseup',   button:0 }; // left mouse button is released up
+  BGI.WM_MBUTTONDBLCLK = { type:'dblclick',  button:1 }; // middle mouse button is double clicked
+  BGI.WM_MBUTTONDOWN   = { type:'mousedown', button:1 }; // middle mouse button is clicked down
+  BGI.WM_MBUTTONUP     = { type:'mouseup',   button:1 }; // middle mouse button is released up
+  BGI.WM_RBUTTONDBLCLK = { type:'dblclick',  button:2 }; // right mouse button is double clicked
+  BGI.WM_RBUTTONDOWN   = { type:'mousedown', button:2 }; // right mouse button is clicked down
+  BGI.WM_RBUTTONUP     = { type:'mouseup',   button:2 }; // right mouse button is released up
+
 
 ////////////////////////////////////////////////////////////////////////////////

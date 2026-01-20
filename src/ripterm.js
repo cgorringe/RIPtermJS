@@ -211,6 +211,7 @@ class RIPterm {
         this.handleMouseEvents = this.handleMouseEvents.bind(this);
         this.setupCmdHover();
         this.setupCoordsMouseEvents();
+        //this.setupMouseTestHandler(); // DEBUG testing mouse coords in bgi
       }
     }
     else {
@@ -800,15 +801,11 @@ class RIPterm {
   ////////////////////////////////////////////////////////////////////////////////
   // Mouse event handlers
 
-  // Calculate mouse coordinates.
-  // provided Event e, returns translated mouse coords [x, y]
-  // FIXME: may be off by 1 pixel?
-  mouseCoords (e) {
-
-    // clientWidth or Height could be off if canvas padding not 0?
-    const x = Math.floor(e.offsetX * (e.target.width / e.target.clientWidth)) - 1;
-    const y = Math.floor(e.offsetY * (e.target.height / e.target.clientHeight)) - 1;
-    return [x, y];
+  // testing BGI mouse handler when canvas is clicked.
+  setupMouseTestHandler () {
+    this.bgi.registermousehandler(BGI.WM_LBUTTONDOWN, (function(x, y) {
+      this.log('bgi', `mouse x,y (${x}, ${y})`);
+    }).bind(this));
   }
 
   // setup mouse events for debug coords display
@@ -833,7 +830,7 @@ class RIPterm {
 
     // debug coords display
     if (this.coordsDiv) {
-      const [x, y] = this.mouseCoords(e);
+      const [x, y] = this.bgi._mouseCoords(e);
       if ((e.type === "mouseout") || (x < 0) || (y < 0)) {
         this.coordsDiv.innerHTML = '';
       }
@@ -924,7 +921,7 @@ class RIPterm {
   //
   handleMouseEvents (e) {
 
-    let [x, y] = this.mouseCoords(e);
+    let [x, y] = this.bgi._mouseCoords(e);
     let isWithin = false;
 
     for (const b of this.buttons) {

@@ -68,8 +68,6 @@ function writeLog (type, msg) {
   }
   if (type === 'err') {
     console.error(msg);
-  } else {
-    console.log(msg);
   }
 }
 
@@ -81,8 +79,6 @@ const bgi = new BGI({
   root: window
 });
 
-// The following returns before it's finished, and needs to finish
-// before other BGI code runs. Will need to rethink how this is implemented.
 bgi.initFonts();
 
 
@@ -114,7 +110,7 @@ int main (int argc, char *argv[])
 
 // Example ported to Javascript:
 
-function main ()
+async function main ()
 {
   let i, gd, gm;
   // initgraph(gd, gm, "");
@@ -125,6 +121,8 @@ function main ()
     setcolor(1 + random(15));
     line(random(getmaxx()), random(getmaxy()),
          random(getmaxx()), random(getmaxy()));
+    await delay(1);
+    refresh();
   }
   // getch();
   closegraph();
