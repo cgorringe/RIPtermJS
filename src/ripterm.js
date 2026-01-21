@@ -208,6 +208,7 @@ class RIPterm {
         this.initCommands();
 
         // must do once
+        this.animate = this.animate.bind(this);
         this.handleMouseEvents = this.handleMouseEvents.bind(this);
         this.setupCmdHover();
         this.setupCoordsMouseEvents();
@@ -265,6 +266,7 @@ class RIPterm {
       if (this.cmdTimer) { window.clearTimeout(this.cmdTimer); this.cmdTimer = null; }
       if (this.refTimer) { window.clearTimeout(this.refTimer); this.refTimer = null; }
       this.cmdTimer = window.setTimeout(async () => { await this.drawNext() }, this.opts.timeInterval);
+      //this.animationId = requestAnimationFrame(this.animate);
       this.refTimer = window.setTimeout(() => { this.refreshCanvas() }, this.opts.refreshInterval);
     }
     else {
@@ -278,6 +280,7 @@ class RIPterm {
     this.isRunning = false;
     if (this.cmdTimer) { window.clearTimeout(this.cmdTimer); this.cmdTimer = null; }
     if (this.refTimer) { window.clearTimeout(this.refTimer); this.refTimer = null; }
+    //if (this.animationId) { cancelAnimationFrame(this.animationId); }
     this.refreshCanvas();
   }
 
@@ -337,6 +340,14 @@ class RIPterm {
   ////////////////////////////////////////////////////////////////////////////////
   // copied from ripterm.js v2
 
+  // NOT USED
+  // Called from requestAnimationFrame() ~60 times a second?
+  // this is currently slower than using setTimeout()
+  //
+  async animate(timestamp) {
+    await this.drawNext();
+  }
+
   // TODO: update for v3
   async drawNext () {
     if (!this.isRunning) { return }
@@ -353,7 +364,9 @@ class RIPterm {
         else { this.stop(); }
       }
       this.cmdi++;
-      this.timer = window.setTimeout(async () => { await this.drawNext() }, this.opts.timeInterval);
+      this.cmdTimer = window.setTimeout(async () => { await this.drawNext() }, this.opts.timeInterval);
+      //this.animationId = requestAnimationFrame(this.animate);
+      //this.timer = window.setTimeout(async () => { await this.drawNext() }, this.opts.timeInterval);
     }
     else {
       this.stop();
