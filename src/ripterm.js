@@ -1,10 +1,11 @@
 /**
- * RIPtermJS - Version 3
- * Copyright (c) 2021 Carl Gorringe 
+ * RIPtermJS - Version 4
+ * Copyright (c) 2011-2026 Carl Gorringe
  * https://carl.gorringe.org
  * https://github.com/cgorringe/RIPtermJS
  *
  * v3: 5/11/2021
+ * v4: 1/22/2026 streaming file
  *
  * Renders RIPscrip v1.54 .RIP files in an HTML canvas or SVG.
  * (work in progress)
@@ -116,6 +117,7 @@ class RIPterm {
 
       // init default options
       this.opts = {
+        'modemSpeed' : 0,        // simulate modem speed in bps (0 = no delay)
         'timeInterval' : 1,      // time between running commands (in miliseconds)
         'refreshInterval' : 100, // time between display refreshes (in miliseconds)
         'pauseOn' : [],          // debug: pauses on RIP command, e.g. ['F'] will pause on Flood Fill.
@@ -138,8 +140,10 @@ class RIPterm {
       Object.entries(opts).forEach( ([k, v]) => { this.opts[k] = v } );
 
       // init other vars
-      this.ripData = [];
-      this.cmdi = 0;
+      this.ripData = [];    // old v3 file pre-loaded
+      this.inStream = null; // new v4 stream
+      this.inReader = null; // new v4 stream reader
+      this.cmdi = 0;        // command counter
       this.cmdTimer = null; // commands interval timer
       this.refTimer = null; // refresh interval timer
       this.clipboard = {};  // { x:int, y:int, width:int, height:int, data:Uint8ClampedArray }
@@ -259,7 +263,16 @@ class RIPterm {
   // TODO: update for v3
   start () {
     this.log('trm', 'start()');
-    if (this.ctx && this.ripData && (this.ripData.length > 0)) {
+    if (this.ctx && this.inReader) {
+      // v4 TEST
+      this.isRunning = true;
+      this.cmdi = 0;
+      if (this.refTimer) { window.clearTimeout(this.refTimer); this.refTimer = null; }
+      this.refTimer = window.setTimeout(() => { this.refreshCanvas() }, this.opts.refreshInterval);
+      this.readStream();
+    }
+    else if (this.ctx && this.ripData && (this.ripData.length > 0)) {
+      // v3
       this.isRunning = true;
       if (this.cmdi >= this.ripData.length) { this.cmdi = 0; }
       // timers
@@ -281,6 +294,11 @@ class RIPterm {
     if (this.cmdTimer) { window.clearTimeout(this.cmdTimer); this.cmdTimer = null; }
     if (this.refTimer) { window.clearTimeout(this.refTimer); this.refTimer = null; }
     //if (this.animationId) { cancelAnimationFrame(this.animationId); }
+    // unlock prior stream
+    if (this.inStream && this.inStream.locked && this.inReader) {
+      this.inReader.releaseLock();
+      this.inReader = null;
+    }
     this.refreshCanvas();
   }
 
@@ -292,7 +310,8 @@ class RIPterm {
     this.clearDiff();
     this.refreshCanvas();
     this.cmdi = 0;
-    if (this.counterDiv) { this.counterDiv.innerHTML = this.cmdi + ' / ' + this.ripData.length; }
+    //if (this.counterDiv) { this.counterDiv.innerHTML = `${this.cmdi} / ${this.ripData.length}`; }
+    if (this.counterDiv) { this.counterDiv.innerHTML = ''; }
   }
 
   clear () {
@@ -336,19 +355,19 @@ class RIPterm {
     }
   }
 
-
-  ////////////////////////////////////////////////////////////////////////////////
-  // copied from ripterm.js v2
-
   // NOT USED
   // Called from requestAnimationFrame() ~60 times a second?
   // this is currently slower than using setTimeout()
   //
-  async animate(timestamp) {
+  async animate (timestamp) {
     await this.drawNext();
   }
 
-  // TODO: update for v3
+
+  ////////////////////////////////////////////////////////////////////////////////
+  // copied from ripterm.js v2
+
+  // OLD v2-3: using pre-loaded ripData[]
   async drawNext () {
     if (!this.isRunning) { return }
     if (this.ripData && (this.cmdi < this.ripData.length)) {
@@ -374,7 +393,8 @@ class RIPterm {
   }
 
   refreshCanvas () {
-    if (this.counterDiv) { this.counterDiv.innerHTML = this.cmdi + ' / ' + this.ripData.length; }
+    //if (this.counterDiv) { this.counterDiv.innerHTML = `${this.cmdi} / ${this.ripData.length}`; }
+    if (this.counterDiv) { this.counterDiv.innerHTML = `${this.cmdi}`; }
     this.bgi.refresh();
     if (this.diffActive) { this.refreshDiff(); }
     if (this.isRunning) {
@@ -382,7 +402,32 @@ class RIPterm {
     }
   }
 
-  // TODO: update for v3
+  // output html to commandsDiv
+  outputCmdsHtml(count, cmd0, args) {
+
+    let outHtml = '';
+    if (this.opts.pauseOn.includes(cmd0)) {
+      // RIP command paused
+      const o = this.cmd[cmd0](args);
+      const oText = `${count}: ` + (o ? JSON.stringify(o).replaceAll('"', '').replaceAll(',', ', ') : '');
+      outHtml = `<div class="rip-cmd" title="${oText}"><span class="cmd-paused">${cmd0}</span>${args}<br></div>`;
+    }
+    else if (this.cmd[cmd0]) {
+      // RIP command supported
+      const o = this.cmd[cmd0](args);
+      const oText = `${count}: ` + (o ? JSON.stringify(o).replaceAll('"', '').replaceAll(',', ', ') : '');
+      //let clickCode = `ripterm.clickCmd('${cmd0}','${args}');`; // TEST
+      //outHtml = `<div class="rip-cmd" title="${oText}" onclick="${clickCode}"><span class="cmd-ok">${cmd0}</span>${args}<br></div>`;
+      outHtml = `<div class="rip-cmd" title="${oText}"><span class="cmd-ok">${cmd0}</span>${args}<br></div>`;
+    }
+    else {
+      // RIP command NOT supported
+      outHtml = `<div><span class="cmd-not" title=${count}>${cmd0}</span>${args}<br></div>`;
+    }
+    return outHtml;
+  }
+
+  // OLD v2-3: stores ripData[] from pre-loaded file
   // returns an array of icon filenames used in RIP file, else empty array.
   readFile (url) {
     this.log('trm', 'readFile(): ' + url);
@@ -391,8 +436,6 @@ class RIPterm {
     this.cmdi = 0;
     let req = new XMLHttpRequest();
     if (req != null) {
-      if (this.commandsDiv) { this.commandsDiv.innerHTML = ''; }
-      if (this.counterDiv) { this.counterDiv.innerHTML = ''; }
 
       req.open("GET", url, false);
       req.overrideMimeType('text/plain; charset=x-user-defined');  // allows ASCII control chars in input
@@ -415,34 +458,14 @@ class RIPterm {
           i++;
         }
         if (aLine.charAt(0) == '!') {
-          let cmds = aLine.substr(2).split('|');
+          const cmds = aLine.substr(2).split('|');
           for (let j=0; j < cmds.length; j++) {
-            let d = this.parseRIPcmd(cmds[j]);
+            const d = this.parseRIPcmd(cmds[j]);
 
             // add extracted icon filenames to list
             iconNames.push(...this.parseIconNames(d[0], d[1]));
 
-            // TODO: take this out into another function
-            // output html to commandsDiv
-            if (this.opts.pauseOn.includes(d[0])) {
-              // RIP command paused
-              let o = this.cmd[d[0]](d[1]);
-              let oText = `${c}: ` + (o ? JSON.stringify(o).replaceAll('"', '') : '');
-              outText += `<div class="rip-cmd" title="${oText}"><span class="cmd-paused">${d[0]}</span>${d[1]}<br></div>`;
-            }
-            else if (this.cmd[d[0]]) {
-              // RIP command supported
-              let o = this.cmd[d[0]](d[1]);
-              let oText = `${c}: ` + (o ? JSON.stringify(o).replaceAll('"', '').replaceAll(',', ', ') : '');
-              //let clickCode = `ripterm.clickCmd('${d[0]}','${d[1]}');`; // TEST
-              //outText += `<div class="rip-cmd" title="${oText}" onclick="${clickCode}"><span class="cmd-ok">${d[0]}</span>${d[1]}<br></div>`;
-              outText += `<div class="rip-cmd" title="${oText}"><span class="cmd-ok">${d[0]}</span>${d[1]}<br></div>`;
-            }
-            else {
-              // RIP command NOT supported
-              outText += '<div><span class="cmd-not" title="'+ c +'">'+ d[0] + '</span>' + d[1] + '<br></div>';
-            }
-
+            outText += this.outputCmdsHtml(c, d[0], d[1]);
             this.ripData.push(d);  // store command + args in array
             c++;
           }
@@ -450,12 +473,25 @@ class RIPterm {
       }
       if (this.commandsDiv) { this.commandsDiv.innerHTML = outText; }
     }
-    this.reset();
 
     // console.log(this.ripData); // DEBUG
     // this.log('trm', `icons: ${iconNames}`); // DEBUG
 
     return iconNames;
+  }
+
+  clearFile () {
+    this.cmdi = 0;
+    this.ripData = [];
+    this.refreshCanvas();
+    if (this.counterDiv) { this.counterDiv.innerHTML = ''; }
+    if (this.commandsDiv) { this.commandsDiv.innerHTML = ''; }
+  }
+
+  clearScreenshot () {
+    if (this.canvasSS && this.ctxSS) {
+      this.ctxSS.clearRect(0, 0, this.canvasSS.width, this.canvasSS.height);
+    }
   }
 
   // Load and draw a screenshot image file inside a canvas
@@ -558,6 +594,145 @@ class RIPterm {
     return (await Promise.all(filenames.map(async fname => {
       this.bgi.icons[fname] = await this.bgi.fetchIcon(fname);
     })));
+  }
+
+
+  ////////////////////////////////////////////////////////////////////////////////
+  // v4 using file streaming
+
+  // 'speed' can be an int or a string
+  setModemSpeed (speed) {
+    this.log('trm', `speed set to ${speed}`);
+    this.opts.modemSpeed = parseInt(speed);
+  }
+
+  // Calculate buffer size based on modemSpeed & refreshInterval.
+  // Size returned is number of bytes between refreshes.
+  // If modemSpeed == 0 then returns 0.
+  //
+  calculateStreamBufferSize (speed = this.opts.modemSpeed, interval = this.opts.refreshInterval) {
+
+    // Modem speed is in bits per second assuming 8N1 or 10 bits/byte.
+    // speed / 10 => bytes per sec
+    // interval is in 1/1000 secs (milliseconds)
+    // return (interval / 1000) * (speed / 10)
+    //
+    // Example #1: 20 ms refresh = 50 Hz
+    // (20 ms / 1000) * (1200 bps / 10) => 2.4 bytes (a tiny buffer!)
+    // (20 ms / 1000) * (9600 bps / 10) => 19.2 bytes
+    // (20 ms / 1000) * (14400 bps / 10) => 28.8 bytes
+    // (20 ms / 1000) * (33600 bps / 10) => 67.2 bytes
+    // (20 ms / 1000) * (56000 bps / 10) => 112 bytes
+    //
+    // Example #2: 50 ms refresh = 20 Hz
+    // (50 ms / 1000) * (1200 bps / 10) => 6 bytes
+    // (50 ms / 1000) * (9600 bps / 10) => 48 bytes
+    // (50 ms / 1000) * (14400 bps / 10) => 72 bytes
+    // (50 ms / 1000) * (33600 bps / 10) => 168 bytes
+    // (50 ms / 1000) * (56000 bps / 10) => 280 bytes
+
+    return Math.ceil((interval / 1000) * (speed / 10));
+  }
+
+  async setupStream (name, stream) {
+
+    this.log('trm', `Streaming: ${name}`);
+
+    // close old stream & check for errors?
+    if (this.inStream && this.inReader && this.inStream.locked) {
+      this.log('trm', `unlocking prior stream`); // DEBUG
+      this.inReader.releaseLock();
+      await this.inStream.cancel();
+    }
+    this.inStream = stream;
+    this.inReader = stream.getReader();
+  }
+
+  // currently reads the entire stream until it's finished.
+  // (not done)
+  async readStream (reader = this.inReader) {
+
+    this.log('trm', `readStream()`); // DEBUG
+
+    if (!reader) { return }
+    let outText='', c=1;
+
+    while (true) {
+
+      // TODO: find out if we can read in less than the default,
+      // which appears to be the entire file!
+
+      // BUG on following:
+      // Unhandled Promise Rejection: TypeError: read() called on a reader owned by no readable stream
+      // (likely happens if 'Play' button pressed in rapid succession?)
+
+      const { value, done } = await reader.read();
+      if (done) {
+        this.log('trm', 'Stream complete');
+        break;
+      }
+
+      this.log('trm', `read ${value.length} bytes`); // DEBUG
+
+      // value is an array of bytes (Uint8Array)
+      // outputting 'value' will print byte values separated by commas
+
+      // DEBUG
+      //const text = String.fromCharCode(...value); // ASCII only (can crash with large array)
+      const text = new TextDecoder("utf-8").decode(value);
+      //outText += text;
+
+    /*
+      // DEBUG
+      if (this.commandsDiv) {
+        //this.commandsDiv.append(value + '<br>'); // doesn't output html
+        this.commandsDiv.innerHTML = outText;
+      }
+    // */
+
+      // right now, outText is one large string, including newlines CR LF (13,10)
+      // 33=!, 124=|, 42=*, 13=CR, 10=LF
+
+      // TODO: REDO the following code
+
+      // process one line at a time
+      // FIXME: missing \r at end of lines, and need to remove all \n
+
+      let lines = text.split("\n");
+      for (let i=0; i < lines.length; i++) {
+        let aLine = lines[i];
+        while (aLine.match( /(.*)\\$/m )) {  // works? (NO) FIXME: include spaces?
+          aLine = RegExp.$1 + lines[i+1];  // works?
+          i++;
+        }
+        if (aLine.charAt(0) == '!') {
+          const cmds = aLine.substr(2).split('|');
+          for (let j=0; j < cmds.length; j++) {
+            const d = this.parseRIPcmd(cmds[j]);
+            outText += this.outputCmdsHtml(c, d[0], d[1]);
+            //this.ripData.push(d);  // store command + args in array
+            c++;
+
+            // run command
+            if ( this.cmd[d[0]] ) {
+              const o = this.cmd[d[0]](d[1]);
+              if (o && o.run) { await o.run({}); }
+            }
+            this.cmdi++;
+          }
+        } // else skip line
+      }
+
+      // uncomment once we have count, cmd0, args
+      //if (this.commandsDiv) {
+      //  this.commandsDiv.append(this.outputCmdsHtml(count, cmd0, args)); // ??
+      //}
+
+    }
+    // done here
+    this.stop();
+    if (this.commandsDiv) { this.commandsDiv.innerHTML = outText; }
+
   }
 
 

@@ -26,16 +26,25 @@
             <div class="12u">
 
 <h2>RIPtermJS</h2>
-<h6>2011 (v1), 2018 (v2), 2021 (v3)</h6>
+<h6>2011 (v1), 2018 (v2), 2021 (v3), 2026 (v4)</h6>
 <br>
 <p>
-  This is Version 3 of my .RIP file viewer and eventual terminal. The <a href="https://en.wikipedia.org/wiki/Remote_Imaging_Protocol" target="_blank" class="link"><i>Remote Imaging Protocol</i></a> was a vector graphics encoding used in BBS's during the 90's. This is an attempt to recreate the MS-DOS program RIP<i>term</i> v1.54 that ran in 640 x 350px EGA, but in an HTML canvas.
+  This is Version 4 of my .RIP file viewer and eventual terminal. The <a href="https://en.wikipedia.org/wiki/Remote_Imaging_Protocol" target="_blank" class="link"><i>Remote Imaging Protocol</i></a> was a vector graphics encoding used in BBS's during the 90's. This is an attempt to recreate the MS-DOS program RIP<i>term</i> v1.54 that ran in 640 x 350px EGA, but in an HTML canvas.
 </p>
 <p>
-  Select a RIP file to display from the dropdown list below, then <strong>Load RIP</strong> and <strong>Start</strong> to draw it.<br> RIP<em>scrip</em> commands are shown on the right.  <em>Blue = Implemented. Red = Skipped.</em>
+  Either <b>Upload</b> a RIP file from your computer, or <b>Select a RIP file</b> from the dropdown list, then <b>Play</b> to draw it. RIP<em>scrip</em> commands are shown on the right.
+  <em>(Blue = Implemented. Red = Skipped.)</em>
 </p>
-
+<p>
+  <em>Uploaded RIP files currently draw instantly. We're working on simulating modem speeds.</em>
+</p>
 <style>
+  .button {
+    font-size: 8pt;
+    font-weight: 400;
+    line-height: normal;
+  }
+
   .rip-body {
     background-color: #000;
     width: 640px;
@@ -163,8 +172,12 @@
 
 </style>
 <div>
+  <button onclick="ripterm.reset()">Reset</button>
+  <input type="file" id="rip-open-file" accept=".rip,.RIP" onchange="openRIP()" hidden />
+  <label for="rip-open-file" class="button">Upload...</label> or
 
   <select id="rip-files" onchange="selectRIP()">
+    <option value="" selected>Select a RIP file...</option>
     <option value="rips/set1/BEAR">Bear</option>
     <option value="rips/set1/BILL">Bill</option>
     <option value="rips/set1/BULLETIN">Bulletin</option>
@@ -235,7 +248,7 @@
     <option value="rips/set1/VOTE">Vote</option>
     <option value="rips/set1/WW02">Wishing Well</option>
     <option value="rips/set1/XMAS-94">XMAS-94</option>
-    <option value="rips/set1/CITY" selected>City</option>
+    <option value="rips/set1/CITY">City</option>
     <option value="rips/set1/MOTION">Motion</option>
     <option value="rips/set1/FRACTMTN">Fractal Mountain</option>
     <option value="rips/test/S_FILL">Test Fill Patterns (S)(s)</option>
@@ -265,10 +278,9 @@
   </select>
 
   <!-- <button onclick="ripterm.clear();">Clear</button> -->
-  <button onclick="loadRIP()">Load RIP</button>
-  <button onclick="ripterm.start();">Start</button>
+  <!-- <button onclick="loadRIP()">Load RIP</button> -->
+  <button onclick="ripterm.start();">Play</button>
   <button onclick="ripterm.stop();">Stop</button>
-  <button onclick="ripterm.reset();">Reset</button>
   <button onclick="ripterm.fullscreen();">Full Screen</button>
 
   <div class="clear"></div>
@@ -411,13 +423,43 @@
   });
   ripterm.initFonts();
 
-  function selectRIP() {
+  function openRIP() {
+    const select = document.getElementById('rip-files');
+    const file = document.getElementById('rip-open-file').files[0];
+    if (file) {
+      select.options[0].text = file.name;
+      select.selectedIndex = 0;
+      ripterm.reset();
+      ripterm.clearFile();
+      ripterm.clearScreenshot();
+      ripterm.clearDiff();
+      ripterm.setupStream(file.name, file.stream());
+    }
   }
 
-  async function loadRIP() {
+  function selectRIP() {
+    ripterm.reset();
+    ripterm.clearFile();
+    ripterm.clearScreenshot();
+    ripterm.clearDiff();
+    loadRIP();
+  }
+
+  function selectSpeed() {
+    const select = document.getElementById('rip-speed');
+    if (select) {
+      ripterm.setModemSpeed(select.value);
+    }
+  }
+
+  function loadRIP() {
     let url = document.getElementById('rip-files').value;
-    ripterm.readScreenshot(url + '.png');
-    ripterm.readFile(url + '.RIP');
+    if (url !== '') {
+      const urlRIP = url + '.RIP';
+      ripterm.readScreenshot(url + '.png');
+      let icons = ripterm.readFile(urlRIP); // v3
+      //ripterm.setupStream(urlRIP, fetch(urlRIP).then(r => r.body)); // v4
+    }
   }
 
   function getCanvasPNG() {
@@ -460,6 +502,12 @@
   function clearLog() {
     document.getElementById('rip-log').innerHTML = '';
   }
+
+  // onload
+  document.addEventListener('DOMContentLoaded', () => {
+    toggleRenderOptions();
+    selectSpeed();
+  });
 
 </script>
 <br><br>
