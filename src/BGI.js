@@ -1401,7 +1401,7 @@ class BGI {
     this.unimplemented('detectgraph')
   }
 
-  // Draws a Cubic Bezier. [NOT IN BGI?]
+  // Draws a Cubic Bezier. [NOT IN BGI - RIPscrip extension]
   // numsegments is number of segments in curve.
   // cntpoints is an array of 8 ints (4 control points):
   //  [x1, y1, x2, y2, x3, y3, x4, y4]
@@ -1410,23 +1410,40 @@ class BGI {
   drawbezier (numsegments, cntpoints) {
     this._drawbezier(numsegments, cntpoints);
   }
+
+  // Calculate adaptive segment count based on control polygon length.
+  // Algorithm reverse-engineered from RSKETCH.EXE (Wayne Thomas, 1993) via Ghidra.
+  // Found at function FUN_1000_62b9 in the binary.
+  // Formula: segments = (|P1-P0| + |P2-P1| + |P3-P2|) / 10, clamped to [5, 500]
+  _calculateBezierSegments (cntpoints) {
+    const [x1, y1, x2, y2, x3, y3, x4, y4] = cntpoints;
+    const d01 = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+    const d12 = Math.sqrt((x3 - x2) ** 2 + (y3 - y2) ** 2);
+    const d23 = Math.sqrt((x4 - x3) ** 2 + (y4 - y3) ** 2);
+    const segments = Math.floor((d01 + d12 + d23) / 10);
+    return Math.max(5, Math.min(500, segments));
+  }
+
   _drawbezier (numsegments, cntpoints) {
-
-    // TODO: I don't know if this matches the one used in original RipTerm.
-    // Should test against original images.
-
-    // Cubic Bezier formula:
+    // Cubic Bezier formula (Bernstein polynomial):
     // p = (1-t)^3 *P0 + 3*t*(1-t)^2*P1 + 3*t^2*(1-t)*P2 + t^3*P3
     // where t is 0 to 1
 
-    if (!(numsegments && cntpoints && (numsegments >= 1) && (cntpoints.length >= 8))) {
+    if (!(cntpoints && (cntpoints.length >= 8))) {
       this.log('bgi', `drawbezier() invalid args! numsegments: ${numsegments}, cntpoints: ${cntpoints}`);
       return;
     }
+
+    // Use adaptive subdivision if numsegments is 0, null, or invalid
+    // This matches the algorithm from period-correct DOS implementations
+    if (!numsegments || numsegments < 1) {
+      numsegments = this._calculateBezierSegments(cntpoints);
+    }
+
     const [x1, y1, x2, y2, x3, y3, x4, y4] = cntpoints;
     let step = 1 / numsegments;
     let xp = x1, yp = y1, xn, yn;
-    for (let t = step; t < 1; t += step) { // TODO: TEST t <= 1
+    for (let t = step; t < 1; t += step) {
       let t1 = 1 - t;
       xn = Math.floor( t1*t1*t1 * x1 + 3 * t * t1*t1 * x2 + 3 * t*t * t1 * x3 + t*t*t * x4 );
       yn = Math.floor( t1*t1*t1 * y1 + 3 * t * t1*t1 * y2 + 3 * t*t * t1 * y3 + t*t*t * y4 );
