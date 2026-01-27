@@ -1298,7 +1298,29 @@ class RIPterm {
     return button;
   }
 
-  // Draws an XOR'd white rectangle.
+  // Transform a palette color for button highlighting.
+  // Reverse-engineered from RIPTERM.EXE FUN_1c6b_0b85 (Ghidra analysis).
+  //
+  // flags bit 0: Invert color (XOR with 0xF)
+  // flags bit 1: Flip brightness (0-7 dark ↔ 8-15 bright)
+  //
+  // Examples: (0=black, flags=1) → 15=white
+  //           (1=blue,  flags=2) → 9=light blue
+  //           (5=magenta, flags=3) → 2=green (invert + flip)
+  //
+  transformButtonColor (color, flags = 1) {
+    if (flags & 1) {
+      color = (~color) & 0xf;
+    }
+    if (flags & 2) {
+      color = (color < 8) ? color + 8 : color - 8;
+    }
+    return color;
+  }
+
+  // Draws an XOR'd white rectangle for button inversion.
+  // This is equivalent to applying transformButtonColor with flags=1
+  // to every pixel in the region (since palette XOR with 0xF = invert).
   // (doesn't work in SVG)
   //
   drawInvertedBar (x1, y1, x2, y2) {
@@ -1364,10 +1386,13 @@ class RIPterm {
     // prepare if selected
     if (isSelected) {
       // invert normal & highlight text if not center orientation
+      // Uses RIPTERM's FUN_1c6b_0b85 color transform (flag 1 = invert via XOR 0xF).
+      // Flag 2 (brightness flip) also exists in RIPTERM but the triggering
+      // button style bits haven't been identified yet.
       if (bstyle.orient != 2) {
-        dback ^= 15;
-        dfore ^= 15;
-        uline_col ^= 15;
+        dback = this.transformButtonColor(dback);
+        dfore = this.transformButtonColor(dfore);
+        uline_col = this.transformButtonColor(uline_col);
       }
       if (this.opts.origButtons === true) {
         isInverted = true;

@@ -1511,48 +1511,41 @@ class BGI {
     // fix for some arcs
     if (stangle > endangle) { endangle += 360 }
 
-    // bresenham works well for thin lines,
-    // while still need to find a solution for thick lines.
-    //if (thickness === 1) {
-    //if ((thickness === 1) && (stangle === 0) && (endangle === 360)) {
-    if ((stangle === 0) && (endangle === 360)) {
-      //this.ellipse_bresenham(cx, cy, xradius, yradius, thickness);
-      //this.ellipse_naive8(cx, cy, xradius, yradius, thickness); // TEST
+    // Angle span determines rendering path.
+    // RIPTERM.EXE (FUN_368f_2c06) uses three thresholds:
+    //   span > 349° → full ellipse (handles near-complete arcs)
+    //   span < 2°   → line approximation
+    //   else        → arc segments
+    const angleSpan = endangle - stangle;
 
+    if (angleSpan > 349) {
+      // Full ellipse path — RIPTERM treats spans > 349° as complete ellipses
+      // to avoid visible gaps from floating-point endpoint mismatch.
       if (thickness === 1) {
         this.ellipse_bresenham(cx, cy, xradius, yradius, thickness);
       }
       else {
-        this.arc_lines(cx, cy, stangle, endangle, xradius, yradius, thickness);
+        this.arc_lines(cx, cy, 0, 360, xradius, yradius, thickness);
       }
-
-      /*
-      // TEST: trying alternate for thick ovals
-      // can't quite get this right!
-      if (thickness === 3) {
-        // need left x:-1 & +1, right -1 & -2
-        // need top y:+1 & +2, bottom -1 & +1
-        //this.ellipse_bresenham(cx, cy, xradius + 0.5, yradius + 0.5, 1); // tip on top
-        this.ellipse_bresenham(cx     , cy     , xradius -1  , yradius -1  , 1);
-        this.ellipse_bresenham(cx -1.5, cy +1.5, xradius -0.5, yradius -0.5 , 1);
-      }
-      */
+    }
+    else if (angleSpan < 2) {
+      // Very small arc — RIPTERM approximates as a line between endpoints.
+      const rad_st = stangle * Math.PI / 180;
+      const rad_en = endangle * Math.PI / 180;
+      const x0 = Math.round(cx + xradius * Math.cos(rad_st));
+      const y0 = Math.round(cy - yradius * Math.sin(rad_st));
+      const x1 = Math.round(cx + xradius * Math.cos(rad_en));
+      const y1 = Math.round(cy - yradius * Math.sin(rad_en));
+      this.line(x0, y0, x1, y1);
     }
     else {
-
+      // Partial arc
       if (thickness === 1) {
         this.arc_bresenham(cx, cy, stangle, endangle, xradius, yradius, thickness);
       }
       else {
         this.arc_lines(cx, cy, stangle, endangle, xradius, yradius, thickness);
       }
-
-      //this.arc_pixels(cx, cy, stangle, endangle, xradius, yradius, thickness);
-      //this.arc_bresenham(cx, cy, stangle, endangle, xradius, yradius, thickness);
-      //if (thickness === 3) {
-      //  this.arc_bresenham(cx, cy, stangle, endangle, xradius-1, yradius-1, 1);
-      //  this.arc_bresenham(cx, cy, stangle, endangle, xradius+1, yradius+1, 1);
-      //}
     }
   }
 
