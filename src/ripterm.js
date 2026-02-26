@@ -1444,7 +1444,13 @@ class RIPterm {
       button.image = JSON.parse(JSON.stringify(this.clipboard));
     }
 
-    // resize if there's an image
+    // apply button style dimensions if specified (matches drawButton logic)
+    if (bstyle.wid && (bstyle.wid > 0) && bstyle.hgt && (bstyle.hgt > 0)) {
+      x2 = x1 + bstyle.wid;
+      y2 = y1 + bstyle.hgt;
+    }
+
+    // resize if there's an image (overrides style dimensions)
     if (button.image && ('width' in button.image) && ('height' in button.image)) {
       x2 = x1 + button.image.width;
       y2 = y1 + button.image.height;
