@@ -146,7 +146,7 @@ class RIPterm {
       this.ripURL;          // v4 string
       this.ripStream;       // v4 stream (throttled)
       this.inStream;        // v4 stream
-      this.ripReader;       // v4 stream reader
+      this.ripStopped = true;
       this.outCommands = '';
       this.startTime = 0;
       this.cmdi = 0;        // command counter
@@ -280,17 +280,18 @@ class RIPterm {
   ////////////////////////////////////////////////////////////////////////////////
   // Public methods
 
-  async start () {
-    this.log('trm', 'start()');
-    if (this.ctx && this.ripReader) {
+  async play () {
+    this.log('trm', 'play()');
+    if (this.ctx && this.ripStream) {
       // v4
       this.startTime = new Date();
       this.isRunning = true;
-      this.cmdi = 0;
-      this.outCommands = '';
       if (this.refTimer) { window.clearTimeout(this.refTimer); this.refTimer = null; }
       this.refTimer = window.setTimeout(() => { this.refreshCanvas() }, this.opts.refreshInterval);
-      await this.reloadStream();
+      if (this.ripStopped) {
+        this.ripStopped = false;
+        await this.reloadStream();
+      }
       if (await this.playStream()) {
         await this.stop();
       }
@@ -300,9 +301,16 @@ class RIPterm {
     }
   }
 
+  async pause () {
+    this.log('trm', 'pause()');
+    this.isRunning = false;
+    if (this.commandsDiv) { this.commandsDiv.innerHTML = this.outCommands; }
+  }
+
   async stop () {
     this.log('trm', 'stop()');
     this.isRunning = false;
+    this.ripStopped = true;
     if (this.startTime > 0) {
       const timeDiff = (Date.now() - this.startTime) / 1000;
       this.startTime = 0;
@@ -315,12 +323,16 @@ class RIPterm {
 
   reset () {
     this.log('trm', 'reset()');
+    this.isRunning = false;
+    this.ripStopped = true;
     this.bgi.graphdefaults();
     this.bgi.cleardevice();
     this.clearAllButtons();
     this.clearDiff();
+    if (this.refTimer) { window.clearTimeout(this.refTimer); this.refTimer = null; }
     this.refreshCanvas();
     this.cmdi = 0;
+    this.psVars = {};
     if (this.counterDiv) { this.counterDiv.innerHTML = ''; }
     this.outCommands = '';
     if (this.commandsDiv) { this.commandsDiv.innerHTML = ''; }
@@ -356,7 +368,7 @@ class RIPterm {
       event.target.style.width = winW + 'px';
       event.target.style.height = winH + 'px';
       this.reset();
-      await this.start();
+      await this.play();
     }
     else {
       // exiting fullscreen
@@ -640,11 +652,16 @@ class RIPterm {
 
   // call this after playing a stream to replay it
   async reloadStream (defaults = {}) {
+
+    this.log('trm', 'reloadStream()'); // DEBUG
     const {
       file = this.ripFile,
       url = this.ripURL,
     } = defaults;
 
+    this.cmdi = 0;
+    this.outCommands = '';
+    await this.releaseStream(this.ripStream);
     if (file) {
       await this.openFile(file);
     }
@@ -653,30 +670,22 @@ class RIPterm {
     }
   }
 
+  async releaseStream (stream) {
+    if (stream) {
+      this.psVars = {}; // clear playStream buffers
+      //if (stream.locked && stream.releaseLock) {
+      if (stream.releaseLock) {
+        await stream.releaseLock();
+      }
+      await stream.cancel();
+    }
+  }
+
   // if stream is undefined, continue using this.inStream
   async setupStream (stream) {
 
-    // TODO: Test this
     stream = stream || this.inStream;
     if (typeof stream === "undefined") { return; }
-    //if (typeof stream !== "ReadableStream") { return; }
-    // TODO: check stream is typeof ReadableStream<Uint8Array>, else exit
-
-    // close old stream & check for errors?
-    if (this.ripStream && this.ripStream.locked && this.ripReader) {
-      this.log('trm', `unlocking prior stream`); // DEBUG
-      this.ripReader.releaseLock();
-      await this.ripStream.cancel();
-    }
-
-    if (stream && this.inStream && (stream !== this.inStream)) {
-      // Unhandled Promise Rejection: TypeError: this.inStream.releaseLock is not a function.
-      //(In 'this.inStream.releaseLock()', 'this.inStream.releaseLock' is undefined)
-      if (this.inStream.releaseLock) { this.inStream.releaseLock(); }
-      // BUG: Unhandled Promise Rejection: TypeError: ReadableStream is locked
-      //await this.inStream.cancel();
-    }
-
     const chunkSize = this.calculateStreamBufferSize();
 
     if (stream) {
@@ -685,13 +694,13 @@ class RIPterm {
         const throttle = this.createThrottleTransform({
           chunkSize: chunkSize, delay: this.opts.refreshInterval
         });
-        this.ripStream = stream.pipeThrough(throttle); // TODO: TEST
+        await this.releaseStream(this.ripStream);
+        this.ripStream = stream.pipeThrough(throttle);
       }
       else {
         // don't throttle stream
         this.ripStream = stream;
       }
-      this.ripReader = this.ripStream.getReader();
     }
   }
 
@@ -699,22 +708,29 @@ class RIPterm {
   // Plays RIP commands and sends text to printANSI().
   //
   async playStream (defaults = {}) {
-    const {
-      reader = this.ripReader,
+    let {
+      stream = this.ripStream,
     } = defaults;
 
     this.log('trm', `playStream()`); // DEBUG
-    if (!reader) { return false; }
+    if (!stream) { return false; }
+    let reader = stream.getReader();
 
     // states
-    const ST_START=0, ST_ANSI=1, ST_RIPCMD=2, ST_RIPARG=3;
-    const ST_BANG=4, ST_BSLASH=5, ST_CONT=6, ST_CR=7;
+    const ST_START=1, ST_ANSI=2, ST_RIPCMD=3, ST_RIPARG=4;
+    const ST_BANG=5, ST_BSLASH=6, ST_CONT=7, ST_CR=8;
 
-    // vars
+    // global vars
     const outerThis = this;
-    let ansiBuf = [], ripCmdBuf = [], ripArgsBuf = [];
-    let state = ST_START;
-    this.cmdi = 0;
+    this.psVars = this.psVars || {};
+    this.psVars.state = this.psVars.state || ST_START;
+    this.psVars.ansiBuf = this.psVars.ansiBuf || [];
+    this.psVars.ripCmdBuf = this.psVars.ripCmdBuf || [];
+    this.psVars.ripArgsBuf = this.psVars.ripArgsBuf || [];
+    let state = this.psVars.state,  // state is a copy (by val)
+      ansiBuf = this.psVars.ansiBuf,
+      ripCmdBuf = this.psVars.ripCmdBuf,
+      ripArgsBuf = this.psVars.ripArgsBuf;
 
     // functions
     async function sendToRIP (cmdBuf, argsBuf) {
@@ -752,6 +768,8 @@ class RIPterm {
     async function nextByte (byte) {
       switch (state) {
       case ST_START:
+        ripCmdBuf.length = 0;
+        ripArgsBuf.length = 0;
         ansiBuf.push(byte);
         if (byte === 33) { state = ST_BANG; } // '!'
         else if ((byte === 13) || (byte === 10)) { } // CR or LF
@@ -828,27 +846,32 @@ class RIPterm {
         }
         break;
       }
+      outerThis.psVars.state = state;
     }
 
     // runloop
-    while (this.isRunning) {
-      // read next chunk of bytes
-      // value is a Uint8Array or undefined
-      const { value, done } = await reader.read();
-      if (done) {
-        this.log('trm', 'Stream complete');
-        return true;
-      }
-      else if (value) {
-        //this.log('trm', `read ${value.length}`); // DEBUG
-        const buffer = Array.from(value);
-        // parse all the new bytes read in
-        for (let i=0; i < buffer.length; i++) {
-          await nextByte(buffer[i]);
+    try {
+      while (this.isRunning) {
+        // read next chunk of bytes
+        // value is a Uint8Array or undefined
+        const { value, done } = await reader.read();
+        if (done) {
+          this.log('trm', 'Stream complete');
+          return true;
+        }
+        else if (value) {
+          // parse all the new bytes read in
+          const buffer = Array.from(value);
+          for (let i=0; i < buffer.length; i++) {
+            await nextByte(buffer[i]);
+          }
         }
       }
     }
-    return true;
+    finally {
+      if (reader) { reader.releaseLock(); }
+    }
+    return false;
   }
 
   // run RIP instruction given command code and args
