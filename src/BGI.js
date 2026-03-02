@@ -1,6 +1,6 @@
 /**
  * BGI.js
- * Copyright (c) 2020-2021 Carl Gorringe 
+ * Copyright (c) 2020-2026 Carl Gorringe
  * https://carl.gorringe.org
  * https://github.com/cgorringe/RIPtermJS
  *
@@ -17,6 +17,12 @@
  * https://www.cs.colorado.edu/~main/bgi/doc/
  * http://math.ubbcluj.ro/~sberinde/wingraph/
  *
+ **/
+
+/**
+ * This Source Code is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  **/
 
 // not using as a module for now, but
