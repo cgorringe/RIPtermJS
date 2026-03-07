@@ -35,14 +35,11 @@
   Either <b>Upload</b> a RIP file from your computer, or <b>Select a RIP file</b> from the dropdown list, then <b>Play</b> to draw it. RIP<em>scrip</em> commands are shown on the right.
   <em>(Blue = Implemented. Red = Skipped.)</em>
 </p>
-<p>
-  <em>Uploaded RIP files currently draw instantly. We're working on simulating modem speeds.</em>
-</p>
 <style>
-  .button {
+  .button, button {
     font-size: 8pt;
     font-weight: 400;
-    line-height: normal;
+    line-height: 1.5em;
   }
 
   .rip-body {
@@ -282,9 +279,10 @@
   </select>
 
   <select id="rip-speed" onchange="selectSpeed()">
-    <option value="0" selected>Full Speed</option>
-    <option value="256000">256 kbps</option>
-    <option value="128000">128 kbps</option>
+    <option value="0">Full Speed</option>
+    <option value="460800">460.8 kbps</option>
+    <option value="230400">230.4 kbps</option>
+    <option value="115200" selected>115.2 kbps</option>
     <option value="56000">56 kbps</option>
     <option value="33600">33.6 kbps</option>
     <option value="28800">28.8 kbps</option>
@@ -296,8 +294,8 @@
 
   <!-- <button onclick="ripterm.clear();">Clear</button> -->
   <!-- <button onclick="loadRIP()">Load RIP</button> -->
-  <button onclick="ripterm.start();">Play</button>
-  <button onclick="ripterm.stop();">Stop</button>
+  <button onclick="togglePlayPause()" id="rip-play-button">&#9654; Play</button>
+  <button onclick="doStop()">&#9209; Stop</button>
   <button onclick="ripterm.fullscreen();">Full Screen</button>
 
   <div class="clear"></div>
@@ -400,7 +398,7 @@
     </div>
     <div class="rip-select-right">
       <strong>Render:</strong>
-      <input type="checkbox" id="render-svg-opt" onclick="toggleRenderOptions()" checked>
+      <input type="checkbox" id="render-svg-opt" onclick="toggleRenderOptions()">
         <label for="render-svg-opt">SVG</label>
       <input type="checkbox" id="render-diff-opt" onclick="toggleRenderOptions()" checked>
         <label for="render-diff-opt">Diff</label>
@@ -422,6 +420,7 @@
 <script src="src/ripterm.js"></script>
 <script>
   // testBGI({ canvasId: 'rip-canvas' }); // TEST
+  let playShown = true;
 
   const ripterm = new RIPterm({
     canvasId: 'rip-canvas',
@@ -478,6 +477,30 @@
     }
   }
 
+  async function doStop() {
+    await ripterm.stop();
+    if (!playShown) {
+      playShown = true;
+      const button = document.getElementById('rip-play-button');
+      button.innerHTML = '&#9654; Play';
+    }
+  }
+
+  async function togglePlayPause() {
+    const button = document.getElementById('rip-play-button');
+    if (playShown) {
+      playShown = false;
+      button.innerHTML = '&#9208; Pause';
+      await ripterm.play();
+    }
+    else {
+      ripterm.pause();
+    }
+    // reset to Play after playing stops.
+    playShown = true;
+    button.innerHTML = '&#9654; Play';
+  }
+
   function getCanvasPNG() {
     return document.getElementById('rip-canvas').toDataURL("image/png").replace("image/png", "image/octet-stream");
   }
@@ -516,7 +539,12 @@
   }
 
   function clearLog() {
-    document.getElementById('rip-log').innerHTML = '';
+    const div = document.getElementById('rip-log');
+    div.innerHTML = '';
+    // fixes layer invalidation bug (not clearing right away)
+    div.style.display = "none";
+    div.offsetHeight;
+    div.style.display = "";
   }
 
   // onload

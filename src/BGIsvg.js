@@ -1,9 +1,21 @@
 /**
  * BGIsvg.js
- * Copyright (c) 2021 Carl Gorringe 
+ * Copyright (c) 2021-2026 Carl Gorringe
  * https://carl.gorringe.org
  * https://github.com/cgorringe/RIPtermJS
  *
+ **/
+
+/**
+ * This Source Code is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ *
+ * NOTE: This file makes use of the Potrace class (BGIpotrace.js)
+ * which is licensed under GPL-2.0 or later. If you don't need to make SVGs,
+ * you can simply avoid including this file and Potrace to avoid any GPL code,
+ * since the MPL-covered code may be distributed at the file-level, unline GPL
+ * code which applies to an entire work.
  **/
 
 class BGIsvg extends BGI {

@@ -11,6 +11,13 @@
  * (work in progress)
  **/
 
+/**
+ * This Source Code is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ *
+ **/
+
 // import BGI from './BGI.js'; // uncomment to use modules
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -146,17 +153,17 @@ class RIPterm {
       this.ripURL;          // v4 string
       this.ripStream;       // v4 stream (throttled)
       this.inStream;        // v4 stream
-      this.ripReader;       // v4 stream reader
+      this.ripStopped = true;
       this.outCommands = '';
       this.startTime = 0;
       this.cmdi = 0;        // command counter
-      this.cmdTimer = null; // commands interval timer
       this.refTimer = null; // refresh interval timer
       this.clipboard = {};  // { x:int, y:int, width:int, height:int, data:Uint8ClampedArray }
       this.buttonStyle = {};
       this.buttons = [];  // array of active button objects
       this.buttonClicked = null; // last clicked button object
       this.withinButton = false;
+      this.controlChars = this.initControlChars();
 
       // debug options
       this.commandsDiv = ('commandsId' in opts) ? document.getElementById(opts.commandsId) : null;
@@ -238,6 +245,18 @@ class RIPterm {
     await this.bgi.initFonts();
   }
 
+  // create a table of Unicode control char symbols.
+  initControlChars () {
+    // for 0x00(NUL) thru 0x1F
+    let cchars = Object.fromEntries(
+      Array.from({ length: 0x20 }, (_, i) => [
+        String.fromCharCode(i), String.fromCodePoint(0x2400 + i)
+      ])
+    );
+    cchars['\x7F'] = '\u2421'; // DEL
+    return cchars;
+  }
+
   initFullScreen (canvas) {
     if (canvas.requestFullscreen) {
       canvas.addEventListener("fullscreenchange", (event) => { this.fullscreenchange(event) }, false);
@@ -268,33 +287,42 @@ class RIPterm {
   ////////////////////////////////////////////////////////////////////////////////
   // Public methods
 
-  async start () {
-    this.log('trm', 'start()');
-    if (this.ctx && this.ripReader) {
+  async play () {
+    this.log('trm', 'play()');
+    if (this.ctx && this.ripStream) {
       // v4
       this.startTime = new Date();
       this.isRunning = true;
-      this.cmdi = 0;
-      this.outCommands = '';
       if (this.refTimer) { window.clearTimeout(this.refTimer); this.refTimer = null; }
       this.refTimer = window.setTimeout(() => { this.refreshCanvas() }, this.opts.refreshInterval);
-      await this.reloadStream();
-      await this.playStream();
+      if (this.ripStopped) {
+        this.ripStopped = false;
+        await this.reloadStream();
+      }
+      if (await this.playStream()) {
+        await this.stop();
+      }
     }
     else {
       this.log('trm', 'Must set "canvasId" and load a RIP first.');
     }
   }
 
+  async pause () {
+    this.log('trm', 'pause()');
+    this.isRunning = false;
+    if (this.commandsDiv) { this.commandsDiv.innerHTML = this.outCommands; }
+  }
+
   async stop () {
     this.log('trm', 'stop()');
     this.isRunning = false;
+    this.ripStopped = true;
     if (this.startTime > 0) {
       const timeDiff = (Date.now() - this.startTime) / 1000;
       this.startTime = 0;
       this.log('rip', `Rendered in ${timeDiff.toFixed(2)} seconds`);
     }
-    if (this.cmdTimer) { window.clearTimeout(this.cmdTimer); this.cmdTimer = null; }
     if (this.refTimer) { window.clearTimeout(this.refTimer); this.refTimer = null; }
     this.refreshCanvas();
     if (this.commandsDiv) { this.commandsDiv.innerHTML = this.outCommands; }
@@ -302,12 +330,16 @@ class RIPterm {
 
   reset () {
     this.log('trm', 'reset()');
+    this.isRunning = false;
+    this.ripStopped = true;
     this.bgi.graphdefaults();
     this.bgi.cleardevice();
     this.clearAllButtons();
     this.clearDiff();
+    if (this.refTimer) { window.clearTimeout(this.refTimer); this.refTimer = null; }
     this.refreshCanvas();
     this.cmdi = 0;
+    this.psVars = {};
     if (this.counterDiv) { this.counterDiv.innerHTML = ''; }
     this.outCommands = '';
     if (this.commandsDiv) { this.commandsDiv.innerHTML = ''; }
@@ -343,7 +375,7 @@ class RIPterm {
       event.target.style.width = winW + 'px';
       event.target.style.height = winH + 'px';
       this.reset();
-      await this.start();
+      await this.play();
     }
     else {
       // exiting fullscreen
@@ -626,39 +658,41 @@ class RIPterm {
   }
 
   // call this after playing a stream to replay it
-  async reloadStream () {
-    if (this.ripFile) {
-      await this.openFile(this.ripFile);
+  async reloadStream (defaults = {}) {
+
+    this.log('trm', 'reloadStream()'); // DEBUG
+    const {
+      file = this.ripFile,
+      url = this.ripURL,
+    } = defaults;
+
+    this.cmdi = 0;
+    this.outCommands = '';
+    await this.releaseStream(this.ripStream);
+    if (file) {
+      await this.openFile(file);
     }
-    else if (this.ripURL) {
-      await this.openURL(this.ripURL);
+    else if (url) {
+      await this.openURL(url);
+    }
+  }
+
+  async releaseStream (stream) {
+    if (stream) {
+      this.psVars = {}; // clear playStream buffers
+      //if (stream.locked && stream.releaseLock) {
+      if (stream.releaseLock) {
+        await stream.releaseLock();
+      }
+      await stream.cancel();
     }
   }
 
   // if stream is undefined, continue using this.inStream
   async setupStream (stream) {
 
-    // TODO: Test this
     stream = stream || this.inStream;
     if (typeof stream === "undefined") { return; }
-    //if (typeof stream !== "ReadableStream") { return; }
-    // TODO: check stream is typeof ReadableStream<Uint8Array>, else exit
-
-    // close old stream & check for errors?
-    if (this.ripStream && this.ripStream.locked && this.ripReader) {
-      this.log('trm', `unlocking prior stream`); // DEBUG
-      this.ripReader.releaseLock();
-      await this.ripStream.cancel();
-    }
-
-    if (stream && this.inStream && (stream !== this.inStream)) {
-      // Unhandled Promise Rejection: TypeError: this.inStream.releaseLock is not a function.
-      //(In 'this.inStream.releaseLock()', 'this.inStream.releaseLock' is undefined)
-      if (this.inStream.releaseLock) { this.inStream.releaseLock(); }
-      // BUG: Unhandled Promise Rejection: TypeError: ReadableStream is locked
-      //await this.inStream.cancel();
-    }
-
     const chunkSize = this.calculateStreamBufferSize();
 
     if (stream) {
@@ -667,40 +701,59 @@ class RIPterm {
         const throttle = this.createThrottleTransform({
           chunkSize: chunkSize, delay: this.opts.refreshInterval
         });
-        this.ripStream = stream.pipeThrough(throttle); // TODO: TEST
+        await this.releaseStream(this.ripStream);
+        this.ripStream = stream.pipeThrough(throttle);
       }
       else {
         // don't throttle stream
         this.ripStream = stream;
       }
-      this.ripReader = this.ripStream.getReader();
     }
   }
 
   // Read & parse stream implemented as a state machine.
   // Plays RIP commands and sends text to printANSI().
   //
-  async playStream (reader = this.ripReader) {
+  async playStream (defaults = {}) {
+    let {
+      stream = this.ripStream,
+    } = defaults;
 
     this.log('trm', `playStream()`); // DEBUG
-    if (!reader) { return; }
+    if (!stream) { return false; }
+    let reader = stream.getReader();
 
     // states
-    const ST_START=0, ST_ANSI=1, ST_RIPCMD=2, ST_RIPARG=3;
-    const ST_BANG=4, ST_BSLASH=5, ST_CONT=6, ST_CR=7;
+    const ST_START=1, ST_ANSI=2, ST_RIPCMD=3, ST_RIPARG=4;
+    const ST_BANG=5, ST_BSLASH=6, ST_CONT=7, ST_CR=8;
 
-    // vars
+    // global vars
     const outerThis = this;
-    let ansiBuf = [], ripCmdBuf = [], ripArgsBuf = [];
-    let state = ST_START;
-    this.cmdi = 0;
+    this.psVars = this.psVars || {};
+    this.psVars.state = this.psVars.state || ST_START;
+    this.psVars.ansiBuf = this.psVars.ansiBuf || [];
+    this.psVars.ripCmdBuf = this.psVars.ripCmdBuf || [];
+    this.psVars.ripArgsBuf = this.psVars.ripArgsBuf || [];
+    let state = this.psVars.state,  // state is a copy (by val)
+      ansiBuf = this.psVars.ansiBuf,
+      ripCmdBuf = this.psVars.ripCmdBuf,
+      ripArgsBuf = this.psVars.ripArgsBuf;
 
     // functions
     async function sendToRIP (cmdBuf, argsBuf) {
       if (cmdBuf && argsBuf && cmdBuf.length > 0) {
-        // TODO: change runRIPcmd() to use Uint8Arrays to support ESC and extended ASCII codes.
-        const cmd0 = new TextDecoder("utf-8").decode(new Uint8Array(cmdBuf)) || '';
-        const args = new TextDecoder("utf-8").decode(new Uint8Array(argsBuf)) || '';
+
+        // Text Encoding:
+        // Bytes are encoded "cp437" (MS-DOS) or "cp850", but neither are available.
+        // "cp866" has box characters, but replaces latin/greek with cyrillic.
+        // "windows-1252" changes too much.
+        // "x-user-defined" converts 0x80-0xFF (128-255) to Unicode U+F780-U+F7FF (blanks)
+        // which works for our use, as we can mask the upper byte to get the original value.
+        // https://developer.mozilla.org/en-US/docs/Web/API/Encoding_API/Encodings
+
+        const decoder = new TextDecoder("x-user-defined");
+        const cmd0 = outerThis.replaceControlChars(decoder.decode(new Uint8Array(cmdBuf))) || '';
+        const args = decoder.decode(new Uint8Array(argsBuf)) || '';
         cmdBuf.length = 0;
         argsBuf.length = 0;
         await outerThis.runRIPcmd(cmd0, args);
@@ -722,6 +775,8 @@ class RIPterm {
     async function nextByte (byte) {
       switch (state) {
       case ST_START:
+        ripCmdBuf.length = 0;
+        ripArgsBuf.length = 0;
         ansiBuf.push(byte);
         if (byte === 33) { state = ST_BANG; } // '!'
         else if ((byte === 13) || (byte === 10)) { } // CR or LF
@@ -762,7 +817,7 @@ class RIPterm {
       case ST_RIPCMD:
         ripCmdBuf.push(byte);
         if ((byte >= 48) && (byte <= 57)) { } // '0' to '9'
-        else { state = ST_RIPARG; } // a letter, '*', '#', or ESC
+        else { state = ST_RIPARG; } // a letter, '*', '#', '!' or ESC
         break;
 
       case ST_RIPARG:
@@ -803,27 +858,32 @@ class RIPterm {
         }
         break;
       }
+      outerThis.psVars.state = state;
     }
 
     // runloop
-    while (true) {
-      // read next chunk of bytes
-      // value is a Uint8Array or undefined
-      const { value, done } = await reader.read();
-      if (done) {
-        this.log('trm', 'Stream complete');
-        break;
-      }
-      else if (value) {
-        //this.log('trm', `read ${value.length}`); // DEBUG
-        const buffer = Array.from(value);
-        // parse all the new bytes read in
-        for (let i=0; i < buffer.length; i++) {
-          await nextByte(buffer[i]);
+    try {
+      while (this.isRunning) {
+        // read next chunk of bytes
+        // value is a Uint8Array or undefined
+        const { value, done } = await reader.read();
+        if (done) {
+          this.log('trm', 'Stream complete');
+          return true;
+        }
+        else if (value) {
+          // parse all the new bytes read in
+          const buffer = Array.from(value);
+          for (let i=0; i < buffer.length; i++) {
+            await nextByte(buffer[i]);
+          }
         }
       }
     }
-    await this.stop();
+    finally {
+      if (reader) { reader.releaseLock(); }
+    }
+    return false;
   }
 
   // run RIP instruction given command code and args
@@ -841,14 +901,23 @@ class RIPterm {
     }
   }
 
+  // Replace control chars in text with Unicode symbols.
+  // must set this.controlChars = this.initControlChars() first.
+  // returns modified text for display.
+  //
+  replaceControlChars (text) {
+    return (this.controlChars) ? text.split('').map(c => this.controlChars[c] ?? c).join('') : text;
+  }
+
   // Text to output to the Text Window.
   // bytes is an Uint8Array
   async printANSI (bytes) {
     // TODO: this is a stub for now
+    //this.log('ans', `ANSI: ${bytes}`); // DEBUG
 
-    // TEST: decoding to utf-8 will likely cause issues with high-bit ASCII values.
-    //const text = new TextDecoder("utf-8").decode(bytes);
-    this.log('ans', `ANSI: ${bytes}`); // DEBUG
+    const text = new TextDecoder("x-user-defined").decode(bytes);
+    const otext = this.replaceControlChars(text);
+    this.log('ans', `${otext}`); // DEBUG
   }
 
 
@@ -863,6 +932,7 @@ class RIPterm {
   }
 
   // convert these "\!" "\|" "\\" to normal text.
+  // NOT USED
   unescapeRIPtext (text) {
     text = text.replace(/\\\!/g, '!');
     text = text.replace(/\\\|/g, '|');
@@ -907,7 +977,7 @@ class RIPterm {
         case '7': ret.push( parseInt(args.substr(pos, 7), 36) ); pos += 7; break;
         case '8': ret.push( parseInt(args.substr(pos, 8), 36) ); pos += 8; break;
         case '9': ret.push( parseInt(args.substr(pos, 9), 36) ); pos += 9; break;
-        case '*': ret.push( this.unescapeRIPtext(args.substr(pos)) ); break;
+        case '*': ret.push( args.substr(pos) ); break;
         default:
       }
     });
@@ -929,7 +999,7 @@ class RIPterm {
         case '7': ret[keys[i]] = parseInt(args.substr(pos, 7), 36); pos += 7; break;
         case '8': ret[keys[i]] = parseInt(args.substr(pos, 8), 36); pos += 8; break;
         case '9': ret[keys[i]] = parseInt(args.substr(pos, 9), 36); pos += 9; break;
-        case '*': ret[keys[i]] = this.unescapeRIPtext(args.substr(pos)); break;
+        case '*': ret[keys[i]] = args.substr(pos); break;
         default:
       }
       i += 1;
@@ -1419,7 +1489,29 @@ class RIPterm {
     return button;
   }
 
-  // Draws an XOR'd white rectangle.
+  // Transform a palette color for button highlighting.
+  // Reverse-engineered from RIPTERM.EXE FUN_1c6b_0b85 (Ghidra analysis).
+  //
+  // flags bit 0: Invert color (XOR with 0xF)
+  // flags bit 1: Flip brightness (0-7 dark ↔ 8-15 bright)
+  //
+  // Examples: (0=black, flags=1) → 15=white
+  //           (1=blue,  flags=2) → 9=light blue
+  //           (5=magenta, flags=3) → 2=green (invert + flip)
+  //
+  transformButtonColor (color, flags = 1) {
+    if (flags & 1) {
+      color = (~color) & 0xf;
+    }
+    if (flags & 2) {
+      color = (color < 8) ? color + 8 : color - 8;
+    }
+    return color;
+  }
+
+  // Draws an XOR'd white rectangle for button inversion.
+  // This is equivalent to applying transformButtonColor with flags=1
+  // to every pixel in the region (since palette XOR with 0xF = invert).
   // (doesn't work in SVG)
   //
   drawInvertedBar (x1, y1, x2, y2) {
@@ -1485,10 +1577,13 @@ class RIPterm {
     // prepare if selected
     if (isSelected) {
       // invert normal & highlight text if not center orientation
+      // Uses RIPTERM's FUN_1c6b_0b85 color transform (flag 1 = invert via XOR 0xF).
+      // Flag 2 (brightness flip) also exists in RIPTERM but the triggering
+      // button style bits haven't been identified yet.
       if (bstyle.orient != 2) {
-        dback ^= 15;
-        dfore ^= 15;
-        uline_col ^= 15;
+        dback = this.transformButtonColor(dback);
+        dfore = this.transformButtonColor(dfore);
+        uline_col = this.transformButtonColor(uline_col);
       }
       if (this.opts.origButtons === true) {
         isInverted = true;
@@ -2352,12 +2447,12 @@ class RIPterm {
       },
 
       // RIP_DEFINE (1D)
-      // RIP_QUERY (1<esc>)
+      // RIP_QUERY (1␛)(1<ESC>)
       // RIP_COPY_REGION (1G)
       // RIP_READ_SCENE (1R)
       // RIP_FILE_QUERY (1F)
 
-      // RIP_ENTER_BLOCK_MODE (9<esc>)
+      // RIP_ENTER_BLOCK_MODE (9␛)(9<ESC>)
 
       // RIP_HEADER (h) - RIPscrip v2.0
       'h': (args) => {
