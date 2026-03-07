@@ -1837,6 +1837,66 @@ class RIPterm {
     this.cmd = {
 
       // RIP_TEXT_WINDOW (w)
+      // Spec format:  w <x0:2> <y0:2> <x1:2> <y1:2> <wrap:1> <size:1>
+      //   x0,y0  — upper-left corner in text-cell coordinates (2-char base-36 each)
+      //   x1,y1  — lower-right corner, inclusive (2-char base-36 each)
+      //   wrap   — 1-char: 1=word-wrap, 0=truncate
+      //   size   — 1-char font-size selector:
+      //              0=8×8   (x: 0-79, y: 0-42)
+      //              1=7×8   (x: 0-90, y: 0-42)
+      //              2=8×14  (x: 0-79, y: 0-24)
+      //              3=7×14  (x: 0-90, y: 0-24)
+      //              4=16×14 (x: 0-39, y: 0-24)
+      // Per spec: all-zero parameters make the text window invisible.
+      // Emits an onTextWindow callback with pixel coordinates so the host can
+      // position an external text terminal (e.g. xterm.js) overlay.
+      'w': (args) => {
+        if (args.length >= 10) {
+          const outer = this;
+          // Parse wrap and size as separate 1-char fields per the RIP spec.
+          // Previously they were combined into a 2-char 'flags' field which
+          // caused pixelMode misdetection when size=2 (8×14 font).
+          let o = { func: 'RIP_TEXT_WINDOW', ...this.parseRIPargs2(args, '222211', ['x0','y0','x1','y1','wrap','size']) };
+          o.run = async function(ob = {}) {
+            if (ob.hilite) { return }
+            let px, py, pw, ph, textW, textH;
+            const wordWrap = this.wrap !== 0;
+            // Character cell pixel dimensions for each size value (per RIP spec)
+            const FONT_DIMS = [
+              { w: 8,  h: 8  },  // 0: 8×8
+              { w: 7,  h: 8  },  // 1: 7×8
+              { w: 8,  h: 14 },  // 2: 8×14
+              { w: 7,  h: 14 },  // 3: 7×14
+              { w: 16, h: 14 },  // 4: 16×14
+            ];
+            const font = FONT_DIMS[this.size & 0x0f] || FONT_DIMS[0];
+
+            // Per RIP spec, x0=y0=x1=y1=0 means "invisible text window"
+            if (this.x0 === 0 && this.y0 === 0 && this.x1 === 0 && this.y1 === 0) {
+              px = py = pw = ph = textW = textH = 0;
+            } else {
+              // Per RIP spec, x1/y1 are inclusive lower-right corners
+              // Width = x1 - x0 + 1, Height = y1 - y0 + 1
+              textW = this.x1 - this.x0 + 1;
+              textH = this.y1 - this.y0 + 1;
+              px = this.x0 * font.w;
+              py = this.y0 * font.h;
+              pw = textW * font.w;
+              ph = textH * font.h;
+            }
+            // Store current text window state
+            outer.textWindow = { x: px, y: py, width: pw, height: ph, wordWrap,
+                                 textX: this.x0, textY: this.y0, textW: textW, textH: textH,
+                                 fontW: font.w, fontH: font.h };
+            // Emit event for external listeners (e.g. BBS client overlays)
+            if (outer.onTextWindow) {
+              outer.onTextWindow(outer.textWindow);
+            }
+            outer.log('rip', `TEXT_WINDOW x=${px} y=${py} w=${pw} h=${ph} size=${this.size} wrap=${wordWrap} font=${font.w}x${font.h}`);
+          };
+          return o;
+        }
+      },
 
       // RIP_VIEWPORT (v)
       'v': (args) => {
@@ -1865,10 +1925,15 @@ class RIPterm {
         o.run = async function(ob = {}) {
           if (ob.hilite) { return }
           // don't reset colors & styles!
-          // TODO: set text window
           outer.bgi.cleardevice();
           outer.clearAllButtons();
           outer.clipboard = {};
+          // Reset text window to full screen (80x43 text cells)
+          outer.textWindow = { x: 0, y: 0, width: 640, height: 350, wordWrap: false, pixelMode: false,
+                               textX: 0, textY: 0, textW: 80, textH: 43, flags: 0 };
+          if (outer.onTextWindow) {
+            outer.onTextWindow(outer.textWindow);
+          }
           // TODO: restore default palette
         };
         return o;
