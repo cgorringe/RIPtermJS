@@ -116,6 +116,15 @@ class RIPterm {
     '#555', '#55f', '#5f5', '#5ff', '#f55', '#f5f', '#ff5', '#fff'
   ]; }
 
+  // Character cell pixel dimensions for each size value (per RIP spec)
+  static get FONT_DIMS () { return [
+    { w: 8,  h: 8  },  // 0: 8×8
+    { w: 7,  h: 8  },  // 1: 7×8
+    { w: 8,  h: 14 },  // 2: 8×14
+    { w: 7,  h: 14 },  // 3: 7×14
+    { w: 16, h: 14 },  // 4: 16×14
+  ]; }
+
   ////////////////////////////////////////////////////////////////////////////////
 
   constructor (opts) {
@@ -164,6 +173,7 @@ class RIPterm {
       this.buttonClicked = null; // last clicked button object
       this.withinButton = false;
       this.controlChars = this.initControlChars();
+      this.textWindow = {};
 
       // debug options
       this.commandsDiv = ('commandsId' in opts) ? document.getElementById(opts.commandsId) : null;
@@ -1863,18 +1873,9 @@ class RIPterm {
           // caused pixelMode misdetection when size=2 (8×14 font).
           let o = { func: 'RIP_TEXT_WINDOW', ...this.parseRIPargs2(args, '222211', ['x0','y0','x1','y1','wrap','size']) };
           o.run = async function(ob = {}) {
-            if (ob.hilite) { return }
             let px, py, pw, ph, textW, textH;
             const wordWrap = this.wrap !== 0;
-            // Character cell pixel dimensions for each size value (per RIP spec)
-            const FONT_DIMS = [
-              { w: 8,  h: 8  },  // 0: 8×8
-              { w: 7,  h: 8  },  // 1: 7×8
-              { w: 8,  h: 14 },  // 2: 8×14
-              { w: 7,  h: 14 },  // 3: 7×14
-              { w: 16, h: 14 },  // 4: 16×14
-            ];
-            const font = FONT_DIMS[this.size & 0x0f] || FONT_DIMS[0];
+            const font = RIPterm.FONT_DIMS[this.size & 0x0f] || RIPterm.FONT_DIMS[0];
 
             // Per RIP spec, x0=y0=x1=y1=0 means "invisible text window"
             if (this.x0 === 0 && this.y0 === 0 && this.x1 === 0 && this.y1 === 0) {
@@ -1889,10 +1890,25 @@ class RIPterm {
               pw = textW * font.w;
               ph = textH * font.h;
             }
+
+            // highlight: draw a box around it
+            if (ob.hilite) {
+              outer.bgi._fillrect(px, py, px + pw, py + ph);
+              return;
+            }
+
             // Store current text window state
-            outer.textWindow = { x: px, y: py, width: pw, height: ph, wordWrap,
-                                 textX: this.x0, textY: this.y0, textW: textW, textH: textH,
-                                 fontW: font.w, fontH: font.h };
+            let twindow = { x: px, y: py, width: pw, height: ph, wordWrap, fontnum: this.size,
+                            textX: this.x0, textY: this.y0, textW: textW, textH: textH,
+                            fontW: font.w, fontH: font.h };
+
+            // Set cursor position to upper-left corner, except when window identical to prior
+            if (!(outer.textWindow && (outer.textWindow.x === px) && (outer.textWindow.y === py) &&
+              (outer.textWindow.width === pw) && (outer.textWindow.height === ph))) {
+              twindow.cp = { row: 1, col: 1 };
+            }
+            outer.textWindow = twindow;
+
             // Emit event for external listeners (e.g. BBS client overlays)
             if (outer.onTextWindow) {
               outer.onTextWindow(outer.textWindow);
@@ -1933,13 +1949,18 @@ class RIPterm {
           outer.bgi.cleardevice();
           outer.clearAllButtons();
           outer.clipboard = {};
+
           // Reset text window to full screen (80x43 text cells)
-          outer.textWindow = { x: 0, y: 0, width: 640, height: 350, wordWrap: false, pixelMode: false,
-                               textX: 0, textY: 0, textW: 80, textH: 43, flags: 0 };
+          outer.textWindow = { x: 0, y: 0, width: 640, height: 350, wordWrap: false, fontnum: 0,
+                               textX: 0, textY: 0, textW: 80, textH: 43, fontW: 8, fontH: 8 };
+          outer.textWindow.cp = { row: 1, col: 1 };
+
+          // Emit event for external listeners
           if (outer.onTextWindow) {
             outer.onTextWindow(outer.textWindow);
           }
           // TODO: restore default palette
+          // TODO: clear text window?
         };
         return o;
       },
