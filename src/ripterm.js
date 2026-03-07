@@ -829,6 +829,11 @@ class RIPterm {
           await sendToRIP(ripCmdBuf, ripArgsBuf);
           state = ST_CR;
         }
+        else if (byte === 33) { // '!' - start of next RIP command
+          await sendToRIP(ripCmdBuf, ripArgsBuf);
+          ansiBuf.push(byte);
+          state = ST_BANG;
+        }
         else if (byte === 92) { // '\'
           state = ST_BSLASH;
         }
