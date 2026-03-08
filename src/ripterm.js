@@ -735,7 +735,7 @@ class RIPterm {
 
     // states
     const ST_START=1, ST_ANSI=2, ST_RIPCMD=3, ST_RIPARG=4;
-    const ST_BANG=5, ST_BSLASH=6, ST_CONT=7, ST_CR=8;
+    const ST_BANG=5, ST_BSLASH=6, ST_CONT=7, ST_CR=8, ST_RIPBANG=9;
 
     // global vars
     const outerThis = this;
@@ -817,6 +817,19 @@ class RIPterm {
         }
         break;
 
+      case ST_RIPBANG:
+        // special case to handle '!' inside ST_RIPARG which are not properly escaped.
+        if (byte === 124) { // '|' - new RIP command
+          ripArgsBuf.pop(); // pops '!'
+          await sendToRIP(ripCmdBuf, ripArgsBuf);
+          state = ST_RIPCMD;
+        }
+        else { // continue ST_RIPARG
+          ripArgsBuf.push(byte);
+          state = ST_RIPARG;
+        }
+        break;
+
       case ST_ANSI:
         ansiBuf.push(byte);
         if ((byte === 13) || (byte === 10)) { state = ST_START; } // CR or LF
@@ -835,14 +848,13 @@ class RIPterm {
           await sendToRIP(ripCmdBuf, ripArgsBuf);
           state = ST_RIPCMD;
         }
-        else if (byte === 13) { // CR
+        else if ((byte === 13) || (byte === 10)) { // CR or LF
           await sendToRIP(ripCmdBuf, ripArgsBuf);
           state = ST_CR;
         }
         else if (byte === 33) { // '!' - start of next RIP command
-          await sendToRIP(ripCmdBuf, ripArgsBuf);
-          ansiBuf.push(byte);
-          state = ST_BANG;
+          ripArgsBuf.push(byte);
+          state = ST_RIPBANG;
         }
         else if (byte === 92) { // '\'
           state = ST_BSLASH;
