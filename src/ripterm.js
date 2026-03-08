@@ -788,14 +788,14 @@ class RIPterm {
         ripCmdBuf.length = 0;
         ripArgsBuf.length = 0;
         ansiBuf.push(byte);
-        if (byte === 33) { state = ST_BANG; } // '!'
+        if ((byte === 33) || (byte === 1) || (byte === 2)) { state = ST_BANG; } // '!', ^A, ^B
         else if ((byte === 13) || (byte === 10)) { } // CR or LF
         else { state = ST_ANSI; }
         break;
 
       case ST_CR:
         if (byte === 10) { } // LF
-        else if (byte === 33) { // '!'
+        else if ((byte === 33) || (byte === 1) || (byte === 2)) { // '!', ^A, ^B
           ansiBuf.push(byte);
           state = ST_BANG;
         }
