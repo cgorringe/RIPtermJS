@@ -734,7 +734,7 @@ class RIPterm {
 
     // states
     const ST_START=1, ST_ANSI=2, ST_RIPCMD=3, ST_RIPARG=4;
-    const ST_BANG=5, ST_BSLASH=6, ST_CONT=7, ST_CR=8, ST_RIPBANG=9;
+    const ST_BANG=5, ST_BSLASH=6, ST_CR=7, ST_RIPBANG=8;
 
     // global vars
     const outerThis = this;
@@ -864,15 +864,7 @@ class RIPterm {
         break;
 
       case ST_BSLASH:
-        if (byte === 13) { state = ST_CONT; } // CR
-        else {
-          ripArgsBuf.push(byte);
-          state = ST_RIPARG;
-        }
-        break;
-
-      case ST_CONT:
-        if (byte === 10) { } // LF
+        if ((byte === 13) || (byte === 10)) { } // CR or LF
         else {
           ripArgsBuf.push(byte);
           state = ST_RIPARG;
