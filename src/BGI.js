@@ -2170,6 +2170,7 @@ class BGI {
   }
   _outtext (text) {
 
+    if (typeof text !== "string") { return }
     // set yoffset for scalable fonts first
     let yoffset = 0;
     const fontnum = this.info.text.font;
@@ -2641,6 +2642,7 @@ class BGI {
 
   // check every char in text and return true if at least 1 char has a descender.
   _textHasDescender (text) {
+    if (typeof text !== "string") { return false; }
     let drop = false;
     text.split('').forEach(c => {
       let cvalue = c.charCodeAt(0) & 0xFF; // strip out 2nd byte
@@ -2660,6 +2662,7 @@ class BGI {
 
   textheight (text, flags = BGI.FULL_HEIGHT) {
 
+    if (typeof text !== "string") { return 0; }
     let th = 0;
     const fontnum = this.info.text.font;
     const scale = this.info.text.charsize;
@@ -2711,6 +2714,7 @@ class BGI {
   // takes the string length, current font size, and multiplication factor, and determines the width of text in pixels.
   textwidth (text) {
 
+    if (typeof text !== "string") { return 0; }
     let tw = 0;
     const fontnum = this.info.text.font;
     const scale = this.info.text.charsize;

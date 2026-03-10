@@ -415,20 +415,19 @@ class RIPterm {
     if (this.opts.pauseOn.includes(cmd0)) {
       // RIP command paused
       const o = this.cmd[cmd0](args);
-      const oText = `${count}: ` + (o ? JSON.stringify(o).replaceAll('"', '').replaceAll(',', ', ') : '');
+      const oText = `${count}: ` + (o ? JSON.stringify(o).replaceAll('"', '').replaceAll(',', ', ') : 'unknown');
       outHtml = `<div class="rip-cmd" title="${oText}"><span class="cmd-paused">${cmd0}</span>${args}<br></div>`;
     }
     else if (this.cmd[cmd0]) {
       // RIP command supported
       const o = this.cmd[cmd0](args);
-      const oText = `${count}: ` + (o ? JSON.stringify(o).replaceAll('"', '').replaceAll(',', ', ') : '');
-      //let clickCode = `ripterm.clickCmd('${cmd0}','${args}');`; // TEST
-      //outHtml = `<div class="rip-cmd" title="${oText}" onclick="${clickCode}"><span class="cmd-ok">${cmd0}</span>${args}<br></div>`;
-      outHtml = `<div class="rip-cmd" title="${oText}"><span class="cmd-ok">${cmd0}</span>${args}<br></div>`;
+      const oText = `${count}: ` + (o ? JSON.stringify(o).replaceAll('"', '').replaceAll(',', ', ') : 'unknown');
+      const oClass = (o && o.run) ? 'cmd-ok' : 'cmd-not';
+      outHtml = `<div class="rip-cmd" title="${oText}"><span class="${oClass}">${cmd0}</span>${args}<br></div>`;
     }
     else {
       // RIP command NOT supported
-      outHtml = `<div><span class="cmd-not" title=${count}>${cmd0}</span>${args}<br></div>`;
+      outHtml = `<div title="${count}"><span class="cmd-not">${cmd0}</span>${args}<br></div>`;
     }
     return outHtml;
   }
@@ -928,6 +927,7 @@ class RIPterm {
   // returns modified text for display.
   //
   replaceControlChars (text) {
+    if (typeof text !== "string") { return ''; }
     return (this.controlChars) ? text.split('').map(c => this.controlChars[c] ?? c).join('') : text;
   }
 
@@ -953,6 +953,18 @@ class RIPterm {
       ['0x' + hex[1] + hex[2] | 0, '0x' + hex[3] + hex[4] | 0, '0x' + hex[5] + hex[6] | 0];
   }
 
+  // Given an object or array
+  // returns true if none of the values are NaN.
+  noNaNs (obj) {
+    if (typeof obj === 'object') {
+      return Object.values(obj).every(value => !Number.isNaN(value));
+    }
+    else if (typeof obj === 'array') {
+      return obj.every(value => !Number.isNaN(value));
+    }
+    return false;
+  }
+
   // convert these "\!" "\|" "\\" to normal text.
   // NOT USED
   unescapeRIPtext (text) {
@@ -972,7 +984,7 @@ class RIPterm {
     const cmd = /^[0-9]*./.exec(inst)[0];
     if (cmd) {
       // grab everything after cmd string
-      args = inst.substr(cmd.length);
+      args = inst.substring(cmd.length);
       // remove all newlines (NOT TESTED)
       args = args.replace(/\r?\n|\r/gm, '');
     }
@@ -985,21 +997,23 @@ class RIPterm {
   // e.g. fmt = '2222' means extract 4 2-digit ints, converting from base36.
   // returns an array of numbers.
   // still need to figure out how to parse strings out.
-  // TODO: how to handle parsing errors? throw an exception?
+  // Supports variable-width args.
+  // For any args missing or invalid, parseInt() will return NaN values.
+  //
   parseRIPargs (args, fmt) {
     let pos = 0, ret = [];
     Array.from(fmt).forEach(f => {
       switch (f) {
-        case '1': ret.push( parseInt(args.substr(pos, 1), 36) ); pos += 1; break;
-        case '2': ret.push( parseInt(args.substr(pos, 2), 36) ); pos += 2; break;
-        case '3': ret.push( parseInt(args.substr(pos, 3), 36) ); pos += 3; break;
-        case '4': ret.push( parseInt(args.substr(pos, 4), 36) ); pos += 4; break;
-        case '5': ret.push( parseInt(args.substr(pos, 5), 36) ); pos += 5; break;
-        case '6': ret.push( parseInt(args.substr(pos, 6), 36) ); pos += 6; break;
-        case '7': ret.push( parseInt(args.substr(pos, 7), 36) ); pos += 7; break;
-        case '8': ret.push( parseInt(args.substr(pos, 8), 36) ); pos += 8; break;
-        case '9': ret.push( parseInt(args.substr(pos, 9), 36) ); pos += 9; break;
-        case '*': ret.push( args.substr(pos) ); break;
+        case '1': ret.push( parseInt(args.substring(pos, pos+1), 36) ); pos += 1; break;
+        case '2': ret.push( parseInt(args.substring(pos, pos+2), 36) ); pos += 2; break;
+        case '3': ret.push( parseInt(args.substring(pos, pos+3), 36) ); pos += 3; break;
+        case '4': ret.push( parseInt(args.substring(pos, pos+4), 36) ); pos += 4; break;
+        case '5': ret.push( parseInt(args.substring(pos, pos+5), 36) ); pos += 5; break;
+        case '6': ret.push( parseInt(args.substring(pos, pos+6), 36) ); pos += 6; break;
+        case '7': ret.push( parseInt(args.substring(pos, pos+7), 36) ); pos += 7; break;
+        case '8': ret.push( parseInt(args.substring(pos, pos+8), 36) ); pos += 8; break;
+        case '9': ret.push( parseInt(args.substring(pos, pos+9), 36) ); pos += 9; break;
+        case '*': ret.push( args.substring(pos) ); break;
         default:
       }
     });
@@ -1008,20 +1022,23 @@ class RIPterm {
 
   // takes in an array of keys (strings)
   // returns an object using keys (strings) and values (ints)
+  // Supports variable-width args.
+  // For any args missing or invalid, parseInt() will return NaN values.
+  //
   parseRIPargs2 (args, fmt, keys) {
     let pos=0, i=0, ret = {};
     Array.from(fmt).forEach(f => {
       switch (f) {
-        case '1': ret[keys[i]] = parseInt(args.substr(pos, 1), 36); pos += 1; break;
-        case '2': ret[keys[i]] = parseInt(args.substr(pos, 2), 36); pos += 2; break;
-        case '3': ret[keys[i]] = parseInt(args.substr(pos, 3), 36); pos += 3; break;
-        case '4': ret[keys[i]] = parseInt(args.substr(pos, 4), 36); pos += 4; break;
-        case '5': ret[keys[i]] = parseInt(args.substr(pos, 5), 36); pos += 5; break;
-        case '6': ret[keys[i]] = parseInt(args.substr(pos, 6), 36); pos += 6; break;
-        case '7': ret[keys[i]] = parseInt(args.substr(pos, 7), 36); pos += 7; break;
-        case '8': ret[keys[i]] = parseInt(args.substr(pos, 8), 36); pos += 8; break;
-        case '9': ret[keys[i]] = parseInt(args.substr(pos, 9), 36); pos += 9; break;
-        case '*': ret[keys[i]] = args.substr(pos); break;
+        case '1': ret[keys[i]] = parseInt(args.substring(pos, pos+1), 36); pos += 1; break;
+        case '2': ret[keys[i]] = parseInt(args.substring(pos, pos+2), 36); pos += 2; break;
+        case '3': ret[keys[i]] = parseInt(args.substring(pos, pos+3), 36); pos += 3; break;
+        case '4': ret[keys[i]] = parseInt(args.substring(pos, pos+4), 36); pos += 4; break;
+        case '5': ret[keys[i]] = parseInt(args.substring(pos, pos+5), 36); pos += 5; break;
+        case '6': ret[keys[i]] = parseInt(args.substring(pos, pos+6), 36); pos += 6; break;
+        case '7': ret[keys[i]] = parseInt(args.substring(pos, pos+7), 36); pos += 7; break;
+        case '8': ret[keys[i]] = parseInt(args.substring(pos, pos+8), 36); pos += 8; break;
+        case '9': ret[keys[i]] = parseInt(args.substring(pos, pos+9), 36); pos += 9; break;
+        case '*': ret[keys[i]] = args.substring(pos); break;
         default:
       }
       i += 1;
@@ -1032,13 +1049,15 @@ class RIPterm {
   // Parses RIP_POLYGON, RIP_FILL_POLYGON, and RIP_POLYLINE
   // which have a variable number of arguments in the form:
   //  npoints:2, x1:2, y1:2, ... xn:2, yn:2
+  // For any args missing or invalid, parseInt() will return NaN values.
+  //
   parseRIPpoly (args) {
     let xy = 0, ret = [];
-    const npoints = parseInt(args.substr(0, 2), 36);
+    const npoints = parseInt(args.substring(0, 2), 36);
     ret.push(npoints);
-    if (npoints <= 512) {
+    if (npoints <= 512) { // false if npoints == NaN
       for (let n=0; n < npoints * 2; n++) {
-        xy = parseInt(args.substr(n * 2 + 2, 2), 36);
+        xy = parseInt(args.substring(n*2 + 2, n*2 + 4), 36);
         ret.push(xy);
       }
     }
@@ -1049,17 +1068,18 @@ class RIPterm {
   // returns an array of strings, else empty array.
   // most often 1 filename, but returns 2 if there's a "hot icon" button.
   // modifies: this.buttonStyle
+  // NOT USED
   //
-  parseIconNames (cmd, args) {
+  async parseIconNames (cmd0, args) {
     let fnames = [];
-    if (cmd === '1I') {
+    if (cmd0 === '1I') {
       // RIP_LOAD_ICON
       if (args.length > 9) {
         const [x, y, mode, clipflag, res, filename] = this.parseRIPargs(args, '22212*');
         fnames.push(this.fixIconFilename(filename));
       }
     }
-    else if (cmd === '1U') {
+    else if (cmd0 === '1U') {
       // RIP_BUTTON
       if (args.length > 12) {
         const [x0, y0, x1, y1, hotkey, flags, res, text] = this.parseRIPargs(args, '2222211*');
@@ -1074,10 +1094,13 @@ class RIPterm {
         }
       }
     }
-    else if (cmd === '1B') {
+    else if (cmd0 === '1B') {
       // RIP_BUTTON_STYLE (1B)
       // running this updates this.buttonStyle
-      this.cmd[cmd](args);
+      if (this.cmd[cmd0]) {
+        const o = this.cmd[cmd0](args);
+        if (o && o.run) { await o.run({}); }
+      }
     }
     return fnames;
   }
@@ -1441,6 +1464,7 @@ class RIPterm {
   //
   async createButton (x1, y1, x2, y2, hotkey, flags, text, bstyle = this.buttonStyle) {
 
+    if (typeof text !== "string") { return } // TEST
     const [icon_name, label_text, host_cmd] = text.split("<>");
     const bevsize = (bstyle.flags & 512) ? ((bstyle.bevsize > 0) ? bstyle.bevsize : 1) : 0;
 
@@ -1563,7 +1587,8 @@ class RIPterm {
       return;
     }
 
-    const [icon_name, label_text, host_cmd] = button.text.split("<>");
+    const text = button.text || '';
+    const [icon_name, label_text, host_cmd] = text.split("<>");
     const bevsize = (bstyle.flags & 512) ? ((bstyle.bevsize > 0) ? bstyle.bevsize : 1) : 0;
     let dback = bstyle.dback;
     let dfore = bstyle.dfore;
@@ -1864,26 +1889,10 @@ class RIPterm {
     this.cmd = {
 
       // RIP_TEXT_WINDOW (w)
-      // Spec format:  w <x0:2> <y0:2> <x1:2> <y1:2> <wrap:1> <size:1>
-      //   x0,y0  — upper-left corner in text-cell coordinates (2-char base-36 each)
-      //   x1,y1  — lower-right corner, inclusive (2-char base-36 each)
-      //   wrap   — 1-char: 1=word-wrap, 0=truncate
-      //   size   — 1-char font-size selector:
-      //              0=8×8   (x: 0-79, y: 0-42)
-      //              1=7×8   (x: 0-90, y: 0-42)
-      //              2=8×14  (x: 0-79, y: 0-24)
-      //              3=7×14  (x: 0-90, y: 0-24)
-      //              4=16×14 (x: 0-39, y: 0-24)
-      // Per spec: all-zero parameters make the text window invisible.
-      // Emits an onTextWindow callback with pixel coordinates so the host can
-      // position an external text terminal (e.g. xterm.js) overlay.
       'w': (args) => {
-        if (args.length >= 10) {
-          const outer = this;
-          // Parse wrap and size as separate 1-char fields per the RIP spec.
-          // Previously they were combined into a 2-char 'flags' field which
-          // caused pixelMode misdetection when size=2 (8×14 font).
-          let o = { func: 'RIP_TEXT_WINDOW', ...this.parseRIPargs2(args, '222211', ['x0','y0','x1','y1','wrap','size']) };
+        const outer = this;
+        let o = { func: 'RIP_TEXT_WINDOW', ...this.parseRIPargs2(args, '222211', ['x0','y0','x1','y1','wrap','size']) };
+        if (this.noNaNs(o)) {
           o.run = async function(ob = {}) {
             let px, py, pw, ph, textW, textH;
             const wordWrap = this.wrap !== 0;
@@ -1927,15 +1936,15 @@ class RIPterm {
             }
             outer.log('rip', `TEXT_WINDOW x=${px} y=${py} w=${pw} h=${ph} size=${this.size} wrap=${wordWrap} font=${font.w}x${font.h}`);
           };
-          return o;
         }
+        return o;
       },
 
       // RIP_VIEWPORT (v)
       'v': (args) => {
-        if (args.length >= 8) {
-          const outer = this;
-          let o = { func: 'RIP_VIEWPORT', ...this.parseRIPargs2(args, '2222', ['x0','y0','x1','y1']) };
+        const outer = this;
+        let o = { func: 'RIP_VIEWPORT', ...this.parseRIPargs2(args, '2222', ['x0','y0','x1','y1']) };
+        if (this.noNaNs(o)) {
           o.run = async function(ob = {}) {
             if (ob.hilite) {
               outer.bgi._resetViewport();
@@ -1945,8 +1954,8 @@ class RIPterm {
             }
           };
           //this.log('rip', `!|v${args} RIP_VIEWPORT ${JSON.stringify(o)}`); // DEBUG
-          return o;
         }
+        return o;
       },
 
       // RIP_RESET_WINDOWS (*)
@@ -1997,24 +2006,24 @@ class RIPterm {
 
       // RIP_COLOR (c)
       'c': (args) => {
-        if (args.length >= 2) {
-          const outer = this;
-          let o = { func: 'RIP_COLOR', ...this.parseRIPargs2(args, '2', ['color']) };
+        const outer = this;
+        let o = { func: 'RIP_COLOR', ...this.parseRIPargs2(args, '2', ['color']) };
+        if (this.noNaNs(o)) {
           o.run = async function(ob = {}) {
             if (ob.hilite) { return }
             outer.bgi.setcolor(this.color);
           };
-          return o;
         }
+        return o;
       },
 
       // RIP_SET_PALETTE (Q)
       'Q': (args) => {
-        if (args.length >= 32) {
-          // parse EGA palette values (0-63)
-          const outer = this;
-          let o = { func: 'RIP_SET_PALETTE' };
-          o.palette = this.parseRIPargs(args, '2222222222222222');
+        // parse EGA palette values (0-63)
+        const outer = this;
+        let o = { func: 'RIP_SET_PALETTE' };
+        o.palette = this.parseRIPargs(args, '2222222222222222');
+        if (this.noNaNs(o.palette)) {
           o.run = async function(ob = {}) {
             if (ob.hilite) { return }
             for (let i=0; i < this.palette.length; i++) {
@@ -2025,16 +2034,16 @@ class RIPterm {
               }
             }
           };
-          return o;
         }
+        return o;
       },
 
       // RIP_ONE_PALETTE (a)
       'a': (args) => {
-        if (args.length >= 4) {
-          // parse EGA palette values (0-63)
-          const outer = this;
-          let o = { func: 'RIP_ONE_PALETTE', ...this.parseRIPargs2(args, '22', ['color','value']) };
+        // parse EGA palette values (0-63)
+        const outer = this;
+        let o = { func: 'RIP_ONE_PALETTE', ...this.parseRIPargs2(args, '22', ['color','value']) };
+        if (this.noNaNs(o)) {
           o.run = async function(ob = {}) {
             if (ob.hilite) { return }
             if ((this.color < 16) && (this.value < 64)) {
@@ -2042,34 +2051,34 @@ class RIPterm {
               outer.bgi.setrgbpalette(this.color, red, green, blue);
             }
           };
-          return o;
         }
+        return o;
       },
 
       // RIP_WRITE_MODE (W)
       'W': (args) => {
-        if (args.length >= 2) {
-          const outer = this;
-          let o = { func: 'RIP_WRITE_MODE', ...this.parseRIPargs2(args, '2', ['mode']) };
+        const outer = this;
+        let o = { func: 'RIP_WRITE_MODE', ...this.parseRIPargs2(args, '2', ['mode']) };
+        if (this.noNaNs(o)) {
           o.run = async function(ob = {}) {
             if (ob.hilite) { return }
             outer.bgi.setwritemode(this.mode);
           };
-          return o;
         }
+        return o;
       },
 
       // RIP_MOVE (m)
       'm': (args) => {
-        if (args.length >= 4) {
-          const outer = this;
-          let o = { func: 'RIP_MOVE', ...this.parseRIPargs2(args, '22', ['x','y']) };
+        const outer = this;
+        let o = { func: 'RIP_MOVE', ...this.parseRIPargs2(args, '22', ['x','y']) };
+        if (this.noNaNs(o)) {
           o.run = async function(ob = {}) {
             if (ob.hilite) { return }
             outer.bgi.moveto(this.x, this.y);
           };
-          return o;
         }
+        return o;
       },
 
       // RIP_TEXT (T)
@@ -2089,11 +2098,13 @@ class RIPterm {
       '@': (args) => {
         const outer = this;
         let o = { func: 'RIP_TEXT_XY', ...this.parseRIPargs2(args, '22*', ['x','y','text']) };
-        o.run = async function(ob = {}) {
-          if (ob.hilite) { return }
-          outer.bgi.outtextxy(this.x, this.y, this.text);
-          //outer.log('rip', 'RIP_TEXT_XY: ' + this.text); // DEBUG
-        };
+        if (this.noNaNs(o)) {
+          o.run = async function(ob = {}) {
+            if (ob.hilite) { return }
+            outer.bgi.outtextxy(this.x, this.y, this.text);
+            //outer.log('rip', 'RIP_TEXT_XY: ' + this.text); // DEBUG
+          };
+        }
         return o;
       },
 
@@ -2101,74 +2112,76 @@ class RIPterm {
       'Y': (args) => {
         const outer = this;
         let o = { func: 'RIP_FONT_STYLE', ...this.parseRIPargs2(args, '2222', ['font','direction','size','res']) };
-        o.run = async function(ob = {}) {
-          if (ob.hilite) { return }
-          outer.bgi.settextstyle(this.font, this.direction, this.size);
-        };
+        if (this.noNaNs(o)) {
+          o.run = async function(ob = {}) {
+            if (ob.hilite) { return }
+            outer.bgi.settextstyle(this.font, this.direction, this.size);
+          };
+        }
         return o;
       },
 
       // RIP_PIXEL (X)
       // spec says this doesn't use writeMode (mistake?)
       'X': (args) => {
-        if (args.length >= 4) {
-          const outer = this;
-          let o = { func: 'RIP_PIXEL', ...this.parseRIPargs2(args, '22', ['x','y']) };
+        const outer = this;
+        let o = { func: 'RIP_PIXEL', ...this.parseRIPargs2(args, '22', ['x','y']) };
+        if (this.noNaNs(o)) {
           o.run = async function(ob = {}) {
             outer.bgi.putpixel(this.x, this.y); // uses writeMode
           };
-          return o;
         }
+        return o;
       },
 
       // RIP_LINE (L)
       'L': (args) => {
-        if (args.length >= 8) {
-          const outer = this;
-          let o = { func: 'RIP_LINE', ...this.parseRIPargs2(args, '2222', ['x0','y0','x1','y1']) };
+        const outer = this;
+        let o = { func: 'RIP_LINE', ...this.parseRIPargs2(args, '2222', ['x0','y0','x1','y1']) };
+        if (this.noNaNs(o)) {
           o.run = async function(ob = {}) {
             outer.bgi.line(this.x0, this.y0, this.x1, this.y1);
           };
-          return o;
         }
+        return o;
       },
 
       // RIP_RECTANGLE (R)
       'R': (args) => {
-        if (args.length >= 8) {
-          const outer = this;
-          let o = { func: 'RIP_RECTANGLE', ...this.parseRIPargs2(args, '2222', ['x0','y0','x1','y1']) };
+        const outer = this;
+        let o = { func: 'RIP_RECTANGLE', ...this.parseRIPargs2(args, '2222', ['x0','y0','x1','y1']) };
+        if (this.noNaNs(o)) {
           o.run = async function(ob = {}) {
             outer.bgi.rectangle(this.x0, this.y0, this.x1, this.y1);
           };
-          return o;
         }
+        return o;
       },
 
       // RIP_BAR (B)
       // Fills a rectangle using fill color and pattern, without border.
       // spec says this doesn't use writeMode (mistake?)
       'B': (args) => {
-        if (args.length >= 8) {
-          const outer = this;
-          let o = { func: 'RIP_BAR', ...this.parseRIPargs2(args, '2222', ['x0','y0','x1','y1']) };
+        const outer = this;
+        let o = { func: 'RIP_BAR', ...this.parseRIPargs2(args, '2222', ['x0','y0','x1','y1']) };
+        if (this.noNaNs(o)) {
           o.run = async function(ob = {}) {
             outer.bgi.bar(this.x0, this.y0, this.x1, this.y1); // uses writeMode
           };
-          return o;
         }
+        return o;
       },
 
       // RIP_CIRCLE (C)
       'C': (args) => {
-        if (args.length >= 6) {
-          const outer = this;
-          let o = { func: 'RIP_CIRCLE', ...this.parseRIPargs2(args, '222', ['x','y','radius']) };
+        const outer = this;
+        let o = { func: 'RIP_CIRCLE', ...this.parseRIPargs2(args, '222', ['x','y','radius']) };
+        if (this.noNaNs(o)) {
           o.run = async function(ob = {}) {
             outer.bgi.circle(this.x, this.y, this.radius);
           };
-          return o;
         }
+        return o;
       },
 
       // RIP_OVAL (O)
@@ -2176,53 +2189,55 @@ class RIPterm {
       // weird that this includes start & end angles
       'O': (args) => {
         let o = this.cmd['V'](args);
-        o.func = 'RIP_OVAL';
-        return o;
+        if (o) {
+          o.func = 'RIP_OVAL';
+          return o;
+        }
       },
 
       // RIP_FILLED_OVAL (o)
       'o': (args) => {
-        if (args.length >= 8) {
-          const outer = this;
-          let o = { func: 'RIP_FILLED_OVAL', ...this.parseRIPargs2(args, '2222', ['x','y','x_rad','y_rad']) };
+        const outer = this;
+        let o = { func: 'RIP_FILLED_OVAL', ...this.parseRIPargs2(args, '2222', ['x','y','x_rad','y_rad']) };
+        if (this.noNaNs(o)) {
           o.run = async function(ob = {}) {
             outer.bgi.fillellipse(this.x, this.y, this.x_rad, this.y_rad);
             outer.bgi.ellipse(this.x, this.y, 0, 360, this.x_rad, this.y_rad); // may be included in fillellipse() ?
           };
-          return o;
         }
+        return o;
       },
 
       // RIP_ARC (A)
       'A': (args) => {
-        if (args.length >= 10) {
-          const outer = this;
-          let o = { func: 'RIP_ARC', ...this.parseRIPargs2(args, '22222', ['x','y','start_ang','end_ang','radius']) };
+        const outer = this;
+        let o = { func: 'RIP_ARC', ...this.parseRIPargs2(args, '22222', ['x','y','start_ang','end_ang','radius']) };
+        if (this.noNaNs(o)) {
           o.run = async function(ob = {}) {
             outer.bgi.arc(this.x, this.y, this.start_ang, this.end_ang, this.radius);
           };
-          return o;
         }
+        return o;
       },
 
       // RIP_OVAL_ARC (V)
       // does same as RIP_OVAL (O)
       'V': (args) => {
-        if (args.length >= 12) {
-          const outer = this;
-          let o = { func: 'RIP_OVAL_ARC', ...this.parseRIPargs2(args, '222222', ['x','y','st_ang','e_ang','radx','rady']) };
+        const outer = this;
+        let o = { func: 'RIP_OVAL_ARC', ...this.parseRIPargs2(args, '222222', ['x','y','st_ang','e_ang','radx','rady']) };
+        if (this.noNaNs(o)) {
           o.run = async function(ob = {}) {
             outer.bgi.ellipse(this.x, this.y, this.st_ang, this.e_ang, this.radx, this.rady);
           };
-          return o;
         }
+        return o;
       },
 
       // RIP_PIE_SLICE (I)
       'I': (args) => {
-        if (args.length >= 10) {
-          const outer = this;
-          let o = { func: 'RIP_PIE_SLICE', ...this.parseRIPargs2(args, '22222', ['x','y','start_ang','end_ang','radius']) };
+        const outer = this;
+        let o = { func: 'RIP_PIE_SLICE', ...this.parseRIPargs2(args, '22222', ['x','y','start_ang','end_ang','radius']) };
+        if (this.noNaNs(o)) {
           o.run = async function(ob = {}) {
             if (ob.hilite) {
               // temp highlight: draw a box around it
@@ -2231,15 +2246,15 @@ class RIPterm {
               outer.bgi.pieslice(this.x, this.y, this.start_ang, this.end_ang, this.radius);
             }
           };
-          return o;
         }
+        return o;
       },
 
       // RIP_OVAL_PIE_SLICE (i)
       'i': (args) => {
-        if (args.length >= 12) {
-          const outer = this;
-          let o = { func: 'RIP_OVAL_PIE_SLICE', ...this.parseRIPargs2(args, '222222', ['x','y','st_ang','e_ang','radx','rady']) };
+        const outer = this;
+        let o = { func: 'RIP_OVAL_PIE_SLICE', ...this.parseRIPargs2(args, '222222', ['x','y','st_ang','e_ang','radx','rady']) };
+        if (this.noNaNs(o)) {
           o.run = async function(ob = {}) {
             if (ob.hilite) {
               // temp highlight: draw a box around it
@@ -2248,23 +2263,23 @@ class RIPterm {
               outer.bgi.sector(this.x, this.y, this.st_ang, this.e_ang, this.radx, this.rady);
             }
           };
-          return o;
         }
+        return o;
       },
 
       // RIP_BEZIER (Z)
       'Z': (args) => {
-        if (args.length >= 18) {
-          const outer = this;
-          let o = { func: 'RIP_BEZIER' };
-          let points = this.parseRIPargs(args, '222222222'); // 9 ints
-          o.cnt = points.pop();
-          o.points = points;
+        const outer = this;
+        let o = { func: 'RIP_BEZIER' };
+        let points = this.parseRIPargs(args, '222222222'); // 9 ints
+        o.cnt = points.pop();
+        o.points = points;
+        if (!Number.isNaN(o.cnt) && this.noNaNs(points)) {
           o.run = async function(ob = {}) {
             outer.bgi.drawbezier(this.cnt, this.points);
           };
-          return o;
         }
+        return o;
       },
 
       // RIP_POLYGON (P)
@@ -2273,9 +2288,11 @@ class RIPterm {
         let pp = this.parseRIPpoly(args);
         let npoints = pp.shift();
         let o = { func: 'RIP_POLYGON', npoints, pp };
-        o.run = async function(ob = {}) {
-          outer.bgi.drawpoly(this.npoints, this.pp);
-        };
+        if (!Number.isNaN(npoints) && this.noNaNs(pp)) {
+          o.run = async function(ob = {}) {
+            outer.bgi.drawpoly(this.npoints, this.pp);
+          };
+        }
         return o;
       },
 
@@ -2287,9 +2304,11 @@ class RIPterm {
         // draw both a filled polygon using fill color & bgcolor,
         // and polygon outline using fgcolor, line style, and thickness.
         let o = { func: 'RIP_FILL_POLYGON', npoints, pp };
-        o.run = async function(ob = {}) {
-          outer.bgi.fillpoly(this.npoints, this.pp);
-        };
+        if (!Number.isNaN(npoints) && this.noNaNs(pp)) {
+          o.run = async function(ob = {}) {
+            outer.bgi.fillpoly(this.npoints, this.pp);
+          };
+        }
         return o;
       },
 
@@ -2300,70 +2319,72 @@ class RIPterm {
         let pp = this.parseRIPpoly(args);
         let npoints = pp.shift();
         let o = { func: 'RIP_POLYLINE', npoints, pp };
-        o.run = async function(ob = {}) {
-          outer.bgi.drawpolyline(this.npoints, this.pp);
-        };
+        if (!Number.isNaN(npoints) && this.noNaNs(pp)) {
+          o.run = async function(ob = {}) {
+            outer.bgi.drawpolyline(this.npoints, this.pp);
+          };
+        }
         return o;
       },
 
       // RIP_FILL (F)
       'F': (args) => {
-        if (args.length >= 6) {
-          const outer = this;
-          let o = { func: 'RIP_FILL', ...this.parseRIPargs2(args, '222', ['x','y','border']) };
+        const outer = this;
+        let o = { func: 'RIP_FILL', ...this.parseRIPargs2(args, '222', ['x','y','border']) };
+        if (this.noNaNs(o)) {
           o.run = async function(ob = {}) {
             if (ob.hilite) { return }
             outer.bgi.floodfill(this.x, this.y, this.border);
           };
-          return o;
         }
+        return o;
       },
 
       // RIP_LINE_STYLE (=)
       // pre-defined styles introduced in RIPscrip v1.54 (only custom-defined in v1.52 ??)
       '=': (args) => {
-        if (args.length >= 8) {
-          const outer = this;
-          let o = { func: 'RIP_LINE_STYLE', ...this.parseRIPargs2(args, '242', ['style','user_pat','thick']) };
+        const outer = this;
+        let o = { func: 'RIP_LINE_STYLE', ...this.parseRIPargs2(args, '242', ['style','user_pat','thick']) };
+        if (this.noNaNs(o)) {
           o.run = async function(ob = {}) {
             if (ob.hilite) { return }
             outer.bgi.setlinestyle(this.style, this.user_pat, this.thick);
           };
-          return o;
         }
+        return o;
       },
 
       // RIP_FILL_STYLE (S)
       'S': (args) => {
-        if (args.length >= 4) {
-          const outer = this;
-          let o = { func: 'RIP_FILL_STYLE', ...this.parseRIPargs2(args, '22', ['pattern','color']) };
+        const outer = this;
+        let o = { func: 'RIP_FILL_STYLE', ...this.parseRIPargs2(args, '22', ['pattern','color']) };
+        if (this.noNaNs(o)) {
           o.run = async function(ob = {}) {
             if (ob.hilite) { return }
             outer.bgi.setfillstyle(this.pattern, this.color);
           };
-          return o;
         }
+        return o;
       },
 
       // RIP_FILL_PATTERN (s)
       's': (args) => {
-        if (args.length >= 18) {
-          const outer = this;
-          let o = { func: 'RIP_FILL_PATTERN', ...this.parseRIPargs2(args, '222222222', ['c1','c2','c3','c4','c5','c6','c7','c8','color']) };
+        const outer = this;
+        let o = { func: 'RIP_FILL_PATTERN', ...this.parseRIPargs2(args, '222222222', ['c1','c2','c3','c4','c5','c6','c7','c8','color']) };
+        if (this.noNaNs(o)) {
           o.run = async function(ob = {}) {
             if (ob.hilite) { return }
             outer.bgi.setfillpattern([this.c1, this.c2, this.c3, this.c4, this.c5, this.c6, this.c7, this.c8], this.color);
           };
-          return o;
         }
+        return o;
       },
 
       // RIP_MOUSE (1M)
       '1M': (args) => {
-        if (args.length >= 17) {
-          const outer = this;
-          let o = { func: 'RIP_MOUSE', ...this.parseRIPargs2(args, '22222115*', ['num','x0','y0','x1','y1','clk','clr','res','text']) };
+        const outer = this;
+        let o = { func: 'RIP_MOUSE', ...this.parseRIPargs2(args, '22222115*', ['num','x0','y0','x1','y1','clk','clr','res','text']) };
+        if (this.noNaNs(o)) {
           o.run = async function(ob = {}) {
             if (ob.hilite) {
               outer.bgi._fillrect(this.x0, this.y0, this.x1, this.y1);
@@ -2371,8 +2392,8 @@ class RIPterm {
               outer.createMouseRegion(this.x0, this.y0, this.x1, this.y1, this.clk, this.clr, this.text);
             }
           };
-          return o;
         }
+        return o;
       },
 
       // RIP_KILL_MOUSE_FIELDS (1K)
@@ -2392,9 +2413,9 @@ class RIPterm {
 
       // RIP_GET_IMAGE (1C)
       '1C': (args) => {
-        if (args.length >= 9) {
-          const outer = this;
-          let o = { func: 'RIP_GET_IMAGE', ...this.parseRIPargs2(args, '22221', ['x0','y0','x1','y1','res']) };
+        const outer = this;
+        let o = { func: 'RIP_GET_IMAGE', ...this.parseRIPargs2(args, '22221', ['x0','y0','x1','y1','res']) };
+        if (this.noNaNs(o)) {
           o.run = async function(ob = {}) {
             if (ob.hilite) {
               outer.bgi._fillrect(this.x0, this.y0, this.x1, this.y1);
@@ -2402,30 +2423,30 @@ class RIPterm {
               outer.clipboard = outer.bgi.getimage(this.x0, this.y0, this.x1, this.y1);
             }
           };
-          return o;
         }
+        return o;
       },
 
       // RIP_PUT_IMAGE (1P)
       '1P': (args) => {
-        if (args.length >= 7) {
-          const outer = this;
-          let o = { func: 'RIP_PUT_IMAGE', ...this.parseRIPargs2(args, '2221', ['x','y','mode','res']) };
+        const outer = this;
+        let o = { func: 'RIP_PUT_IMAGE', ...this.parseRIPargs2(args, '2221', ['x','y','mode','res']) };
+        if (this.noNaNs(o)) {
           o.run = async function(ob = {}) {
             if (ob.hilite) { return }
             outer.bgi.putimage(this.x, this.y, outer.clipboard, this.mode);
           };
-          return o;
         }
+        return o;
       },
 
       // RIP_WRITE_ICON (1W)
 
       // RIP_LOAD_ICON (1I)
       '1I': (args) => {
-        if (args.length >= 9) {
-          const outer = this;
-          let o = { func: 'RIP_LOAD_ICON', ...this.parseRIPargs2(args, '22212*', ['x','y','mode','clipflag','res','filename']) };
+        const outer = this;
+        let o = { func: 'RIP_LOAD_ICON', ...this.parseRIPargs2(args, '22212*', ['x','y','mode','clipflag','res','filename']) };
+        if (this.noNaNs(o)) {
           o.run = async function(ob = {}) {
             const fname = outer.fixIconFilename(this.filename);
             if (fname) {
@@ -2445,28 +2466,28 @@ class RIPterm {
               }
             }
           };
-          return o;
         }
+        return o;
       },
 
       // RIP_BUTTON_STYLE (1B)
       '1B': (args) => {
-        if (args.length >= 30) {
-          const outer = this;
-          let o = { func: 'RIP_BUTTON_STYLE', ...this.parseRIPargs2(args, '22242222222222', ['wid','hgt','orient','flags','bevsize','dfore','dback','bright','dark','surface','grp_no','flags2','uline_col','corner_col']) };
+        const outer = this;
+        let o = { func: 'RIP_BUTTON_STYLE', ...this.parseRIPargs2(args, '22242222222222', ['wid','hgt','orient','flags','bevsize','dfore','dback','bright','dark','surface','grp_no','flags2','uline_col','corner_col']) };
+        if (this.noNaNs(o)) {
           o.run = async function(ob = {}) {
             if (ob.hilite) { return }
             outer.buttonStyle = this; // doesn't need .func or .run
           };
-          return o;
         }
+        return o;
       },
 
       // RIP_BUTTON (1U)
       '1U': (args) => {
-        if (args.length >= 9) {
-          const outer = this;
-          let o = { func: 'RIP_BUTTON', ...this.parseRIPargs2(args, '2222211*', ['x0','y0','x1','y1','hotkey','flags','res','text']) };
+        const outer = this;
+        let o = { func: 'RIP_BUTTON', ...this.parseRIPargs2(args, '2222211*', ['x0','y0','x1','y1','hotkey','flags','res','text']) };
+        if (this.noNaNs(o)) {
           o.run = async function(ob = {}) {
             if (ob.hilite) {
               outer.bgi._fillrect(this.x0, this.y0, this.x1, this.y1);
@@ -2475,8 +2496,8 @@ class RIPterm {
               outer.drawButton(this.x0, this.y0, this.x1, this.y1, btn, false);
             }
           };
-          return o;
         }
+        return o;
       },
 
       // RIP_DEFINE (1D)
@@ -2489,17 +2510,17 @@ class RIPterm {
 
       // RIP_HEADER (h) - RIPscrip v2.0
       'h': (args) => {
-        if (args.length >= 8) {
-          const outer = this;
-          let o = { func: 'RIP_HEADER', ...this.parseRIPargs2(args, '242', ['revision','flags','res']) };
+        const outer = this;
+        let o = { func: 'RIP_HEADER', ...this.parseRIPargs2(args, '242', ['revision','flags','res']) };
+        if (this.noNaNs(o)) {
           o.run = async function(ob = {}) {
             if (ob.hilite) { return }
             if (this.revision > 0) {
               outer.log('rip', 'RIPscrip 2.0 or above NOT SUPPORTED at this time!');
             }
           };
-          return o;
         }
+        return o;
       },
 
       // RIP_COMMENT (!) v2.0
