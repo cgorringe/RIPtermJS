@@ -266,7 +266,10 @@ class BGI {
     // load bitmap fonts
     // index is font size: 0=8x8, 1=7x8, 2=8x14, 3=7x14, 4=16x14.
     this.bitfonts[0] = await this.fetchPNGFont('8x8.png', 8, 8);
+    this.bitfonts[1] = await this.fetchPNGFont('w1-7x8.png', 7, 8);
     this.bitfonts[2] = await this.fetchPNGFont('8x14.png', 8, 14);
+    this.bitfonts[3] = await this.fetchPNGFont('w3-7x14.png', 7, 14);
+    this.bitfonts[4] = await this.fetchPNGFont('w4-16x14.png', 16, 14);
   }
 
   // TODO: rethink this or replace
