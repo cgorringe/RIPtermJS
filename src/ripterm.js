@@ -172,7 +172,7 @@ class RIPterm {
       this.buttons = [];  // array of active button objects
       this.buttonClicked = null; // last clicked button object
       this.withinButton = false;
-      this.controlChars = this.initControlChars();
+      this.controlSymbols = this.initControlSymbols();
       this.textWindow = {};
 
       // debug options
@@ -256,7 +256,7 @@ class RIPterm {
   }
 
   // create a table of Unicode control char symbols.
-  initControlChars () {
+  initControlSymbols () {
     // for 0x00(NUL) thru 0x1F
     let cchars = Object.fromEntries(
       Array.from({ length: 0x20 }, (_, i) => [
@@ -761,7 +761,7 @@ class RIPterm {
         // https://developer.mozilla.org/en-US/docs/Web/API/Encoding_API/Encodings
 
         const decoder = new TextDecoder("x-user-defined");
-        const cmd0 = outerThis.replaceControlChars(decoder.decode(new Uint8Array(cmdBuf))) || '';
+        const cmd0 = outerThis.controlCharsToSymbols(decoder.decode(new Uint8Array(cmdBuf))) || '';
         const args = decoder.decode(new Uint8Array(argsBuf)) || '';
         cmdBuf.length = 0;
         argsBuf.length = 0;
@@ -915,12 +915,45 @@ class RIPterm {
   }
 
   // Replace control chars in text with Unicode symbols.
-  // must set this.controlChars = this.initControlChars() first.
+  // must set this.controlSymbols = this.initControlSymbols() first.
   // returns modified text for display.
   //
-  replaceControlChars (text) {
+  controlCharsToSymbols (text) {
     if (typeof text !== "string") { return ''; }
-    return (this.controlChars) ? text.split('').map(c => this.controlChars[c] ?? c).join('') : text;
+    return (this.controlSymbols) ? text.split('').map(c => this.controlSymbols[c] ?? c).join('') : text;
+  }
+
+  // Replace Caret escape sequences [^M] to ASCII control char bytes [CR].
+  // text is a JS UTF-16 string.
+  // returns modified text as a JS UTF-16 string.
+  // NOT TESTED
+  //
+  caretsToControlChars (text) {
+    if (typeof text !== "string") { return ''; }
+    let caretFlag = false;
+    return text.split('').map(c => {
+      const cca = c.charCodeAt(0);
+      if (!caretFlag && ((cca === 0x5E) || (cca === 0x60))) { // first (^) or (`) skips
+        caretFlag = true;
+        return undefined;
+      }
+      else if (caretFlag && ((cca === 0x5E) || (cca === 0x60))) { // (^^)->(^), (``)->(`)
+        caretFlag = false;
+        return c;
+      }
+      else if (caretFlag && (cca === 0x3F)) { // (^?) returns (DEL)
+        caretFlag = false;
+        return String.fromCharCode(0x7F);
+      }
+      else if (caretFlag && (cca >= 0x40) && (cca <= 0x7E)) { // (^@) to (^~) including all letters
+        caretFlag = false;
+        return String.fromCharCode(cca & 0x1F);
+      }
+      else {
+        caretFlag = false;
+        return c;
+      }
+    }).filter(c => (typeof c !== undefined)).join('');
   }
 
   // Text to output to the Text Window.
@@ -930,7 +963,7 @@ class RIPterm {
     //this.log('ans', `ANSI: ${bytes}`); // DEBUG
 
     const text = new TextDecoder("x-user-defined").decode(bytes);
-    const otext = this.replaceControlChars(text);
+    const otext = this.controlCharsToSymbols(text);
     this.log('ans', `${otext}`); // DEBUG
   }
 
@@ -1383,10 +1416,13 @@ class RIPterm {
 
     // TODO: $ variables & host command templates
 
-    this.log('trm', 'send to host: ' + text);
+    const ctext = this.caretsToControlChars(text);
+    const otext = this.controlCharsToSymbols(ctext);
+    this.log('trm', `send to host: ${otext}`);
+
     // Emit event for external listeners (e.g. BBS game clients)
     if (this.onHostCommand) {
-      this.onHostCommand(text);
+      this.onHostCommand(ctext);
     }
   }
 
