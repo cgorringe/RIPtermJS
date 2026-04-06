@@ -1466,16 +1466,20 @@ class RIPterm {
   // handles sending text to a host from clicking buttons and mouse regions.
   sendHostCommand (text) {
 
-    // TODO: $ variables & host command templates
+    // TODO: host command templates & pick lists
 
-    const ctext = this.caretsToControlChars(text);
-    const otext = this.controlCharsToSymbols(ctext);
-    this.log('trm', `send to host: ${otext}`);
+    this.replaceTextVars(text).then((vtext) => {
 
-    // Emit event for external listeners (e.g. BBS game clients)
-    if (this.onHostCommand) {
-      this.onHostCommand(ctext);
-    }
+      const ctext = this.caretsToControlChars(vtext);
+      const otext = this.controlCharsToSymbols(ctext);
+      this.log('trm', `send to host: ${otext}`);
+
+      // Emit event for external listeners (e.g. BBS game clients)
+      if (this.onHostCommand) {
+        this.onHostCommand(ctext);
+      }
+    });
+
   }
 
 
@@ -2581,7 +2585,25 @@ class RIPterm {
       },
 
       // RIP_DEFINE (1D)
+
       // RIP_QUERY (1␛)(1<ESC>)
+      '1␛': (args) => {
+        const outer = this;
+        let o = { func: 'RIP_QUERY', ...this.parseRIPargs2(args, '13*', ['mode','res','text']) };
+        if (this.noNaNs(o)) {
+          o.run = async function(ob = {}) {
+            if (this.mode === 0) {
+              // process immediately
+              // TODO: could change to async to allow for delays before moving forward?
+              outer.log('rip', `RIP_QUERY: ${this.text}`); // DEBUG
+              outer.sendHostCommand(this.text);
+            }
+            // TODO: mouse click modes 1 & 2 to do still.
+          };
+        }
+        return o;
+      },
+
       // RIP_COPY_REGION (1G)
       // RIP_READ_SCENE (1R)
       // RIP_FILE_QUERY (1F)
@@ -2627,6 +2649,22 @@ class RIPterm {
   ////////////////////////////////////////////////////////////////////////////////
   // Text Variables
 
+  // Replace every $ variable and do any actions in order. Returns a string.
+  async replaceTextVars (input) {
+
+    // replacing every $VAR$ in input
+    let result = '', lastIndex = 0;
+    const regex = /\$(.*?)\$/g;
+    for (const match of input.matchAll(regex)) {
+      const { index } = match;
+      result += input.slice(lastIndex, index);  // add text before match
+      result += await this.doTextVar(match[1]); // replace var and take actions (like audio)
+      lastIndex = index + match[0].length;
+    }
+    result += input.slice(lastIndex); // remaining text
+    return result;
+  }
+
   // Takes a text variable (excluding '$'s)
   // returns a string or null, and may perform an action such as play a sound.
   //
@@ -2642,7 +2680,8 @@ class RIPterm {
     if (this.textVar && this.textVar[name]) {
       return await this.textVar[name](args);
     }
-    return;
+    // if text var not found, return it as is.
+    return input;
   }
 
   // Input is a RIP v1 or v2 text variable: "VAR", "VAR#", "VAR(a)", "VAR(a,b...)"
