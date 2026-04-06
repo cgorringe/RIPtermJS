@@ -28,7 +28,7 @@ The most popular terminal program for accessing RIP-enabled BBSs was an MS-DOS p
 - [x] Loading &amp; drawing of Icons (DONE)
 - [ ] WebSockets to BBS on server (in progress)
 - [ ] Text windows &amp; ANSI emulation
-- [ ] $ Variables
+- [ ] $ Variables (in progress)
 
 
 Visit my [demo page](http://carl.gorringe.org/pub/code/javascript/RIPtermJS/).
