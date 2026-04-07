@@ -1418,12 +1418,81 @@ class RIPterm {
 
     const ctext = this.caretsToControlChars(text);
     const otext = this.controlCharsToSymbols(ctext);
+
+    // Pop-Up Pick Lists: ((...)) triggers a selection popup.
+    // If an onPickList handler is set, emit the parsed list and defer sending
+    // the command until the handler resolves with the user's selection.
+    const pickMatch = ctext.match(/\(\((.+?)\)\)/);
+    if (pickMatch && this.onPickList) {
+      const parsed = this._parsePickList(pickMatch[1]);
+      const resolve = (value) => {
+        if (value == null) value = '';
+        const finalCmd = ctext.substring(0, pickMatch.index) + value +
+          ctext.substring(pickMatch.index + pickMatch[0].length);
+        this.sendHostCommand(finalCmd);
+      };
+      this.onPickList(parsed, resolve);
+      return;
+    }
+
     this.log('trm', `send to host: ${otext}`);
 
     // Emit event for external listeners (e.g. BBS game clients)
     if (this.onHostCommand) {
       this.onHostCommand(ctext);
     }
+  }
+
+  // Parse the inner contents of a ((...)) Pop-Up Pick List.
+  // Returns { prompt, required, entries } where entries is an array of
+  // { value, display, hotkey } objects.
+  //
+  // Spec format: [*]prompt?::entry1[@desc1],entry2[@desc2],...
+  //   - Leading * on prompt means selection is required (ESC disabled)
+  //   - @desc overrides the display text for that entry
+  //   - _x_ or ~x~ in descriptions highlight a hotkey character
+  //
+  _parsePickList (inner) {
+    const sepIdx = inner.indexOf('::');
+    let prompt, required = false, entriesStr;
+
+    if (sepIdx >= 0) {
+      prompt = inner.substring(0, sepIdx).trim();
+      entriesStr = inner.substring(sepIdx + 2);
+    } else {
+      prompt = '';
+      entriesStr = inner;
+    }
+
+    if (prompt.startsWith('*')) {
+      required = true;
+      prompt = prompt.substring(1).trim();
+    }
+    if (!prompt) {
+      prompt = 'Choose one of the following:';
+    }
+
+    const entries = entriesStr.split(',').map(raw => {
+      const atIdx = raw.indexOf('@');
+      let value, display;
+      if (atIdx >= 0) {
+        value = raw.substring(0, atIdx);
+        display = raw.substring(atIdx + 1);
+      } else {
+        value = raw;
+        display = raw;
+      }
+      // Extract hotkey from _x_ or ~x~ markers
+      let hotkey = null;
+      const hkMatch = display.match(/[_~](.)[_~]?/);
+      if (hkMatch) {
+        hotkey = hkMatch[1];
+        display = display.replace(/[_~](.)[_~]?/g, '$1');
+      }
+      return { value: value.trim(), display: display.trim(), hotkey };
+    }).filter(e => e.display);
+
+    return { prompt, required, entries };
   }
 
 
