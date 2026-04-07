@@ -1474,13 +1474,16 @@ class RIPterm {
     // continue with text variables
     this.replaceTextVars(text).then((vtext) => {
 
-      const ctext = this.caretsToControlChars(vtext);
-      const otext = this.controlCharsToSymbols(ctext);
-      this.log('trm', `send to host: ${otext}`);
+      // only send to host if not empty
+      if (vtext !== '') {
+        const ctext = this.caretsToControlChars(vtext);
+        const otext = this.controlCharsToSymbols(ctext);
+        this.log('trm', `send to host: ${otext}`);
 
-      // emit event for external listeners
-      if (this.onHostCommand) {
-        this.onHostCommand(ctext);
+        // emit event for external listeners
+        if (this.onHostCommand) {
+          this.onHostCommand(ctext);
+        }
       }
     });
 
@@ -2751,13 +2754,13 @@ class RIPterm {
     // RIPv2: NAME(x) or NAME(x,y)
     let args = this.parseTextVarArgs(input?.toUpperCase());
     let name = args.shift();
-    console.log(`name: ${name}, args: ${args}`); // DEBUG
+    //console.log(`name: ${name}, args: ${args}`); // DEBUG
 
     if (this.textVar && this.textVar[name]) {
       return await this.textVar[name](args);
     }
-    // if text var not found, return it as is.
-    return input;
+    // if text var not found, return an empty string.
+    return '';
   }
 
   // Input is a RIP v1 or v2 text variable: "VAR", "VAR#", "VAR(a)", "VAR(a,b...)"
