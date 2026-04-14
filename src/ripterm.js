@@ -2745,7 +2745,7 @@ class RIPterm {
   }
 
   // Takes a text variable (excluding '$'s)
-  // returns a string or null, and may perform an action such as play a sound.
+  // returns a string or an empty string, and may perform an action such as play a sound.
   //
   async doTextVar (input) {
 
@@ -2979,16 +2979,24 @@ class RIPterm {
         return nowDate().getDay().toString();
       },
 
-      // TODO
       // Week of Year (00-53) where week starts on a Sunday.
       'WOY': async () => {
-        return '';
+        const d = nowDate();
+        const start = Date.UTC(d.getUTCFullYear(), 0);
+        const DoY = Math.floor((d.getTime() - start) / (1000 * 60 * 60 * 24)); // 0-365
+        const DoW = new Date(start).getDay(); // 0=Sun...6=Sat
+        const week = Math.floor((DoY + DoW) / 7); // 0-53
+        return week.toString().padStart(2, '0');
       },
 
-      // TODO
       // Week of Year (00-53) where week starts on a Monday.
       'WOYM': async () => {
-        return '';
+        const d = nowDate();
+        const start = Date.UTC(d.getUTCFullYear(), 0);
+        const DoY = Math.floor((d.getTime() - start) / (1000 * 60 * 60 * 24)); // 0-365
+        const DoWM = (new Date(start).getDay() + 6) % 7; // 0=Mon...6=Sun
+        const week = Math.floor((DoY + DoWM) / 7); // 0-53
+        return week.toString().padStart(2, '0');
       },
 
       // Year (2 digits)
