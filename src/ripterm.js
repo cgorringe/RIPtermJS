@@ -2671,6 +2671,7 @@ class RIPterm {
         let o = { func: 'RIP_QUERY', ...this.parseRIPargs2(args, '13*', ['mode','res','text']) };
         if (this.noNaNs(o)) {
           o.run = async function(ob = {}) {
+            if (ob.hilite) { return }
             if (this.mode === 0) {
               // process immediately
               // TODO: could change to async to allow for delays before moving forward?
