@@ -247,10 +247,10 @@ class BGI {
     this.fillpixels = new Uint8ClampedArray(this.width * this.height)
 
     // setup mousemove handler to update mouse positions whenever the mouse moves.
-    this.registermousehandler(0, (function(x, y) {
+    this.registermousehandler(BGI.WM_MOUSEMOVE, (x, y) => {
       this.mouseX = x;
       this.mouseY = y;
-    }).bind(this));
+    });
   }
 
   // Loads all the vector font .CHR files in BGI.fontFileList[]
@@ -1433,7 +1433,6 @@ class BGI {
     this.info.cp.y = 0;
     this.pixels.fill(bgcolor);
     this.fillpixels.fill(0);
-    this.icons = {}; // TEST: do we want to do this here? (clears image ids)
   }
 
   // Clears the viewport, filling it with the current background color.
@@ -2025,6 +2024,7 @@ class BGI {
     // RGBA32 [r, g, b, a] same as npm's canvas
     //this.palette = new Uint8ClampedArray(256 * 4);
     this.palette = Uint8ClampedArray.from(BGI.ega_palette); // for now
+    this.icons = {}; // clears all saved images (is this the right place for this?)
   }
 
   // not implemented (STUB)
@@ -2373,6 +2373,17 @@ class BGI {
     }
     // this doesn't display the image, but instead returns it for use in putimage()
     return image || {};
+  }
+
+  // Saves an image to cache.
+  // filename: string of filename + extension, no path.
+  // image: { x:int, y:int, width:int, height:int, data:Uint8ClampedArray }
+  // (this is not in BGI spec)
+  //
+  saveimagefile (image, filename) {
+    if (image && image.width && image.height && filename) {
+      this.icons[filename] = image;
+    }
   }
 
   // draws in current line style, thickness, and drawing color

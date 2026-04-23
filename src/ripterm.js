@@ -1618,7 +1618,7 @@ class RIPterm {
   }
 
   clearAllButtons () {
-    this.activateMouseEvents(false);
+    //this.activateMouseEvents(false); // keep activated so pointer returns to normal
     this.buttons = [];
   }
 
@@ -1886,7 +1886,7 @@ class RIPterm {
       // RipTerm offsets the label by 1px down (not in spec)
       clip_down = 1;
       // TODO: not sure if coords are correct (need to test with recess)
-      this.clipboard = this.bgi._getimage(left - bevsize, top - bevsize, right + bevsize - 1, bot + bevsize - 1);
+      this.clipboard = this.bgi.getimage(left - bevsize, top - bevsize, right + bevsize - 1, bot + bevsize - 1);
       this.log('rip', 'Auto-stamped button image onto Clipboard.');
       // clear auto-stamp flag so that clipboard save only occurs once
       // TODO: may rethink this? could store in another var instead of clearing flag
@@ -3117,7 +3117,7 @@ class RIPterm {
       // Mouse X:Y position (e.g. "0297:0321")
       'XY': async () => {
         const xs = this.bgi.mouseX.toString().padStart(4, '0');
-        const ys = this.bgi.mouseX.toString().padStart(4, '0');
+        const ys = this.bgi.mouseY.toString().padStart(4, '0');
         return `${xs}:${ys}`;
       },
 
@@ -3140,59 +3140,91 @@ class RIPterm {
 
       // --- Save & Restore ---
 
-      // TODO
-      // $RESET$ (RIP_RESET_WINDOWS (*))
-      'RESET': async function () {
+      // Performs RIP_RESET_WINDOWS (*)
+      // RIPv2 not implemented
+      'RESET': async () => {
+        this.log('rip', "reset windows");
+        await this.runRIPcmd('*', '');
+        this.refreshCanvas();
         return '';
       },
 
-      // TODO
-      // $SAVEALL$ (save all screen attributes)
-      'SAVEALL': async function () {
+      // Save all screen attributes
+      'SAVEALL': async () => {
+        this.log('rip', "save all screen attributes");
+        //await this.textVar['STW']([]);
+        //await this.textVar['SCB']([]);
+        await this.textVar['SMF']([]);
+        await this.textVar['SAVE']([]);
         return '';
       },
 
-      // TODO
-      // $RESTOREALL$ (restore all screen attributes)
-      'RESTOREALL': async function () {
+      // Restore all screen attributes
+      'RESTOREALL': async () => {
+        this.log('rip', "restore all screen attributes");
+        //await this.textVar['RTW']([]);
+        //await this.textVar['RCB']([]);
+        await this.textVar['RMF']([]);
+        await this.textVar['RESTORE']([]);
         return '';
       },
 
-      // TODO
-      // $EGW$ (erase graphics window)
-      'EGW': async function () {
+      // Erase Graphics Window
+      'EGW': async () => {
+        this.log('rip', "erase graphics window");
+        this.bgi.clearviewport();
+        this.refreshCanvas();
         return '';
       },
 
-      // TODO
-      // $SAVE$ (save graphics screen)
-      // $SAVE0$ - $SAVE9$ (in v2 these are $SAVE(0)$ - $SAVE(9)$)
-      'SAVE': async function () {
+      // Save graphics screen
+      // $SAVE$, $SAVE0$ - $SAVE9$ (in v2 these are $SAVE(0)$ - $SAVE(9)$)
+      // RIPv2 "PUSH" and "BASE" options not implmented.
+      //
+      'SAVE': async (args) => {
+        // saves in cache using filenames: RIPTERM.SAV, RIPTERM0.SAV - RIPTERM9.SAV
+        const num = args[0] ? `${args[0]}` : '';
+        const filename = `RIPTERM${num}.SAV`;
+        const img = this.bgi.getimage(0, 0, this.bgi.getmaxx(), this.bgi.getmaxy());
+        img.vp = structuredClone(this.bgi.info.vp); // add current viewport
+        this.bgi.saveimagefile(img, filename);
+        this.log('rip', `save graphics screen to ${filename}`);
         return '';
       },
 
-      // TODO
-      // $RESTORE$
-      // $RESTORE0$ - $RESTORE9$ (in v2 these are $RESTORE(0)$ - $RESTORE(9)$)
-      'RESTORE': async function () {
+      // Restore graphics screen (and viewport)
+      // $RESTORE$, $RESTORE0$ - $RESTORE9$ (in v2 these are $RESTORE(0)$ - $RESTORE(9)$)
+      //
+      'RESTORE': async (args) => {
+        // restores from cache: RIPTERM.SAV, RIPTERM0.SAV - RIPTERM9.SAV
+        const num = args[0] ? `${args[0]}` : '';
+        const filename = `RIPTERM${num}.SAV`;
+        const img = await this.bgi.readimagefile(filename);
+        this.bgi.putimage(0, 0, img, BGI.COPY_PUT, { info:{ vp:{ left:0, top:0 }}} ); // TODO: needs testing
+        this.refreshCanvas();
+        if (img.vp) { this.bgi.info.vp = structuredClone(img.vp); } // restore viewport
+        this.log('rip', `restore graphics screen from ${filename}`);
         return '';
       },
 
-      // TODO
-      // $SMF$ (save mouse fields)
-      'SMF': async function () {
+      // Save Mouse Fields
+      'SMF': async () => {
+        this.log('rip', "save mouse fields");
+        this.savedButtons = structuredClone(this.buttons);
         return '';
       },
 
-      // TODO
-      // $RMF$ (restore mouse fields)
-      'RMF': async function () {
+      // Restore Mouse Fields
+      'RMF': async () => {
+        this.log('rip', "restore mouse fields");
+        this.buttons = this.savedButtons ? structuredClone(this.savedButtons) : [];
         return '';
       },
 
-      // TODO
-      // $MKILL$ (kill mouse fields)
-      'MKILL': async function () {
+      // Kill Mouse Fields (RIP_KILL_MOUSE_FIELDS)
+      'MKILL': async () => {
+        this.log('rip', "kill mouse fields");
+        this.clearAllButtons();
         return '';
       },
 
