@@ -1620,6 +1620,7 @@ class RIPterm {
   clearAllButtons () {
     //this.activateMouseEvents(false); // keep activated so pointer returns to normal
     this.buttons = [];
+    this.bgi.mouseM = 0; // clear mouse buttons stuck as "pressed"
   }
 
   // Implements RIP_BUTTON & RIP_BUTTON_STYLE
@@ -3121,16 +3122,17 @@ class RIPterm {
         return `${xs}:${ys}`;
       },
 
-      // TODO
-      // $XYM$  0123:0297:110 (mouse X, Y, buttons pressed)
+      // Mouse X, Y & button status (e.g. "0123:0297:110")
       'XYM': async () => {
-        return '';
+        const xs = this.bgi.mouseX.toString().padStart(4, '0');
+        const ys = this.bgi.mouseY.toString().padStart(4, '0');
+        const ms = this.bgi.mouseM.toString(2).padStart(3, '0')
+        return `${xs}:${ys}:${ms}`;
       },
 
-      // TODO
-      // $M$ 001 (mouse buttons pressed)
+      // Mouse Button Status: LMR (e.g. "100")
       'M': async () => {
-        return '';
+        return this.bgi.mouseM.toString(2).padStart(3, '0')
       },
 
       // Is Mouse Active? ("YES" or "NO")
