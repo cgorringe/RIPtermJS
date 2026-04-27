@@ -119,6 +119,7 @@ class BGI {
     this.fonts = {}; // key is file, e.g. 'GOTH.CHR' (may rethink this later)
     this.mouseX = 0;
     this.mouseY = 0;
+    this.mouseM = 0; // mouse buttons down as a bitfield = 0-7 (+4=Left, +2=Middle, +1=Right)
 
     // index is font size: 0=8x8, 1=7x8, 2=8x14, 3=7x14, 4=16x14.
     // value is an array of 256 elements for each ASCII char,
@@ -156,6 +157,7 @@ class BGI {
     //   this.imgData : ImageData()
     //   this.width, this.height, this.isBuffered
 
+    this.initMouseHandlers();
     this.graphdefaults();
   }
 
@@ -245,12 +247,30 @@ class BGI {
 
     // this pixel buffer is used during flood fill
     this.fillpixels = new Uint8ClampedArray(this.width * this.height)
+  }
+
+  initMouseHandlers () {
 
     // setup mousemove handler to update mouse positions whenever the mouse moves.
-    this.registermousehandler(0, (function(x, y) {
+    this.registermousehandler(BGI.WM_MOUSEMOVE, (x, y) => {
       this.mouseX = x;
       this.mouseY = y;
-    }).bind(this));
+    });
+
+    // disable browser's right-click context menu over canvas.
+    this.ctx.canvas.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+    });
+
+    // update mouse button bitmap whenever mouse buttons are pressed or released.
+    // 4=Left, 2=Middle, 1=Right
+    this.mouseM = 0;
+    this.registermousehandler(BGI.WM_LBUTTONDOWN, (x, y) => { this.mouseM |= 4 });
+    this.registermousehandler(BGI.WM_LBUTTONUP,   (x, y) => { this.mouseM &= 3 });
+    this.registermousehandler(BGI.WM_MBUTTONDOWN, (x, y) => { this.mouseM |= 2 });
+    this.registermousehandler(BGI.WM_MBUTTONUP,   (x, y) => { this.mouseM &= 5 });
+    this.registermousehandler(BGI.WM_RBUTTONDOWN, (x, y) => { this.mouseM |= 1 });
+    this.registermousehandler(BGI.WM_RBUTTONUP,   (x, y) => { this.mouseM &= 6 });
   }
 
   // Loads all the vector font .CHR files in BGI.fontFileList[]
@@ -1433,7 +1453,6 @@ class BGI {
     this.info.cp.y = 0;
     this.pixels.fill(bgcolor);
     this.fillpixels.fill(0);
-    this.icons = {}; // TEST: do we want to do this here? (clears image ids)
   }
 
   // Clears the viewport, filling it with the current background color.
@@ -2025,6 +2044,7 @@ class BGI {
     // RGBA32 [r, g, b, a] same as npm's canvas
     //this.palette = new Uint8ClampedArray(256 * 4);
     this.palette = Uint8ClampedArray.from(BGI.ega_palette); // for now
+    this.icons = {}; // clears all saved images (is this the right place for this?)
   }
 
   // not implemented (STUB)
@@ -2373,6 +2393,17 @@ class BGI {
     }
     // this doesn't display the image, but instead returns it for use in putimage()
     return image || {};
+  }
+
+  // Saves an image to cache.
+  // filename: string of filename + extension, no path.
+  // image: { x:int, y:int, width:int, height:int, data:Uint8ClampedArray }
+  // (this is not in BGI spec)
+  //
+  saveimagefile (image, filename) {
+    if (image && image.width && image.height && filename) {
+      this.icons[filename] = image;
+    }
   }
 
   // draws in current line style, thickness, and drawing color

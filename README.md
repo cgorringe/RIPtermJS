@@ -19,7 +19,7 @@ The most popular terminal program for accessing RIP-enabled BBSs was an MS-DOS p
 
 **RIPtermJS** will correctly display a number of v1.54 RIP files in a canvas, including using Flood Fill with patterns.
 
-#### What's been completed:
+#### What's been completed or being worked on:
 
 - [x] Filled Circles, Ovals, &amp; Pie Slices (DONE)
 - [x] Drawing Text using .CHR fonts (DONE)
@@ -28,7 +28,12 @@ The most popular terminal program for accessing RIP-enabled BBSs was an MS-DOS p
 - [x] Loading &amp; drawing of Icons (DONE)
 - [ ] WebSockets to BBS on server (in progress)
 - [ ] Text windows &amp; ANSI emulation
-- [ ] $ Variables
+- [ ] Pre-defined Text Variables (in progress)
+- [ ] User-defined Text Variables
+- [x] $ Sounds (e.g. `$BEEP$`)
+- [x] Pop-up Pick Lists
+- [ ] Host Command Templates
+- [ ] Local File Playback
 
 
 Visit my [demo page](http://carl.gorringe.org/pub/code/javascript/RIPtermJS/).

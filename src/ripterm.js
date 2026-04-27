@@ -236,12 +236,18 @@ class RIPterm {
         //this.bgi.setaspectratio(371, 480); // = 0.7729
         this.bgi.setaspectratio(372, 480); // better
         this.initCommands();
+        this.initTextVars();
+        //this.initTextVars( () => { return new Date("2026-01-01T01:23:45") } ); // Mock TEST
 
         // must do once
         this.handleMouseEvents = this.handleMouseEvents.bind(this);
         this.setupCmdHover();
         this.setupCoordsMouseEvents();
         //this.setupMouseTestHandler(); // DEBUG testing mouse coords in bgi
+
+        // called once from any user interaction (audio fix for Safari)
+        this.initAudio = this.initAudio.bind(this);
+        document.addEventListener('click', this.initAudio, { once: true });
       }
     }
     else {
@@ -253,6 +259,52 @@ class RIPterm {
   // call this after new RIPterm() to load all the fonts.
   async initFonts () {
     await this.bgi.initFonts();
+  }
+
+  // initialize audio.
+  // call this once within a click handler to work in Safari.
+  //
+  initAudio () {
+
+    // init audio context only once
+    if (!this.actx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) {
+        this.log('err', 'Audio failed to initialize');
+        this.playSound = async (freq, ms) => {
+          // delay or rest
+          return new Promise(res => setTimeout(res, ms));
+        };
+        return false;
+      }
+      this.actx = new AC();
+      this.log('trm', 'Audio initialized'); // DEBUG
+    }
+
+    // Define play sound function. (freq=0 means delay)
+    const outer = this;
+    this.playSound = async (freq, ms, volume = 0.25) => {
+      if (freq > 0) {
+        const actx = outer.actx;
+        const osc = actx.createOscillator();
+        const gainNode = actx.createGain();
+        const t0 = actx.currentTime;
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, t0);
+        osc.connect(gainNode);
+        gainNode.connect(actx.destination);
+        gainNode.gain.setValueAtTime(volume, t0);
+        osc.start(t0);
+        osc.stop(t0 + ms/1000);
+        return new Promise(res => setTimeout(res, ms));
+      }
+      else {
+        // delay or rest
+        return new Promise(res => setTimeout(res, ms));
+      }
+    };
+
+    return true;
   }
 
   // create a table of Unicode control char symbols.
@@ -1414,33 +1466,47 @@ class RIPterm {
   // handles sending text to a host from clicking buttons and mouse regions.
   sendHostCommand (text) {
 
-    // TODO: $ variables & host command templates
+    // TODO: host command templates
 
-    const ctext = this.caretsToControlChars(text);
-    const otext = this.controlCharsToSymbols(ctext);
+    // If there's a pick list to process, leave and come back after it's resolved.
+    if (this.doPickList(text)) { return }
 
-    // Pop-Up Pick Lists: ((...)) triggers a selection popup.
-    // If an onPickList handler is set, emit the parsed list and defer sending
-    // the command until the handler resolves with the user's selection.
-    const pickMatch = ctext.match(/\(\((.+?)\)\)/);
+    // continue with text variables
+    this.replaceTextVars(text).then((vtext) => {
+
+      // only send to host if not empty
+      if (vtext !== '') {
+        const ctext = this.caretsToControlChars(vtext);
+        const otext = this.controlCharsToSymbols(ctext);
+        this.log('trm', `send to host: ${otext}`);
+
+        // emit event for external listeners
+        if (this.onHostCommand) {
+          this.onHostCommand(ctext);
+        }
+      }
+    });
+
+  }
+
+  // Pop-Up Pick Lists: ((...)) triggers a selection popup.
+  // If an onPickList handler is set, emit the parsed list and defer sending
+  // the command until the handler resolves with the user's selection.
+  //
+  doPickList (text) {
+    const pickMatch = text.match(/\(\((.+?)\)\)/);
     if (pickMatch && this.onPickList) {
-      const parsed = this._parsePickList(pickMatch[1]);
+      const parsed = this.parsePickList(pickMatch[1]);
       const resolve = (value) => {
         if (value == null) value = '';
-        const finalCmd = ctext.substring(0, pickMatch.index) + value +
-          ctext.substring(pickMatch.index + pickMatch[0].length);
+        const finalCmd = text.substring(0, pickMatch.index) + value +
+          text.substring(pickMatch.index + pickMatch[0].length);
         this.sendHostCommand(finalCmd);
       };
       this.onPickList(parsed, resolve);
-      return;
+      return true;
     }
-
-    this.log('trm', `send to host: ${otext}`);
-
-    // Emit event for external listeners (e.g. BBS game clients)
-    if (this.onHostCommand) {
-      this.onHostCommand(ctext);
-    }
+    return false;
   }
 
   // Parse the inner contents of a ((...)) Pop-Up Pick List.
@@ -1452,7 +1518,7 @@ class RIPterm {
   //   - @desc overrides the display text for that entry
   //   - _x_ or ~x~ in descriptions highlight a hotkey character
   //
-  _parsePickList (inner) {
+  parsePickList (inner) {
     const sepIdx = inner.indexOf('::');
     let prompt, required = false, entriesStr;
 
@@ -1552,8 +1618,9 @@ class RIPterm {
   }
 
   clearAllButtons () {
-    this.activateMouseEvents(false);
+    //this.activateMouseEvents(false); // keep activated so pointer returns to normal
     this.buttons = [];
+    this.bgi.mouseM = 0; // clear mouse buttons stuck as "pressed"
   }
 
   // Implements RIP_BUTTON & RIP_BUTTON_STYLE
@@ -1820,7 +1887,7 @@ class RIPterm {
       // RipTerm offsets the label by 1px down (not in spec)
       clip_down = 1;
       // TODO: not sure if coords are correct (need to test with recess)
-      this.clipboard = this.bgi._getimage(left - bevsize, top - bevsize, right + bevsize - 1, bot + bevsize - 1);
+      this.clipboard = this.bgi.getimage(left - bevsize, top - bevsize, right + bevsize - 1, bot + bevsize - 1);
       this.log('rip', 'Auto-stamped button image onto Clipboard.');
       // clear auto-stamp flag so that clipboard save only occurs once
       // TODO: may rethink this? could store in another var instead of clearing flag
@@ -2598,7 +2665,26 @@ class RIPterm {
       },
 
       // RIP_DEFINE (1D)
+
       // RIP_QUERY (1␛)(1<ESC>)
+      '1␛': (args) => {
+        const outer = this;
+        let o = { func: 'RIP_QUERY', ...this.parseRIPargs2(args, '13*', ['mode','res','text']) };
+        if (this.noNaNs(o)) {
+          o.run = async function(ob = {}) {
+            if (ob.hilite) { return }
+            if (this.mode === 0) {
+              // process immediately
+              // TODO: could change to async to allow for delays before moving forward?
+              outer.log('rip', `RIP_QUERY: ${this.text}`); // DEBUG
+              outer.sendHostCommand(this.text);
+            }
+            // TODO: mouse click modes 1 & 2 to do still.
+          };
+        }
+        return o;
+      },
+
       // RIP_COPY_REGION (1G)
       // RIP_READ_SCENE (1R)
       // RIP_FILE_QUERY (1F)
@@ -2637,6 +2723,551 @@ class RIPterm {
         };
         return o;
       }
+    }
+  }
+
+
+  ////////////////////////////////////////////////////////////////////////////////
+  // Text Variables
+
+  // Replace every $ variable and do any actions in order. Returns a string.
+  async replaceTextVars (input) {
+
+    // replacing every $VAR$ in input
+    let result = '', lastIndex = 0;
+    const regex = /\$(.*?)\$/g;
+    for (const match of input.matchAll(regex)) {
+      const { index } = match;
+      result += input.slice(lastIndex, index);  // add text before match
+      result += await this.doTextVar(match[1]); // replace var and take actions (like audio)
+      lastIndex = index + match[0].length;
+    }
+    result += input.slice(lastIndex); // remaining text
+    return result;
+  }
+
+  // Takes a text variable (excluding '$'s)
+  // returns a string or an empty string, and may perform an action such as play a sound.
+  //
+  async doTextVar (input) {
+
+    // Parse out any args of the form:
+    // RIPv1: NAMEx
+    // RIPv2: NAME(x) or NAME(x,y)
+    let args = this.parseTextVarArgs(input?.toUpperCase());
+    let name = args.shift();
+    //console.log(`name: ${name}, args: ${args}`); // DEBUG
+
+    if (this.textVar && this.textVar[name]) {
+      return await this.textVar[name](args);
+    }
+    // if text var not found, return an empty string.
+    return '';
+  }
+
+  // Input is a RIP v1 or v2 text variable: "VAR", "VAR#", "VAR(a)", "VAR(a,b...)"
+  // Returns an array of strings ['VAR', 'arg1', 'arg2', ...]
+  // If an arg is missing, puts undefined in its place.
+  //
+  parseTextVarArgs(input) {
+    // Case 1: NAME(...)
+    let parenMatch = input.match(/^([A-Za-z_]+)\((.*)\)$/);
+    if (parenMatch) {
+      const [, name, argsStr] = parenMatch;
+
+      // If empty parentheses, no args
+      if (argsStr.trim() === "") {
+        return [name];
+      }
+
+      // Split by commas and preserve empty slots as undefined
+      const args = argsStr.split(",").map(arg => {
+        const trimmed = arg.trim();
+        return (trimmed === "") ? undefined : trimmed;
+      });
+
+      return [name, ...args];
+    }
+
+    // Case 2: NAMEx (digits only for x)
+    let simpleMatch = input.match(/^([A-Za-z_]+)(\d+)?$/);
+    if (simpleMatch) {
+      const [, name, x] = simpleMatch;
+      return (x !== undefined) ? [name, x] : [name];
+    }
+
+    return [];
+  }
+
+  // TODO:
+  //   Define "user text variables" as a separate object, which may be added or removed?
+  //   or should we add them to the textVar object?
+
+  // Define built-in Text Variables.
+  //
+  // The nowDate function passed-in defaults to the current Date, but it may be
+  // redefined to a different Date for mock testing.
+  //
+  // RIP v2 adds parameters to built-in text variables of the form $NAME(arg1,arg2)$
+  //   where params are surrounded by paranthesis and separated by commas.
+  //   The params are passed to the function via the 'args' array.
+  //
+  initTextVars (nowDate = () => { return new Date() }) {
+    this.textVar = {
+
+      // --- Version & Vendor ---
+
+      // RIPscript Version
+      // RIPSCRIPxxyyvs
+      //   xx = major version
+      //   yy = minor version
+      //   v = vendor code (0=generic)
+      //   s = vendor's sub-version code
+      //
+      'RIPVER': async () => { return "RIPSCRIP015400" },
+
+      // Is Feature Supported [RIPv2]
+      'IFS': async (args) => {
+        const [keyword, category] = args;
+
+        // Currently unspported keywords are commented out.
+        // Categories begin with an underscore, and should be commented out if empty.
+        // See RIPv2 specs for details.
+        // TODO: uncomment 'ANSI' and 'VT102' below once they are implemented.
+
+        const cats = {
+        //'_IMAGE'      : [ 'BMP', 'JPEG' ],
+        //'_AUDIO'      : [ 'WAV' ],
+        //'_PROTOCOLS'  : [ 'KERMIT', 'CISQUICKB', 'SUPERKERMIT',
+        //                  'XMODEM', 'XMODEMCRC', 'XMODEM1K', 'XMODEM1KG',
+        //                  'YMODEM', 'YMODEMG', 'ZMODEM', 'ZMODEMCR' ],
+          '_LANGUAGES'  : [ 'ENG' ],
+          '_EMULATIONS' : [ 'RIPSCRIP' ], // 'DOORWAY', 'ANSI', 'VT102'
+        //'_MISC'       : [ 'EXTAPPS' ],
+        };
+        const keyset = new Set(Object.values(cats).flat());
+
+        if (keyword === 'LIST') {
+          if (!category) {
+            // Return list of sorted categories.
+            return Object.keys(cats).sort().join(',');
+          }
+          else if (category === 'ALL') {
+            // Return list of all keywords sorted (no categories).
+            return Array.from(keyset).sort().join(',');
+          }
+          else {
+            // Lookup category and return list of sorted keywords, or empty string.
+            return (category in cats) ? cats[category].sort().join(',') : '';
+          }
+        }
+        else {
+          // Lookup keyword and return 1 if present, or 0 if not.
+          // Considered syntax error if keyword not given.
+          return keyset.has(keyword) ? '1' : '0';
+        }
+        return '';
+      },
+
+      // A null text variable [RIPv2]
+      'NULL': async () => { return '' },
+
+      // Vendor specific data [RIPv2]
+      'TERMINFO': async (args) => {
+        let [keyword] = args;
+        const terminfo = {
+          LIST: "LIST,NAME,VENDOR,VERSION",
+          NAME: "RIPtermJS",
+          VENDOR: "Carl Gorringe",
+          VERSION: "4.0",
+        };
+        if (!keyword) { keyword = "NAME" }
+        return terminfo[keyword] || "NONE";
+      },
+
+
+      // --- Date & Time ---
+
+      // Abbreviated Day of Week (e.g. "Mon")
+      'ADOW': async () => {
+        return Intl.DateTimeFormat("en-US", { weekday: "short" }).format(nowDate());
+      },
+
+      // AM/PM
+      'AMPM': async () => {
+        return (nowDate().getHours() < 12) ? "AM" : "PM";
+      },
+
+      // Date in short format ("MM/DD/YY")
+      'DATE': async () => {
+        return Intl.DateTimeFormat("en-US", { year: "2-digit", month: "2-digit", day: "2-digit" }).format(nowDate());
+      },
+
+      // Date and Time (e.g. "Sat Dec 19 14:38:50 1993")
+      'DATETIME': async () => {
+        // extract from e.g. "Tue Aug 19 1975 23:15:30 GMT+0200 (CEST)"
+        const a = nowDate().toString().split(' ');
+        return `${a[0]} ${a[1]} ${a[2]} ${a[4]} ${a[3]}`;
+      },
+
+      // Day of Month (01-31)
+      'DAY': async () => {
+        return Intl.DateTimeFormat("en-US", { day: "2-digit" }).format(nowDate());
+      },
+
+      // Day of Week fully spelled out (e.g. "Saturday")
+      'DOW': async () => {
+        return Intl.DateTimeFormat("en-US", { weekday: "long" }).format(nowDate());
+      },
+
+      // Day of Year (001-366)
+      'DOY': async () => {
+        const d = nowDate();
+        const start = Date.UTC(d.getUTCFullYear(), 0);
+        const diffDays = Math.floor((d.getTime() - start) / (1000 * 60 * 60 * 24)) + 1;
+        return diffDays.toString().padStart(3, '0');
+      },
+
+      // Full Year (4 digits)
+      'FYEAR': async () => {
+        return Intl.DateTimeFormat("en-US", { year: "numeric" }).format(nowDate());
+      },
+
+      // Hour (01-12)
+      'HOUR': async () => {
+        return (nowDate().getHours() % 12 || 12).toString().padStart(2, '0');
+      },
+
+      // Military Hour (00-23)
+      'MHOUR': async () => {
+        return nowDate().getHours().toString().padStart(2, '0');
+      },
+
+      // Minutes (00-59)
+      'MIN': async () => {
+        return Intl.DateTimeFormat("en-US", { minute: "2-digit" }).format(nowDate());
+      },
+
+      // Month Name (e.g. "December")
+      'MONTH': async () => {
+        return Intl.DateTimeFormat("en-US", { month: "long" }).format(nowDate());
+      },
+
+      // Month Number (01-12)
+      'MONTHNUM': async () => {
+        return Intl.DateTimeFormat("en-US", { month: "2-digit" }).format(nowDate());
+        //return (nowDate().getMonth() + 1).toString().padStart(2, '0'); // also works
+      },
+
+      // Seconds (00-59)
+      'SEC': async () => {
+        return Intl.DateTimeFormat("en-US", { second: "2-digit" }).format(nowDate());
+      },
+
+      // Time (HH:MM:SS) e.g. "18:09:33"
+      'TIME': async () => {
+        return Intl.DateTimeFormat("en-US", { hour: "2-digit", hourCycle: "h23", minute: "2-digit", second: "2-digit" }).format(nowDate());
+      },
+
+      // 3-Letter Timezone (e.g. "PST")
+      'TIMEZONE': async () => {
+        // take 2nd word from e.g. "23 PDT"
+        const tz = Intl.DateTimeFormat("en-US", { minute: "2-digit", timeZoneName: "short" }).format(nowDate()).split(' ')[1];
+        return (tz ? tz : "NONE");
+      },
+
+      // Day of Week (0-6) where 0=Sun, 1=Mon... 6=Sat.
+      'WDAY': async () => {
+        return nowDate().getDay().toString();
+      },
+
+      // Week of Year (00-53) where week starts on a Sunday.
+      'WOY': async () => {
+        const d = nowDate();
+        const start = Date.UTC(d.getUTCFullYear(), 0);
+        const DoY = Math.floor((d.getTime() - start) / (1000 * 60 * 60 * 24)); // 0-365
+        const DoW = new Date(start).getDay(); // 0=Sun...6=Sat
+        const week = Math.floor((DoY + DoW) / 7); // 0-53
+        return week.toString().padStart(2, '0');
+      },
+
+      // Week of Year (00-53) where week starts on a Monday.
+      'WOYM': async () => {
+        const d = nowDate();
+        const start = Date.UTC(d.getUTCFullYear(), 0);
+        const DoY = Math.floor((d.getTime() - start) / (1000 * 60 * 60 * 24)); // 0-365
+        const DoWM = (new Date(start).getDay() + 6) % 7; // 0=Mon...6=Sun
+        const week = Math.floor((DoY + DoWM) / 7); // 0-53
+        return week.toString().padStart(2, '0');
+      },
+
+      // Year (2 digits)
+      'YEAR': async () => {
+        return Intl.DateTimeFormat("en-US", { year: "2-digit" }).format(nowDate());
+      },
+
+
+      // --- Sound ---
+
+      // Warning sound
+      'ALARM': async (args) => {
+        const count = args[0] ? Number(args[0]) : 3;
+        if ((count > 0) && (count < 100)) {
+          this.log('rip', `ALARM count: ${count}`); // DEBUG
+          for (let i=0; i < count; i+=1) {
+            await this.playSound(320, 200);
+            await this.playSound(160, 425);
+          }
+        }
+        return '';
+      },
+
+      // Beep Sound (CTRL-G) followed by 75 ms delay.
+      'BEEP': async (args) => {
+        const freq = args[0] ? Number(args[0]) : 1000; // Hz
+        const len  = args[1] ? Number(args[1]) : 75;  // ms
+        if ((freq > 0) && (len > 0) && (freq < 65535) && (len < 10000)) {
+          this.log('rip', `BEEP freq: ${freq}, len: ${len}`); // DEBUG
+          await this.playSound(freq, len);
+          await this.playSound(0, 75);
+        }
+        return '';
+      },
+
+      // Blipping sound
+      'BLIP': async (args) => {
+        const freq = args[0] ? Number(args[0]) : 50; // Hz
+        const len  = args[1] ? Number(args[1]) : 25; // ms
+        if ((freq > 0) && (len > 0) && (freq < 65535) && (len < 10000)) {
+          this.log('rip', `BLIP freq: ${freq}, len: ${len}`); // DEBUG
+          await this.playSound(freq, len);
+          await this.playSound(0, 10);
+        }
+        return '';
+      },
+
+      // Musical sound
+      'MUSIC': async (args) => {
+        const count = args[0] ? Number(args[0]) : 4;
+        if ((count > 0) && (count < 100)) {
+          this.log('rip', `MUSIC count: ${count}`); // DEBUG
+          const freqs = [1300,1200,1100,1000,900,800,700,850,950];
+          const outer = this;
+          for (let i=0; i < count; i+=1) {
+            for (let f of freqs) {
+              await this.playSound(f, 10);
+            }
+          }
+        }
+        return '';
+      },
+
+      // Ascending tone
+      'PHASER': async (args) => {
+        const start = args[0] ? Number(args[0]) : 2500; // Hz
+        const stop  = args[1] ? Number(args[1]) : 50;  // Hz
+        const inc   = args[2] ? Number(args[2]) : 20; // Hz
+        const time  = args[3] ? Number(args[3]) : 2; // ms
+        if ((start > stop) && (inc > 0) && (start < 65535) && (inc < 65535) && (time < 65535)) {
+          this.log('rip', `PHASER start: ${start}, stop: ${stop}, inc: ${inc}, time: ${time}`); // DEBUG
+          for (let f=start; f >= stop; f-=inc) {
+            await this.playSound(f, time);
+          }
+        }
+        return '';
+      },
+
+      // Descending tone
+      'REVPHASER': async (args) => {
+        const start = args[0] ? Number(args[0]) : 50; // Hz
+        const stop  = args[1] ? Number(args[1]) : 2500; // Hz
+        const inc   = args[2] ? Number(args[2]) : 20; // Hz
+        const time  = args[3] ? Number(args[3]) : 2; // ms
+        if ((start < stop) && (inc > 0) && (stop < 65535) && (inc < 65535) && (time < 65535)) {
+          this.log('rip', `REVPHASER start: ${start}, stop: ${stop}, inc: ${inc}, time: ${time}`); // DEBUG
+          for (let f=start; f <= stop; f+=inc) {
+            await this.playSound(f, time);
+          }
+        }
+        return '';
+      },
+
+      // Play a simple audio tone
+      'T': async (args) => {
+        const freq = args[0] ? Number(args[0]) : 1000; // in Hz
+        const len  = args[1] ? Number(args[1]) : 75;  // in ms
+        if ((freq > 0) && (len > 0) && (freq < 65535) && (len < 10000)) {
+          this.log('rip', `T freq: ${freq}, len: ${len}`); // DEBUG
+          await this.playSound(freq, len);
+        }
+        return '';
+      },
+
+      // --- Mouse ---
+
+      // Mouse X position (0000-0640)
+      'X': async () => {
+        return this.bgi.mouseX.toString().padStart(4, '0');
+      },
+
+      // Mouse Y position (0000-0350)
+      'Y': async () => {
+        return this.bgi.mouseY.toString().padStart(4, '0');
+      },
+
+      // Mouse X:Y position (e.g. "0297:0321")
+      'XY': async () => {
+        const xs = this.bgi.mouseX.toString().padStart(4, '0');
+        const ys = this.bgi.mouseY.toString().padStart(4, '0');
+        return `${xs}:${ys}`;
+      },
+
+      // Mouse X, Y & button status (e.g. "0123:0297:110")
+      'XYM': async () => {
+        const xs = this.bgi.mouseX.toString().padStart(4, '0');
+        const ys = this.bgi.mouseY.toString().padStart(4, '0');
+        const ms = this.bgi.mouseM.toString(2).padStart(3, '0')
+        return `${xs}:${ys}:${ms}`;
+      },
+
+      // Mouse Button Status: LMR (e.g. "100")
+      'M': async () => {
+        return this.bgi.mouseM.toString(2).padStart(3, '0')
+      },
+
+      // Is Mouse Active? ("YES" or "NO")
+      'MSTAT': async () => {
+        return "YES";
+      },
+
+      // --- Save & Restore ---
+
+      // Performs RIP_RESET_WINDOWS (*)
+      // RIPv2 not implemented
+      'RESET': async () => {
+        this.log('rip', "reset windows");
+        await this.runRIPcmd('*', '');
+        this.refreshCanvas();
+        return '';
+      },
+
+      // Save all screen attributes
+      'SAVEALL': async () => {
+        this.log('rip', "save all screen attributes");
+        //await this.textVar['STW']([]);
+        //await this.textVar['SCB']([]);
+        await this.textVar['SMF']([]);
+        await this.textVar['SAVE']([]);
+        return '';
+      },
+
+      // Restore all screen attributes
+      'RESTOREALL': async () => {
+        this.log('rip', "restore all screen attributes");
+        //await this.textVar['RTW']([]);
+        //await this.textVar['RCB']([]);
+        await this.textVar['RMF']([]);
+        await this.textVar['RESTORE']([]);
+        return '';
+      },
+
+      // Erase Graphics Window
+      'EGW': async () => {
+        this.log('rip', "erase graphics window");
+        this.bgi.clearviewport();
+        this.refreshCanvas();
+        return '';
+      },
+
+      // Save graphics screen
+      // $SAVE$, $SAVE0$ - $SAVE9$ (in v2 these are $SAVE(0)$ - $SAVE(9)$)
+      // RIPv2 "PUSH" and "BASE" options not implmented.
+      //
+      'SAVE': async (args) => {
+        // saves in cache using filenames: RIPTERM.SAV, RIPTERM0.SAV - RIPTERM9.SAV
+        const num = args[0] ? `${args[0]}` : '';
+        const filename = `RIPTERM${num}.SAV`;
+        const img = this.bgi.getimage(0, 0, this.bgi.getmaxx(), this.bgi.getmaxy());
+        img.vp = structuredClone(this.bgi.info.vp); // add current viewport
+        this.bgi.saveimagefile(img, filename);
+        this.log('rip', `save graphics screen to ${filename}`);
+        return '';
+      },
+
+      // Restore graphics screen (and viewport)
+      // $RESTORE$, $RESTORE0$ - $RESTORE9$ (in v2 these are $RESTORE(0)$ - $RESTORE(9)$)
+      //
+      'RESTORE': async (args) => {
+        // restores from cache: RIPTERM.SAV, RIPTERM0.SAV - RIPTERM9.SAV
+        const num = args[0] ? `${args[0]}` : '';
+        const filename = `RIPTERM${num}.SAV`;
+        const img = await this.bgi.readimagefile(filename);
+        this.bgi.putimage(0, 0, img, BGI.COPY_PUT, { info:{ vp:{ left:0, top:0 }}} ); // TODO: needs testing
+        this.refreshCanvas();
+        if (img.vp) { this.bgi.info.vp = structuredClone(img.vp); } // restore viewport
+        this.log('rip', `restore graphics screen from ${filename}`);
+        return '';
+      },
+
+      // Save Mouse Fields
+      'SMF': async () => {
+        this.log('rip', "save mouse fields");
+        this.savedButtons = structuredClone(this.buttons);
+        return '';
+      },
+
+      // Restore Mouse Fields
+      'RMF': async () => {
+        this.log('rip', "restore mouse fields");
+        this.buttons = this.savedButtons ? structuredClone(this.savedButtons) : [];
+        return '';
+      },
+
+      // Kill Mouse Fields (RIP_KILL_MOUSE_FIELDS)
+      'MKILL': async () => {
+        this.log('rip', "kill mouse fields");
+        this.clearAllButtons();
+        return '';
+      },
+
+      // --- Text Window ---
+
+      // $ETW$ (erase text window)
+      // $DTW$ (disable text window)
+      // $STW$ (save text window info)
+      // $RTW$ (restore text window info)
+      // $TWIN$ YES (text window status)
+      // $TWFONT$ 0 (active text font 0-5)
+      // $TWH$ 25 (text window height)
+      // $TWW$ 80 (text window width)
+      // $TWX0$ 0 (Text Window Upper Left X Coordinate)
+      // $TWY0$ 40 (Text Window Upper Left Y Coordinate)
+      // $TWX1$ 80 (Text Window Lower Right X Coordinate)
+      // $TWY1$ 43 (Text Window Lower Right Y Coordinate)
+      // $CURX$ 2 (Text Cursor X Coordinate)
+      // $CURY$ 5 (Text Cursor Y Coordinate)
+      // $CON$ (Enable the Text Cursor)
+      // $COFF$ (Disable the Text Cursor)
+      // $CURSOR$ YES (Text Cursor Status)
+
+      // --- System functions ---
+
+      // $SCB$ (Save Clipboard)
+      // $RCB$ (Restore Clipboard)
+      // $PCB$ (Paste Clipboard at last location)
+      // $STATBAR$ NO (Status Bar Status)
+      // $SBARON$ (Turn ON the Status Bar)
+      // $SBAROFF$ (Turn OFF the Status Bar)
+      // $VT102ON$ (Turn VT-102 keyboard mode ON)
+      // $VT102OFF$ (Turn VT-102 keyboard mode OFF)
+      // $DWAYON$ (Turn Doorway Mode ON - what's this?)
+      // $DWAYOFF$ (Turn Doorway Mode OFF)
+      // $HKEYON$ (Enable Button Hotkeys)
+      // $HKEYOFF$ (Disable Button Hotkeys)
+      // $TABON$ (Enable TAB key Mouse Field select)
+      // $TABOFF$ (Disable TAB key Mouse Field select)
+      // $APP0$ - $APP9$ (External Application Call)
+
     }
   }
 
