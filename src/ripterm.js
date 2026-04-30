@@ -174,6 +174,8 @@ class RIPterm {
       this.withinButton = false;
       this.controlSymbols = this.initControlSymbols();
       this.textWindow = {};
+      this.queryGraphQueue = []; // RIP_QUERY mode 1 queue
+      this.queryTextQueue = []; // RIP_QUERY mode 2 queue
 
       // debug options
       this.commandsDiv = ('commandsId' in opts) ? document.getElementById(opts.commandsId) : null;
@@ -1404,6 +1406,8 @@ class RIPterm {
       this.canvas.removeEventListener('pointermove', this.handleMouseEvents );
       this.canvas.removeEventListener('pointerleave', this.handleMouseEvents );
     }
+    // return pointer to normal
+    this.canvas.style.cursor = 'auto';
   }
 
   // Event listener handler for mouseup, mousedown, mousemove, and mouseleave events.
@@ -1413,6 +1417,7 @@ class RIPterm {
   handleMouseEvents (e) {
 
     let [x, y] = this.bgi._mouseCoords(e);
+    this.bgi.mouseM = this.bgi._mouseButtons(e); // store mouse button state
     let isWithin = false;
 
     for (const b of this.buttons) {
@@ -1460,6 +1465,21 @@ class RIPterm {
     if (this.withinButton !== isWithin) {
       this.withinButton = isWithin;
       this.canvas.style.cursor = (isWithin) ? 'pointer' : 'auto';
+    }
+
+    // handle RIP_QUERY delayed mouse events
+    if ((isWithin === false) && (e.type === 'pointerdown')) {
+      // inside graphics viewport (mode 1)
+      const vp = this.bgi.info.vp;
+      if ((x >= vp.left) && (x <= vp.right) && (y >= vp.top) && (y <= vp.bottom)) {
+        this.queryGraphQueue.forEach(t => { this.sendHostCommand(t) });
+      }
+      // inside text window (mode 2)
+      // special case: converts pixel coords to text coords
+      if ((x >= this.textWindow.x) && (x < this.textWindow.x + this.textWindow.width)
+        && (y >= this.textWindow.y) && (y < this.textWindow.y + this.textWindow.height)) {
+        this.queryTextQueue.forEach(t => { this.sendHostCommand(t) });
+      }
     }
   }
 
@@ -1618,9 +1638,12 @@ class RIPterm {
   }
 
   clearAllButtons () {
-    //this.activateMouseEvents(false); // keep activated so pointer returns to normal
+    this.log('trm', "clearAllButtons()"); // DEBUG
+    this.activateMouseEvents(false);
     this.buttons = [];
     this.bgi.mouseM = 0; // clear mouse buttons stuck as "pressed"
+    this.queryGraphQueue = [];
+    this.queryTextQueue = [];
   }
 
   // Implements RIP_BUTTON & RIP_BUTTON_STYLE
@@ -2673,13 +2696,32 @@ class RIPterm {
         if (this.noNaNs(o)) {
           o.run = async function(ob = {}) {
             if (ob.hilite) { return }
+            outer.log('rip', `RIP_QUERY ${this.mode}: ${this.text}`); // DEBUG
             if (this.mode === 0) {
               // process immediately
               // TODO: could change to async to allow for delays before moving forward?
-              outer.log('rip', `RIP_QUERY: ${this.text}`); // DEBUG
               outer.sendHostCommand(this.text);
             }
-            // TODO: mouse click modes 1 & 2 to do still.
+            else if (this.mode <= 2) { // 1 or 2
+              const queue = (this.mode === 1) ? outer.queryGraphQueue : outer.queryTextQueue;
+              // defer until mouse is clicked in graphics (1) or text (2) window
+              if (this.text.indexOf('$OFF$') > 0) {
+                // clear all in queue and ignore the rest
+                queue = [];
+              }
+              else {
+                let text2 = this.text;
+                if (this.mode === 2) {
+                  // replace mouse text vars with extra arg to return text window coords.
+                  text2 = text2.replaceAll("$X$", "$X(TW)$").replaceAll("$Y$", "$Y(TW)$")
+                    .replaceAll("$XY$", "$XY(TW)$").replaceAll("$XYM$", "$XYM(TW)$");
+                }
+                // add to queue only if not already in queue
+                if (queue.indexOf(text2) < 0) {
+                  queue.push(text2);
+                }
+              }
+            }
           };
         }
         return o;
@@ -2756,8 +2798,6 @@ class RIPterm {
     // RIPv2: NAME(x) or NAME(x,y)
     let args = this.parseTextVarArgs(input?.toUpperCase());
     let name = args.shift();
-    //console.log(`name: ${name}, args: ${args}`); // DEBUG
-
     if (this.textVar && this.textVar[name]) {
       return await this.textVar[name](args);
     }
@@ -2769,7 +2809,7 @@ class RIPterm {
   // Returns an array of strings ['VAR', 'arg1', 'arg2', ...]
   // If an arg is missing, puts undefined in its place.
   //
-  parseTextVarArgs(input) {
+  parseTextVarArgs (input) {
     // Case 1: NAME(...)
     let parenMatch = input.match(/^([A-Za-z_]+)\((.*)\)$/);
     if (parenMatch) {
@@ -2797,6 +2837,31 @@ class RIPterm {
     }
 
     return [];
+  }
+
+  // Helper function for Text Variables $X$, $Y$, $XY$, and $XYM$.
+  // We define an out-of-spec arg to pass to the text variable (e.g. "$X(TW)$")
+  // in order to check if the mouse pointer is within a Text Window.
+  // If so, return the alternate 2-digit text coordinates,
+  // else return the default 4-digit mouse pixel coordinates.
+  // Returns: array [xs, ys] which are 0-padded strings of length 2 or 4 chars.
+  //
+  mouseTextVars (args) {
+
+    let xs, ys, tx, ty;
+    if ((args[0] === 'TW')
+      && (this.bgi.mouseX >= this.textWindow.x) && (this.bgi.mouseX < this.textWindow.x + this.textWindow.width)
+      && (this.bgi.mouseY >= this.textWindow.y) && (this.bgi.mouseY < this.textWindow.y + this.textWindow.height)) {
+      tx = Math.floor((this.bgi.mouseX - this.textWindow.x) / (this.textWindow.fontW || 8)); // 0-based
+      ty = Math.floor((this.bgi.mouseY - this.textWindow.y) / (this.textWindow.fontH || 8)); // 0-based
+      xs = tx.toString().padStart(2, '0');
+      ys = ty.toString().padStart(2, '0');
+    }
+    else {
+      xs = this.bgi.mouseX.toString().padStart(4, '0');
+      ys = this.bgi.mouseY.toString().padStart(4, '0');
+    }
+    return [xs, ys];
   }
 
   // TODO:
@@ -3106,26 +3171,30 @@ class RIPterm {
       // --- Mouse ---
 
       // Mouse X position (0000-0640)
-      'X': async () => {
-        return this.bgi.mouseX.toString().padStart(4, '0');
+      // When passed 'TW' & inside a text window, returns text cursor coordinates (XX)
+      'X': async (args) => {
+        const [xs, ys] = this.mouseTextVars(args);
+        return xs;
       },
 
       // Mouse Y position (0000-0350)
-      'Y': async () => {
-        return this.bgi.mouseY.toString().padStart(4, '0');
+      // When passed 'TW' & inside a text window, returns text cursor coordinates (YY)
+      'Y': async (args) => {
+        const [xs, ys] = this.mouseTextVars(args);
+        return ys;
       },
 
       // Mouse X:Y position (e.g. "0297:0321")
-      'XY': async () => {
-        const xs = this.bgi.mouseX.toString().padStart(4, '0');
-        const ys = this.bgi.mouseY.toString().padStart(4, '0');
+      // When passed 'TW' & inside a text window, returns text cursor coordinates (XX:YY)
+      'XY': async (args) => {
+        const [xs, ys] = this.mouseTextVars(args);
         return `${xs}:${ys}`;
       },
 
       // Mouse X, Y & button status (e.g. "0123:0297:110")
-      'XYM': async () => {
-        const xs = this.bgi.mouseX.toString().padStart(4, '0');
-        const ys = this.bgi.mouseY.toString().padStart(4, '0');
+      // When passed 'TW' & inside a text window, returns text cursor coordinates (XX:YY:LMR)
+      'XYM': async (args) => {
+        const [xs, ys] = this.mouseTextVars(args);
         const ms = this.bgi.mouseM.toString(2).padStart(3, '0')
         return `${xs}:${ys}:${ms}`;
       },
