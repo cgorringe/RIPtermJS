@@ -17,10 +17,13 @@ _RIPtermJS_ is my attempt at recreating a RIP file viewer drawn to an HTML **can
 
 If you use this app on your website, we require that you give credit or acknowledgement. Please include a link to https://github.com/cgorringe/RIPtermJS
 
+
 **Website examples:**
 
 > [RIPtermJS](https://github.com/cgorringe/RIPtermJS) by Carl Gorringe
+
 > Carl Gorringe - [RIPtermJS](https://github.com/cgorringe/RIPtermJS)
+
 
 **For publication (modify per your specific style guide):**
 
