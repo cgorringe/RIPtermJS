@@ -2690,7 +2690,7 @@ class RIPterm {
       // RIP_DEFINE (1D)
 
       // RIP_QUERY (1␛)(1<ESC>)
-      '1␛': (args) => {
+      '1\u241B': (args) => {
         const outer = this;
         let o = { func: 'RIP_QUERY', ...this.parseRIPargs2(args, '13*', ['mode','res','text']) };
         if (this.noNaNs(o)) {
