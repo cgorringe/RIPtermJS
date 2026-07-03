@@ -242,6 +242,7 @@ class RIPterm {
         //this.initTextVars( () => { return new Date("2026-01-01T01:23:45") } ); // Mock TEST
 
         // must do once
+        this.udTextDecoder = new TextDecoder("x-user-defined");
         this.handleMouseEvents = this.handleMouseEvents.bind(this);
         this.setupCmdHover();
         this.setupCoordsMouseEvents();
@@ -791,7 +792,7 @@ class RIPterm {
     const ST_BANG=5, ST_BSLASH=6, ST_CR=7, ST_RIPBANG=8;
 
     // global vars
-    const outerThis = this;
+    const outer = this;
     this.psVars = this.psVars || {};
     this.psVars.state = this.psVars.state || ST_START;
     this.psVars.ansiBuf = this.psVars.ansiBuf || [];
@@ -814,19 +815,19 @@ class RIPterm {
         // which works for our use, as we can mask the upper byte to get the original value.
         // https://developer.mozilla.org/en-US/docs/Web/API/Encoding_API/Encodings
 
-        const decoder = new TextDecoder("x-user-defined");
-        const cmd0 = outerThis.controlCharsToSymbols(decoder.decode(new Uint8Array(cmdBuf))) || '';
+        const decoder = outer.udTextDecoder;
+        const cmd0 = outer.controlCharsToSymbols(decoder.decode(new Uint8Array(cmdBuf))) || '';
         const args = decoder.decode(new Uint8Array(argsBuf)) || '';
         cmdBuf.length = 0;
         argsBuf.length = 0;
-        await outerThis.runRIPcmd(cmd0, args);
-        outerThis.outCommands += outerThis.outputCmdsHtml(outerThis.cmdi, cmd0, args);
-        outerThis.cmdi++;
+        await outer.runRIPcmd(cmd0, args);
+        outer.outCommands += outer.outputCmdsHtml(outer.cmdi, cmd0, args);
+        outer.cmdi++;
       }
     }
     async function sendToANSI (buf) {
       if (buf && (buf.length > 0)) {
-        await outerThis.printANSI(new Uint8Array(buf));
+        await outer.printANSI(new Uint8Array(buf));
         buf.length = 0;
       }
     }
@@ -925,7 +926,7 @@ class RIPterm {
         }
         break;
       }
-      outerThis.psVars.state = state;
+      outer.psVars.state = state;
     }
 
     // runloop
@@ -1013,12 +1014,13 @@ class RIPterm {
   // Text to output to the Text Window.
   // bytes is an Uint8Array
   async printANSI (bytes) {
-    // TODO: this is a stub for now
-    //this.log('ans', `ANSI: ${bytes}`); // DEBUG
 
-    const text = new TextDecoder("x-user-defined").decode(bytes);
+    const text = this.udTextDecoder.decode(bytes);
     const otext = this.controlCharsToSymbols(text);
     this.log('ans', `${otext}`); // DEBUG
+
+    if (this.onOutputBytes) { this.onOutputBytes(bytes) }
+    if (this.onOutputText) { this.onOutputText(text) }
   }
 
 
