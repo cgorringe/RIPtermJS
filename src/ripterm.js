@@ -2083,13 +2083,14 @@ class RIPterm {
         let o = { func: 'RIP_TEXT_WINDOW', ...this.parseRIPargs2(args, '222211', ['x0','y0','x1','y1','wrap','size']) };
         if (this.noNaNs(o)) {
           o.run = async function(ob = {}) {
-            let px, py, pw, ph, textW, textH;
+            let px, py, pw, ph, textW, textH, tw_enabled = true;
             const wordWrap = this.wrap !== 0;
             const font = RIPterm.FONT_DIMS[this.size & 0x0f] || RIPterm.FONT_DIMS[0];
 
             // Per RIP spec, x0=y0=x1=y1=0 means "invisible text window"
             if (this.x0 === 0 && this.y0 === 0 && this.x1 === 0 && this.y1 === 0) {
               px = py = pw = ph = textW = textH = 0;
+              tw_enabled = false;
             } else {
               // Per RIP spec, x1/y1 are inclusive lower-right corners
               // Width = x1 - x0 + 1, Height = y1 - y0 + 1
@@ -2110,19 +2111,18 @@ class RIPterm {
             // Store current text window state
             let twindow = { x: px, y: py, width: pw, height: ph, wordWrap, fontnum: this.size,
                             textX: this.x0, textY: this.y0, textW: textW, textH: textH,
-                            fontW: font.w, fontH: font.h };
+                            fontW: font.w, fontH: font.h, enabled: tw_enabled };
+
+            // Emit event for external listeners
+            if (outer.onTextWindow) { outer.onTextWindow(twindow) }
 
             // Set cursor position to upper-left corner, except when window identical to prior
-            if (!(outer.textWindow && (outer.textWindow.x === px) && (outer.textWindow.y === py) &&
+            if (outer.onTextCursor && !(outer.textWindow && (outer.textWindow.x === px) && (outer.textWindow.y === py) &&
               (outer.textWindow.width === pw) && (outer.textWindow.height === ph))) {
-              twindow.cp = { row: 1, col: 1 };
+              outer.onTextCursor({ row: 1, col: 1 });
             }
-            outer.textWindow = twindow;
 
-            // Emit event for external listeners (e.g. BBS client overlays)
-            if (outer.onTextWindow) {
-              outer.onTextWindow(outer.textWindow);
-            }
+            outer.textWindow = twindow;
             outer.log('rip', `TEXT_WINDOW x=${px} y=${py} w=${pw} h=${ph} size=${this.size} wrap=${wordWrap} font=${font.w}x${font.h}`);
           };
         }
@@ -2160,23 +2160,30 @@ class RIPterm {
           outer.clearAllButtons();
           outer.clipboard = {};
 
-          // Reset text window to full screen (80x43 text cells)
+          // Reset text window to full screen (80x43 text cells) and clear it.
           outer.textWindow = { x: 0, y: 0, width: 640, height: 350, wordWrap: false, fontnum: 0,
-                               textX: 0, textY: 0, textW: 80, textH: 43, fontW: 8, fontH: 8 };
-          outer.textWindow.cp = { row: 1, col: 1 };
+                               textX: 0, textY: 0, textW: 80, textH: 43, fontW: 8, fontH: 8, enabled: true, clear: true };
 
           // Emit event for external listeners
-          if (outer.onTextWindow) {
-            outer.onTextWindow(outer.textWindow);
-          }
+          if (outer.onTextWindow) { outer.onTextWindow(outer.textWindow) }
+          if (outer.onTextCursor) { outer.onTextCursor({ row: 1, col: 1, enabled: true }) }
+
           // TODO: restore default palette
-          // TODO: clear text window?
         };
         return o;
       },
 
       // RIP_ERASE_WINDOW (e)
       // Clears Text Window to background color
+      'e': (args) => {
+        const outer = this;
+        let o = { func: 'RIP_ERASE_WINDOW' };
+        o.run = async function(ob = {}) {
+          if (ob.hilite) { return }
+          if (outer.onTextWindow) { outer.onTextWindow({ clear: true }) }
+        };
+        return o;
+      },
 
       // RIP_ERASE_VIEW (E)
       'E': (args) => {
@@ -2190,8 +2197,40 @@ class RIPterm {
       },
 
       // RIP_GOTOXY (g)
+      // Move text cursor to row & column in Text Window. (x & y are 0-based)
+      'g': (args) => {
+        const outer = this;
+        let o = { func: 'RIP_GOTOXY', ...this.parseRIPargs2(args, '22', ['x','y']) };
+        if (this.noNaNs(o)) {
+          o.run = async function(ob = {}) {
+            if (ob.hilite) { return }
+            if (outer.onTextCursor) { outer.onTextCursor({ row: this.y + 1, col: this.x + 1 }) }
+          };
+        }
+        return o;
+      },
+
       // RIP_HOME (H)
+      // Move cursor to upper-left corner of Text Window.
+      'H': (args) => {
+        const outer = this;
+        let o = { func: 'RIP_HOME' };
+        o.run = async function(ob = {}) {
+          if (ob.hilite) { return }
+          if (outer.onTextCursor) { outer.onTextCursor({ row: 1, col: 1 }) }
+        };
+        return o;
+      },
+
       // RIP_ERASE_EOL (>)
+      // Erase current line from cursor to end of line.
+      /*
+        This command will erase the current text line in the TTY text window
+        from the current cursor location (inclusive) to the end of the line.
+        The erased region is filled with the current graphics background
+        color.  This differs from the ANSI command ESC[K which clears the
+        area with the current ANSI background color.
+      */
 
       // RIP_COLOR (c)
       'c': (args) => {
@@ -3303,23 +3342,151 @@ class RIPterm {
 
       // --- Text Window ---
 
-      // $ETW$ (erase text window)
-      // $DTW$ (disable text window)
-      // $STW$ (save text window info)
-      // $RTW$ (restore text window info)
-      // $TWIN$ YES (text window status)
-      // $TWFONT$ 0 (active text font 0-5)
-      // $TWH$ 25 (text window height)
-      // $TWW$ 80 (text window width)
-      // $TWX0$ 0 (Text Window Upper Left X Coordinate)
-      // $TWY0$ 40 (Text Window Upper Left Y Coordinate)
-      // $TWX1$ 80 (Text Window Lower Right X Coordinate)
-      // $TWY1$ 43 (Text Window Lower Right Y Coordinate)
-      // $CURX$ 2 (Text Cursor X Coordinate)
-      // $CURY$ 5 (Text Cursor Y Coordinate)
-      // $CON$ (Enable the Text Cursor)
-      // $COFF$ (Disable the Text Cursor)
-      // $CURSOR$ YES (Text Cursor Status)
+      // Erase Text Window
+      'ETW': async () => {
+        this.log('rip', "erase text window");
+        if (this.onTextWindow) { this.onTextWindow({ clear: true }) }
+        return '';
+      },
+
+      // Disable Text Window
+      'DTW': async () => {
+        this.log('rip', "disable text window");
+        this.textWindow.enabled = false;
+        if (this.onTextWindow) { this.onTextWindow({ enabled: false }) }
+        return '';
+      },
+
+      // TODO: $STW$ (save text window info)
+      /*
+        This Active Text Variable stores all of the text window settings.
+        The window's X/Y dimensions are preserved, as is the current cursor
+        location, ANSI attributes, cursor ON/OFF status and the vertical
+        scrolling margins.  Even the current System Font is saved (if
+        necessary).
+        The contents of the Text Window are NOT saved.
+      */
+
+      // TODO: $RTW$ (restore text window info)
+      /*
+        This Active Text Variable restores the Text Window to the settings
+        active when $STW$ (Save Text Window) was executed. The current cursor
+        location, ANSI attributes, cursor ON/OFF status, vertical scrolling
+        margins, and the System Font are restored.
+        The text contents of the window are not restored.
+      */
+
+      // Text Window Status ("YES" or "NO")
+      'TWIN': async () => {
+        return (this.textWindow.enabled) ? "YES" : "NO";
+      },
+
+      // Active Text Font (0-5)
+      // This Text Variable returns which of the five Text Window Fonts is
+      // active, or 0 (zero) if there is no Text Window.
+      //
+      // Take the font size values from RIP_TEXT_WINDOW and add 1:
+      //    0 ... No Text Window          3 ... 80x25 font
+      //    1 ... 80x43 font              4 ... 91x25 MicroANSI font
+      //    2 ... 91x43 MicroANSI font    5 ... 40x25 font
+      //
+      'TWFONT': async () => {
+        if (this.textWindow.enabled && this.textWindow.fontnum) {
+          return `${this.textWindow.fontnum + 1}`;
+        }
+        return '0';
+      },
+
+      // Text Window Height (0-43)
+      'TWH': async () => {
+        if (this.textWindow.enabled && this.textWindow.textH) {
+          return `${this.textWindow.textH}`;
+        }
+        return '0';
+      },
+
+      // Text Window Width (0-91)
+      'TWW': async () => {
+        if (this.textWindow.enabled && this.textWindow.textW) {
+          return `${this.textWindow.textW}`;
+        }
+        return '0';
+      },
+
+      // Text Window Upper Left X Coordinate (0-91)
+      'TWX0': async () => {
+        if (this.textWindow.enabled && this.textWindow.textX) {
+          return `${this.textWindow.textX}`;
+        }
+        return '0';
+      },
+
+      // Text Window Upper Left Y Coordinate (0-43)
+      'TWY0': async () => {
+        if (this.textWindow.enabled && this.textWindow.textY) {
+          return `${this.textWindow.textY}`;
+        }
+        return '0';
+      },
+
+      // Text Window Lower Right X Coordinate (0-91)
+      'TWX1': async () => {
+        if (this.textWindow.enabled && this.textWindow.textX && this.textWindow.textW) {
+          return `${this.textWindow.textX + this.textWindow.textW - 1}`;
+        }
+        return '0';
+      },
+
+      // Text Window Lower Right Y Coordinate (0-43)
+      'TWY1': async () => {
+        if (this.textWindow.enabled && this.textWindow.textY && this.textWindow.textH) {
+          return `${this.textWindow.textY + this.textWindow.textH - 1}`;
+        }
+        return '0';
+      },
+
+      // Text Cursor X Coordinate (0-91)
+      'CURX': async () => {
+        if (this.textWindow.enabled && this.onTextCursor) {
+          const cursor = await this.onTextCursor({});
+          const col = cursor.col || 1; // 1-based
+          return `${col - 1}`; // 0-based
+        }
+        return '0';
+      },
+
+      // Text Cursor Y Coordinate (0-43)
+      'CURY': async () => {
+        if (this.textWindow.enabled && this.onTextCursor) {
+          const cursor = await this.onTextCursor({});
+          const row = cursor.row || 1; // 1-based
+          return `${row - 1}`; // 0-based
+        }
+        return '0';
+      },
+
+      // Enable the Text Cursor
+      'CON': async () => {
+        this.log('rip', "enable text cursor");
+        if (this.onTextCursor) { this.onTextCursor({ enabled: true }) }
+        return '';
+      },
+
+      // Disable the Text Cursor
+      'COFF': async () => {
+        this.log('rip', "disable text cursor");
+        if (this.onTextCursor) { this.onTextCursor({ enabled: false }) }
+        return '';
+      },
+
+      // Text Cursor Status ("YES" or "NO")
+      'CURSOR': async () => {
+        if (this.textWindow.enabled && this.onTextCursor) {
+          const cursor = await this.onTextCursor({});
+          return (cursor.enabled) ? "YES" : "NO";
+        }
+        return "NO";
+      },
 
       // --- System functions ---
 
