@@ -174,6 +174,7 @@ class RIPterm {
       this.withinButton = false;
       this.controlSymbols = this.initControlSymbols();
       this.textWindow = {};
+      this.savedTextInfo = {}; // $STW$ $RTW$
       this.queryGraphQueue = []; // RIP_QUERY mode 1 queue
       this.queryTextQueue = []; // RIP_QUERY mode 2 queue
 
@@ -2119,7 +2120,7 @@ class RIPterm {
             // Set cursor position to upper-left corner, except when window identical to prior
             if (outer.onTextCursor && !(outer.textWindow && (outer.textWindow.x === px) && (outer.textWindow.y === py) &&
               (outer.textWindow.width === pw) && (outer.textWindow.height === ph))) {
-              outer.onTextCursor({ row: 1, col: 1 });
+              await outer.onTextCursor({ row: 1, col: 1 });
             }
 
             outer.textWindow = twindow;
@@ -2162,11 +2163,11 @@ class RIPterm {
 
           // Reset text window to full screen (80x43 text cells) and clear it.
           outer.textWindow = { x: 0, y: 0, width: 640, height: 350, wordWrap: false, fontnum: 0,
-                               textX: 0, textY: 0, textW: 80, textH: 43, fontW: 8, fontH: 8, enabled: true, clear: true };
+                               textX: 0, textY: 0, textW: 80, textH: 43, fontW: 8, fontH: 8, enabled: true };
 
           // Emit event for external listeners
-          if (outer.onTextWindow) { outer.onTextWindow(outer.textWindow) }
-          if (outer.onTextCursor) { outer.onTextCursor({ row: 1, col: 1, enabled: true }) }
+          if (outer.onTextWindow) { outer.onTextWindow(outer.textWindow, { clear: true }) }
+          if (outer.onTextCursor) { await outer.onTextCursor({ row: 1, col: 1, enabled: true }) }
 
           // TODO: restore default palette
         };
@@ -2180,7 +2181,7 @@ class RIPterm {
         let o = { func: 'RIP_ERASE_WINDOW' };
         o.run = async function(ob = {}) {
           if (ob.hilite) { return }
-          if (outer.onTextWindow) { outer.onTextWindow({ clear: true }) }
+          if (outer.onTextWindow) { outer.onTextWindow(outer.textWindow, { clear: true }) }
         };
         return o;
       },
@@ -2204,7 +2205,7 @@ class RIPterm {
         if (this.noNaNs(o)) {
           o.run = async function(ob = {}) {
             if (ob.hilite) { return }
-            if (outer.onTextCursor) { outer.onTextCursor({ row: this.y + 1, col: this.x + 1 }) }
+            if (outer.onTextCursor) { await outer.onTextCursor({ row: this.y + 1, col: this.x + 1 }) }
           };
         }
         return o;
@@ -2217,7 +2218,7 @@ class RIPterm {
         let o = { func: 'RIP_HOME' };
         o.run = async function(ob = {}) {
           if (ob.hilite) { return }
-          if (outer.onTextCursor) { outer.onTextCursor({ row: 1, col: 1 }) }
+          if (outer.onTextCursor) { await outer.onTextCursor({ row: 1, col: 1 }) }
         };
         return o;
       },
@@ -3264,7 +3265,7 @@ class RIPterm {
       // Save all screen attributes
       'SAVEALL': async () => {
         this.log('rip', "save all screen attributes");
-        //await this.textVar['STW']([]);
+        await this.textVar['STW']([]);
         //await this.textVar['SCB']([]);
         await this.textVar['SMF']([]);
         await this.textVar['SAVE']([]);
@@ -3274,7 +3275,7 @@ class RIPterm {
       // Restore all screen attributes
       'RESTOREALL': async () => {
         this.log('rip', "restore all screen attributes");
-        //await this.textVar['RTW']([]);
+        await this.textVar['RTW']([]);
         //await this.textVar['RCB']([]);
         await this.textVar['RMF']([]);
         await this.textVar['RESTORE']([]);
@@ -3345,7 +3346,7 @@ class RIPterm {
       // Erase Text Window
       'ETW': async () => {
         this.log('rip', "erase text window");
-        if (this.onTextWindow) { this.onTextWindow({ clear: true }) }
+        if (this.onTextWindow) { this.onTextWindow(this.textWindow, { clear: true }) }
         return '';
       },
 
@@ -3353,28 +3354,47 @@ class RIPterm {
       'DTW': async () => {
         this.log('rip', "disable text window");
         this.textWindow.enabled = false;
-        if (this.onTextWindow) { this.onTextWindow({ enabled: false }) }
+        if (this.onTextWindow) { this.onTextWindow(this.textWindow) }
         return '';
       },
 
-      // TODO: $STW$ (save text window info)
-      /*
-        This Active Text Variable stores all of the text window settings.
-        The window's X/Y dimensions are preserved, as is the current cursor
-        location, ANSI attributes, cursor ON/OFF status and the vertical
-        scrolling margins.  Even the current System Font is saved (if
-        necessary).
-        The contents of the Text Window are NOT saved.
-      */
+      // Activate Text Window [RIPv2]
+      // (only current window, ignores args)
+      'ATW': async () => {
+        this.log('rip', "enable text window");
+        this.textWindow.enabled = true;
+        if (this.onTextWindow) { this.onTextWindow(this.textWindow) }
+        return '';
+      },
 
-      // TODO: $RTW$ (restore text window info)
-      /*
-        This Active Text Variable restores the Text Window to the settings
-        active when $STW$ (Save Text Window) was executed. The current cursor
-        location, ANSI attributes, cursor ON/OFF status, vertical scrolling
-        margins, and the System Font are restored.
-        The text contents of the window are not restored.
-      */
+      // Save Text Window Info
+      'STW': async () => {
+        this.log('rip', "save text window info");
+        // text window dimensions & system font
+        const tw = this.textWindow;
+        // cursor location & on/off status ($CURX$ $CURY$ $CURSOR$)
+        const cursor = this.onTextCursor ? await this.onTextCursor({}) : {};
+        // TODO: ANSI attributes (from ANSIterm)
+        // SKIP: vertical scrolling margins (??)
+        this.savedTextInfo.base = { tw, cursor };
+        return '';
+      },
+
+      // Restore Text Window Info
+      'RTW': async () => {
+        this.log('rip', "restore text window info");
+        if (this.savedTextInfo.base) {
+          const { tw, cursor } = this.savedTextInfo.base;
+          // text window dimensions & system font
+          if (tw) { this.textWindow = tw }
+          if (tw && this.onTextWindow) { this.onTextWindow(tw) }
+          // cursor location & on/off status ($CURX$ $CURY$ $CURSOR$)
+          if (cursor && this.onTextCursor) { await this.onTextCursor(cursor) }
+          // TODO: ANSI attributes (from ANSIterm)
+          // SKIP: vertical scrolling margins (??)
+        }
+        return '';
+      },
 
       // Text Window Status ("YES" or "NO")
       'TWIN': async () => {
