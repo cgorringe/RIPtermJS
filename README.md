@@ -15,14 +15,7 @@ _RIPtermJS_ is my attempt at recreating a RIP file viewer drawn to an HTML **can
 
 ## Credit
 
-If you use this app on your website, we require that you give credit or acknowledgement. Please include a link to https://github.com/cgorringe/RIPtermJS
-
-
-**Website examples:**
-
-> [RIPtermJS](https://github.com/cgorringe/RIPtermJS) by Carl Gorringe
-
-> Carl Gorringe - [RIPtermJS](https://github.com/cgorringe/RIPtermJS)
+If you use this app on your website, we require that you give credit or acknowledgement. Please include a link to https://github.com/cgorringe/RIPtermJS and credit Carl Gorringe.
 
 
 ### Known Websites that use RIPtermJS
@@ -30,11 +23,13 @@ If you use this app on your website, we require that you give credit or acknowle
 - [L.O.R.D. Town](https://lord.town) - A really fun implementation of _Legend of the Red Dragon!_
 
 
-### More Info
+### Other Links
 
 - [BBS graphics before the Internet!](https://www.youtube.com/watch?v=uyEj4Rm8mzE) - A video about the history of RIPscrip.
 
-- [Retro RiPS - 1990s RipScrip Vector Graphic Images set to Tracker Tunes](https://www.youtube.com/watch?v=U4CLxI1Rfmw) (video).
+- [Retro RiPS - 1990s RipScrip Vector Graphic Images set to Tracker Tunes](https://www.youtube.com/watch?v=U4CLxI1Rfmw) (video)
+
+- [RIP Graphics on the Realm of Serion BBS](https://www.youtube.com/watch?v=TazeFiUW4wI) (video)
 
 
 ## Status
