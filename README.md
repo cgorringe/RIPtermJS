@@ -25,19 +25,21 @@ If you use this app on your website, we require that you give credit or acknowle
 > Carl Gorringe - [RIPtermJS](https://github.com/cgorringe/RIPtermJS)
 
 
-**For publication (modify per your specific style guide):**
-
-> Carl Gorringe. (2026) _RIPtermJS_. Version 4. https://github.com/cgorringe/RIPtermJS
-
-
 ### Known Websites that use RIPtermJS
 
 - [L.O.R.D. Town](https://lord.town) - A really fun implementation of _Legend of the Red Dragon!_
 
 
+### More Info
+
+- [BBS graphics before the Internet!](https://www.youtube.com/watch?v=uyEj4Rm8mzE) - A video about the history of RIPscrip.
+
+- [Retro RiPS - 1990s RipScrip Vector Graphic Images set to Tracker Tunes](https://www.youtube.com/watch?v=U4CLxI1Rfmw) (video).
+
+
 ## Status
 
-**Version 4 Under Development**
+**Version 0.4 Under Development**
 
 _RIPtermJS_ will correctly display a number of v1.54 RIP files in a canvas, including using Flood Fill with patterns.
 
