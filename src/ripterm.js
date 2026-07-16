@@ -2120,7 +2120,7 @@ class RIPterm {
             // Set cursor position to upper-left corner, except when window identical to prior
             if (outer.onTextCursor && !(outer.textWindow && (outer.textWindow.x === px) && (outer.textWindow.y === py) &&
               (outer.textWindow.width === pw) && (outer.textWindow.height === ph))) {
-              await outer.onTextCursor({ row: 1, col: 1 });
+              outer.onTextCursor({ row: 1, col: 1 });
             }
 
             outer.textWindow = twindow;
@@ -2167,7 +2167,7 @@ class RIPterm {
 
           // Emit event for external listeners
           if (outer.onTextWindow) { outer.onTextWindow(outer.textWindow, { clear: true }) }
-          if (outer.onTextCursor) { await outer.onTextCursor({ row: 1, col: 1, enabled: true }) }
+          if (outer.onTextCursor) { outer.onTextCursor({ row: 1, col: 1, enabled: true }) }
 
           // TODO: restore default palette
         };
@@ -2205,7 +2205,7 @@ class RIPterm {
         if (this.noNaNs(o)) {
           o.run = async function(ob = {}) {
             if (ob.hilite) { return }
-            if (outer.onTextCursor) { await outer.onTextCursor({ row: this.y + 1, col: this.x + 1 }) }
+            if (outer.onTextCursor) { outer.onTextCursor({ row: this.y + 1, col: this.x + 1 }) }
           };
         }
         return o;
@@ -2218,7 +2218,7 @@ class RIPterm {
         let o = { func: 'RIP_HOME' };
         o.run = async function(ob = {}) {
           if (ob.hilite) { return }
-          if (outer.onTextCursor) { await outer.onTextCursor({ row: 1, col: 1 }) }
+          if (outer.onTextCursor) { outer.onTextCursor({ row: 1, col: 1 }) }
         };
         return o;
       },
@@ -3377,11 +3377,11 @@ class RIPterm {
         // text window dimensions & system font
         const tw = this.textWindow;
         // cursor location & on/off status ($CURX$ $CURY$ $CURSOR$)
-        const cursor = this.onTextCursor ? await this.onTextCursor({}) : {};
+        const cursor = (this.onTextCursor) ? this.onTextCursor({}) : {};
         // TODO: ANSI attributes (from ANSIterm)
         // SKIP: vertical scrolling margins (??)
         this.savedTextInfo.base = structuredClone({ tw, cursor });
-        const o = (this.savedTextInfo.base ? JSON.stringify(this.savedTextInfo.base).replaceAll('"', '').replaceAll(',', ', ') : 'null');
+        const o = (this.savedTextInfo.base) ? JSON.stringify(this.savedTextInfo.base).replaceAll('"', '').replaceAll(',', ', ') : 'null';
         this.log('rip', `${o}`); // DEBUG
         return '';
       },
@@ -3390,14 +3390,14 @@ class RIPterm {
       'RTW': async () => {
         if (this.savedTextInfo.base) {
           this.log('rip', "restore text window info");
-          const o = (this.savedTextInfo.base ? JSON.stringify(this.savedTextInfo.base).replaceAll('"', '').replaceAll(',', ', ') : 'null');
+          const o = (this.savedTextInfo.base) ? JSON.stringify(this.savedTextInfo.base).replaceAll('"', '').replaceAll(',', ', ') : 'null';
           this.log('rip', `${o}`); // DEBUG
           const { tw, cursor } = this.savedTextInfo.base;
           // text window dimensions & system font
           if (tw) { this.textWindow = structuredClone(tw) }
           if (tw && this.onTextWindow) { this.onTextWindow(tw) }
           // cursor location & on/off status ($CURX$ $CURY$ $CURSOR$)
-          if (cursor && this.onTextCursor) { await this.onTextCursor(cursor) }
+          if (cursor && this.onTextCursor) { this.onTextCursor(cursor) }
           // TODO: ANSI attributes (from ANSIterm)
           // SKIP: vertical scrolling margins (??)
         }
@@ -3467,7 +3467,7 @@ class RIPterm {
       // Text Cursor X Coordinate (0-91)
       'CURX': async () => {
         if (this.textWindow.enabled && this.onTextCursor) {
-          const cursor = await this.onTextCursor({});
+          const cursor = this.onTextCursor({});
           const col = cursor.col || 1; // 1-based
           return `${col - 1}`; // 0-based
         }
@@ -3477,7 +3477,7 @@ class RIPterm {
       // Text Cursor Y Coordinate (0-43)
       'CURY': async () => {
         if (this.textWindow.enabled && this.onTextCursor) {
-          const cursor = await this.onTextCursor({});
+          const cursor = this.onTextCursor({});
           const row = cursor.row || 1; // 1-based
           return `${row - 1}`; // 0-based
         }
@@ -3501,7 +3501,7 @@ class RIPterm {
       // Text Cursor Status ("YES" or "NO")
       'CURSOR': async () => {
         if (this.textWindow.enabled && this.onTextCursor) {
-          const cursor = await this.onTextCursor({});
+          const cursor = this.onTextCursor({});
           return (cursor.enabled) ? "YES" : "NO";
         }
         return "NO";
