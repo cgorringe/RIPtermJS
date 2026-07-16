@@ -2851,7 +2851,11 @@ class RIPterm {
   // Returns an array of strings ['VAR', 'arg1', 'arg2', ...]
   // If an arg is missing, puts undefined in its place.
   //
+  // FIXME: Some vars have digits (e.g. $VT102ON$)
+  // some have form VAR#(a,b...) in RIPv2 (e.g. $TWX0(...)$)
+  //
   parseTextVarArgs (input) {
+
     // Case 1: NAME(...)
     let parenMatch = input.match(/^([A-Za-z_]+)\((.*)\)$/);
     if (parenMatch) {
@@ -3376,22 +3380,29 @@ class RIPterm {
         const cursor = this.onTextCursor ? await this.onTextCursor({}) : {};
         // TODO: ANSI attributes (from ANSIterm)
         // SKIP: vertical scrolling margins (??)
-        this.savedTextInfo.base = { tw, cursor };
+        this.savedTextInfo.base = structuredClone({ tw, cursor });
+        const o = (this.savedTextInfo.base ? JSON.stringify(this.savedTextInfo.base).replaceAll('"', '').replaceAll(',', ', ') : 'null');
+        this.log('rip', `${o}`); // DEBUG
         return '';
       },
 
       // Restore Text Window Info
       'RTW': async () => {
-        this.log('rip', "restore text window info");
         if (this.savedTextInfo.base) {
+          this.log('rip', "restore text window info");
+          const o = (this.savedTextInfo.base ? JSON.stringify(this.savedTextInfo.base).replaceAll('"', '').replaceAll(',', ', ') : 'null');
+          this.log('rip', `${o}`); // DEBUG
           const { tw, cursor } = this.savedTextInfo.base;
           // text window dimensions & system font
-          if (tw) { this.textWindow = tw }
+          if (tw) { this.textWindow = structuredClone(tw) }
           if (tw && this.onTextWindow) { this.onTextWindow(tw) }
           // cursor location & on/off status ($CURX$ $CURY$ $CURSOR$)
           if (cursor && this.onTextCursor) { await this.onTextCursor(cursor) }
           // TODO: ANSI attributes (from ANSIterm)
           // SKIP: vertical scrolling margins (??)
+        }
+        else {
+          this.log('rip', "restore text window info (nothing stored)");
         }
         return '';
       },
@@ -3411,7 +3422,7 @@ class RIPterm {
       //    2 ... 91x43 MicroANSI font    5 ... 40x25 font
       //
       'TWFONT': async () => {
-        if (this.textWindow.enabled && this.textWindow.fontnum) {
+        if (this.textWindow.enabled && ('fontnum' in this.textWindow)) {
           return `${this.textWindow.fontnum + 1}`;
         }
         return '0';
@@ -3419,7 +3430,7 @@ class RIPterm {
 
       // Text Window Height (0-43)
       'TWH': async () => {
-        if (this.textWindow.enabled && this.textWindow.textH) {
+        if (this.textWindow.enabled && ('textH' in this.textWindow)) {
           return `${this.textWindow.textH}`;
         }
         return '0';
@@ -3427,40 +3438,27 @@ class RIPterm {
 
       // Text Window Width (0-91)
       'TWW': async () => {
-        if (this.textWindow.enabled && this.textWindow.textW) {
+        if (this.textWindow.enabled && ('textW' in this.textWindow)) {
           return `${this.textWindow.textW}`;
         }
         return '0';
       },
 
-      // Text Window Upper Left X Coordinate (0-91)
-      'TWX0': async () => {
-        if (this.textWindow.enabled && this.textWindow.textX) {
-          return `${this.textWindow.textX}`;
+      // Text Window Upper Left or Lower Right X Coordinate (0-91)
+      // $TWX0$ $TWX1$
+      'TWX': async (args) => {
+        if (this.textWindow.enabled && ('textX' in this.textWindow) && ('textW' in this.textWindow)) {
+          if (args[0] === '0') { return `${this.textWindow.textX}` }
+          else if (args[0] === '1') { return `${this.textWindow.textX + this.textWindow.textW - 1}` }
         }
         return '0';
       },
 
-      // Text Window Upper Left Y Coordinate (0-43)
-      'TWY0': async () => {
-        if (this.textWindow.enabled && this.textWindow.textY) {
-          return `${this.textWindow.textY}`;
-        }
-        return '0';
-      },
-
-      // Text Window Lower Right X Coordinate (0-91)
-      'TWX1': async () => {
-        if (this.textWindow.enabled && this.textWindow.textX && this.textWindow.textW) {
-          return `${this.textWindow.textX + this.textWindow.textW - 1}`;
-        }
-        return '0';
-      },
-
-      // Text Window Lower Right Y Coordinate (0-43)
-      'TWY1': async () => {
-        if (this.textWindow.enabled && this.textWindow.textY && this.textWindow.textH) {
-          return `${this.textWindow.textY + this.textWindow.textH - 1}`;
+      // Text Window Upper Left or Lower Right Y Coordinate (0-43)
+      'TWY': async (args) => {
+        if (this.textWindow.enabled && ('textY' in this.textWindow) && ('textH' in this.textWindow)) {
+          if (args[0] === '0') { return `${this.textWindow.textY}` }
+          else if (args[0] === '1') { return `${this.textWindow.textY + this.textWindow.textH - 1}` }
         }
         return '0';
       },
