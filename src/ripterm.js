@@ -174,6 +174,9 @@ class RIPterm {
       this.withinButton = false;
       this.controlSymbols = this.initControlSymbols();
       this.textWindow = {};
+      this.savedTextInfo = {}; // $STW$ $RTW$
+      this.queryGraphQueue = []; // RIP_QUERY mode 1 queue
+      this.queryTextQueue = []; // RIP_QUERY mode 2 queue
 
       // debug options
       this.commandsDiv = ('commandsId' in opts) ? document.getElementById(opts.commandsId) : null;
@@ -240,6 +243,7 @@ class RIPterm {
         //this.initTextVars( () => { return new Date("2026-01-01T01:23:45") } ); // Mock TEST
 
         // must do once
+        this.udTextDecoder = new TextDecoder("x-user-defined");
         this.handleMouseEvents = this.handleMouseEvents.bind(this);
         this.setupCmdHover();
         this.setupCoordsMouseEvents();
@@ -789,7 +793,7 @@ class RIPterm {
     const ST_BANG=5, ST_BSLASH=6, ST_CR=7, ST_RIPBANG=8;
 
     // global vars
-    const outerThis = this;
+    const outer = this;
     this.psVars = this.psVars || {};
     this.psVars.state = this.psVars.state || ST_START;
     this.psVars.ansiBuf = this.psVars.ansiBuf || [];
@@ -812,19 +816,19 @@ class RIPterm {
         // which works for our use, as we can mask the upper byte to get the original value.
         // https://developer.mozilla.org/en-US/docs/Web/API/Encoding_API/Encodings
 
-        const decoder = new TextDecoder("x-user-defined");
-        const cmd0 = outerThis.controlCharsToSymbols(decoder.decode(new Uint8Array(cmdBuf))) || '';
+        const decoder = outer.udTextDecoder;
+        const cmd0 = outer.controlCharsToSymbols(decoder.decode(new Uint8Array(cmdBuf))) || '';
         const args = decoder.decode(new Uint8Array(argsBuf)) || '';
         cmdBuf.length = 0;
         argsBuf.length = 0;
-        await outerThis.runRIPcmd(cmd0, args);
-        outerThis.outCommands += outerThis.outputCmdsHtml(outerThis.cmdi, cmd0, args);
-        outerThis.cmdi++;
+        await outer.runRIPcmd(cmd0, args);
+        outer.outCommands += outer.outputCmdsHtml(outer.cmdi, cmd0, args);
+        outer.cmdi++;
       }
     }
     async function sendToANSI (buf) {
       if (buf && (buf.length > 0)) {
-        await outerThis.printANSI(new Uint8Array(buf));
+        await outer.printANSI(new Uint8Array(buf));
         buf.length = 0;
       }
     }
@@ -923,7 +927,7 @@ class RIPterm {
         }
         break;
       }
-      outerThis.psVars.state = state;
+      outer.psVars.state = state;
     }
 
     // runloop
@@ -1011,12 +1015,13 @@ class RIPterm {
   // Text to output to the Text Window.
   // bytes is an Uint8Array
   async printANSI (bytes) {
-    // TODO: this is a stub for now
-    //this.log('ans', `ANSI: ${bytes}`); // DEBUG
 
-    const text = new TextDecoder("x-user-defined").decode(bytes);
+    const text = this.udTextDecoder.decode(bytes);
     const otext = this.controlCharsToSymbols(text);
     this.log('ans', `${otext}`); // DEBUG
+
+    if (this.onOutputBytes) { this.onOutputBytes(bytes) }
+    if (this.onOutputText) { this.onOutputText(text) }
   }
 
 
@@ -1404,6 +1409,8 @@ class RIPterm {
       this.canvas.removeEventListener('pointermove', this.handleMouseEvents );
       this.canvas.removeEventListener('pointerleave', this.handleMouseEvents );
     }
+    // return pointer to normal
+    this.canvas.style.cursor = 'auto';
   }
 
   // Event listener handler for mouseup, mousedown, mousemove, and mouseleave events.
@@ -1413,6 +1420,7 @@ class RIPterm {
   handleMouseEvents (e) {
 
     let [x, y] = this.bgi._mouseCoords(e);
+    this.bgi.mouseM = this.bgi._mouseButtons(e); // store mouse button state
     let isWithin = false;
 
     for (const b of this.buttons) {
@@ -1460,6 +1468,21 @@ class RIPterm {
     if (this.withinButton !== isWithin) {
       this.withinButton = isWithin;
       this.canvas.style.cursor = (isWithin) ? 'pointer' : 'auto';
+    }
+
+    // handle RIP_QUERY delayed mouse events
+    if ((isWithin === false) && (e.type === 'pointerdown')) {
+      // inside graphics viewport (mode 1)
+      const vp = this.bgi.info.vp;
+      if ((x >= vp.left) && (x <= vp.right) && (y >= vp.top) && (y <= vp.bottom)) {
+        this.queryGraphQueue.forEach(t => { this.sendHostCommand(t) });
+      }
+      // inside text window (mode 2)
+      // special case: converts pixel coords to text coords
+      if ((x >= this.textWindow.x) && (x < this.textWindow.x + this.textWindow.width)
+        && (y >= this.textWindow.y) && (y < this.textWindow.y + this.textWindow.height)) {
+        this.queryTextQueue.forEach(t => { this.sendHostCommand(t) });
+      }
     }
   }
 
@@ -1618,9 +1641,12 @@ class RIPterm {
   }
 
   clearAllButtons () {
-    //this.activateMouseEvents(false); // keep activated so pointer returns to normal
+    this.log('trm', "clearAllButtons()"); // DEBUG
+    this.activateMouseEvents(false);
     this.buttons = [];
     this.bgi.mouseM = 0; // clear mouse buttons stuck as "pressed"
+    this.queryGraphQueue = [];
+    this.queryTextQueue = [];
   }
 
   // Implements RIP_BUTTON & RIP_BUTTON_STYLE
@@ -2058,13 +2084,14 @@ class RIPterm {
         let o = { func: 'RIP_TEXT_WINDOW', ...this.parseRIPargs2(args, '222211', ['x0','y0','x1','y1','wrap','size']) };
         if (this.noNaNs(o)) {
           o.run = async function(ob = {}) {
-            let px, py, pw, ph, textW, textH;
+            let px, py, pw, ph, textW, textH, tw_enabled = true;
             const wordWrap = this.wrap !== 0;
             const font = RIPterm.FONT_DIMS[this.size & 0x0f] || RIPterm.FONT_DIMS[0];
 
             // Per RIP spec, x0=y0=x1=y1=0 means "invisible text window"
             if (this.x0 === 0 && this.y0 === 0 && this.x1 === 0 && this.y1 === 0) {
               px = py = pw = ph = textW = textH = 0;
+              tw_enabled = false;
             } else {
               // Per RIP spec, x1/y1 are inclusive lower-right corners
               // Width = x1 - x0 + 1, Height = y1 - y0 + 1
@@ -2085,19 +2112,18 @@ class RIPterm {
             // Store current text window state
             let twindow = { x: px, y: py, width: pw, height: ph, wordWrap, fontnum: this.size,
                             textX: this.x0, textY: this.y0, textW: textW, textH: textH,
-                            fontW: font.w, fontH: font.h };
+                            fontW: font.w, fontH: font.h, enabled: tw_enabled };
+
+            // Emit event for external listeners
+            if (outer.onTextWindow) { outer.onTextWindow(twindow) }
 
             // Set cursor position to upper-left corner, except when window identical to prior
-            if (!(outer.textWindow && (outer.textWindow.x === px) && (outer.textWindow.y === py) &&
+            if (outer.onTextCursor && !(outer.textWindow && (outer.textWindow.x === px) && (outer.textWindow.y === py) &&
               (outer.textWindow.width === pw) && (outer.textWindow.height === ph))) {
-              twindow.cp = { row: 1, col: 1 };
+              outer.onTextCursor({ row: 1, col: 1 });
             }
-            outer.textWindow = twindow;
 
-            // Emit event for external listeners (e.g. BBS client overlays)
-            if (outer.onTextWindow) {
-              outer.onTextWindow(outer.textWindow);
-            }
+            outer.textWindow = twindow;
             outer.log('rip', `TEXT_WINDOW x=${px} y=${py} w=${pw} h=${ph} size=${this.size} wrap=${wordWrap} font=${font.w}x${font.h}`);
           };
         }
@@ -2135,23 +2161,30 @@ class RIPterm {
           outer.clearAllButtons();
           outer.clipboard = {};
 
-          // Reset text window to full screen (80x43 text cells)
+          // Reset text window to full screen (80x43 text cells) and clear it.
           outer.textWindow = { x: 0, y: 0, width: 640, height: 350, wordWrap: false, fontnum: 0,
-                               textX: 0, textY: 0, textW: 80, textH: 43, fontW: 8, fontH: 8 };
-          outer.textWindow.cp = { row: 1, col: 1 };
+                               textX: 0, textY: 0, textW: 80, textH: 43, fontW: 8, fontH: 8, enabled: true };
 
           // Emit event for external listeners
-          if (outer.onTextWindow) {
-            outer.onTextWindow(outer.textWindow);
-          }
+          if (outer.onTextWindow) { outer.onTextWindow(outer.textWindow, { clear: true }) }
+          if (outer.onTextCursor) { outer.onTextCursor({ row: 1, col: 1, enabled: true }) }
+
           // TODO: restore default palette
-          // TODO: clear text window?
         };
         return o;
       },
 
       // RIP_ERASE_WINDOW (e)
       // Clears Text Window to background color
+      'e': (args) => {
+        const outer = this;
+        let o = { func: 'RIP_ERASE_WINDOW' };
+        o.run = async function(ob = {}) {
+          if (ob.hilite) { return }
+          if (outer.onTextWindow) { outer.onTextWindow(outer.textWindow, { clear: true }) }
+        };
+        return o;
+      },
 
       // RIP_ERASE_VIEW (E)
       'E': (args) => {
@@ -2165,8 +2198,40 @@ class RIPterm {
       },
 
       // RIP_GOTOXY (g)
+      // Move text cursor to row & column in Text Window. (x & y are 0-based)
+      'g': (args) => {
+        const outer = this;
+        let o = { func: 'RIP_GOTOXY', ...this.parseRIPargs2(args, '22', ['x','y']) };
+        if (this.noNaNs(o)) {
+          o.run = async function(ob = {}) {
+            if (ob.hilite) { return }
+            if (outer.onTextCursor) { outer.onTextCursor({ row: this.y + 1, col: this.x + 1 }) }
+          };
+        }
+        return o;
+      },
+
       // RIP_HOME (H)
+      // Move cursor to upper-left corner of Text Window.
+      'H': (args) => {
+        const outer = this;
+        let o = { func: 'RIP_HOME' };
+        o.run = async function(ob = {}) {
+          if (ob.hilite) { return }
+          if (outer.onTextCursor) { outer.onTextCursor({ row: 1, col: 1 }) }
+        };
+        return o;
+      },
+
       // RIP_ERASE_EOL (>)
+      // Erase current line from cursor to end of line.
+      /*
+        This command will erase the current text line in the TTY text window
+        from the current cursor location (inclusive) to the end of the line.
+        The erased region is filled with the current graphics background
+        color.  This differs from the ANSI command ESC[K which clears the
+        area with the current ANSI background color.
+      */
 
       // RIP_COLOR (c)
       'c': (args) => {
@@ -2667,19 +2732,38 @@ class RIPterm {
       // RIP_DEFINE (1D)
 
       // RIP_QUERY (1␛)(1<ESC>)
-      '1␛': (args) => {
+      '1\u241B': (args) => {
         const outer = this;
         let o = { func: 'RIP_QUERY', ...this.parseRIPargs2(args, '13*', ['mode','res','text']) };
         if (this.noNaNs(o)) {
           o.run = async function(ob = {}) {
             if (ob.hilite) { return }
+            outer.log('rip', `RIP_QUERY ${this.mode}: ${this.text}`); // DEBUG
             if (this.mode === 0) {
               // process immediately
               // TODO: could change to async to allow for delays before moving forward?
-              outer.log('rip', `RIP_QUERY: ${this.text}`); // DEBUG
               outer.sendHostCommand(this.text);
             }
-            // TODO: mouse click modes 1 & 2 to do still.
+            else if (this.mode <= 2) { // 1 or 2
+              const queue = (this.mode === 1) ? outer.queryGraphQueue : outer.queryTextQueue;
+              // defer until mouse is clicked in graphics (1) or text (2) window
+              if (this.text.indexOf('$OFF$') > 0) {
+                // clear all in queue and ignore the rest
+                queue = [];
+              }
+              else {
+                let text2 = this.text;
+                if (this.mode === 2) {
+                  // replace mouse text vars with extra arg to return text window coords.
+                  text2 = text2.replaceAll("$X$", "$X(TW)$").replaceAll("$Y$", "$Y(TW)$")
+                    .replaceAll("$XY$", "$XY(TW)$").replaceAll("$XYM$", "$XYM(TW)$");
+                }
+                // add to queue only if not already in queue
+                if (queue.indexOf(text2) < 0) {
+                  queue.push(text2);
+                }
+              }
+            }
           };
         }
         return o;
@@ -2756,8 +2840,6 @@ class RIPterm {
     // RIPv2: NAME(x) or NAME(x,y)
     let args = this.parseTextVarArgs(input?.toUpperCase());
     let name = args.shift();
-    //console.log(`name: ${name}, args: ${args}`); // DEBUG
-
     if (this.textVar && this.textVar[name]) {
       return await this.textVar[name](args);
     }
@@ -2769,7 +2851,11 @@ class RIPterm {
   // Returns an array of strings ['VAR', 'arg1', 'arg2', ...]
   // If an arg is missing, puts undefined in its place.
   //
-  parseTextVarArgs(input) {
+  // FIXME: Some vars have digits (e.g. $VT102ON$)
+  // some have form VAR#(a,b...) in RIPv2 (e.g. $TWX0(...)$)
+  //
+  parseTextVarArgs (input) {
+
     // Case 1: NAME(...)
     let parenMatch = input.match(/^([A-Za-z_]+)\((.*)\)$/);
     if (parenMatch) {
@@ -2797,6 +2883,31 @@ class RIPterm {
     }
 
     return [];
+  }
+
+  // Helper function for Text Variables $X$, $Y$, $XY$, and $XYM$.
+  // We define an out-of-spec arg to pass to the text variable (e.g. "$X(TW)$")
+  // in order to check if the mouse pointer is within a Text Window.
+  // If so, return the alternate 2-digit text coordinates,
+  // else return the default 4-digit mouse pixel coordinates.
+  // Returns: array [xs, ys] which are 0-padded strings of length 2 or 4 chars.
+  //
+  mouseTextVars (args) {
+
+    let xs, ys, tx, ty;
+    if ((args[0] === 'TW')
+      && (this.bgi.mouseX >= this.textWindow.x) && (this.bgi.mouseX < this.textWindow.x + this.textWindow.width)
+      && (this.bgi.mouseY >= this.textWindow.y) && (this.bgi.mouseY < this.textWindow.y + this.textWindow.height)) {
+      tx = Math.floor((this.bgi.mouseX - this.textWindow.x) / (this.textWindow.fontW || 8)); // 0-based
+      ty = Math.floor((this.bgi.mouseY - this.textWindow.y) / (this.textWindow.fontH || 8)); // 0-based
+      xs = tx.toString().padStart(2, '0');
+      ys = ty.toString().padStart(2, '0');
+    }
+    else {
+      xs = this.bgi.mouseX.toString().padStart(4, '0');
+      ys = this.bgi.mouseY.toString().padStart(4, '0');
+    }
+    return [xs, ys];
   }
 
   // TODO:
@@ -3106,26 +3217,30 @@ class RIPterm {
       // --- Mouse ---
 
       // Mouse X position (0000-0640)
-      'X': async () => {
-        return this.bgi.mouseX.toString().padStart(4, '0');
+      // When passed 'TW' & inside a text window, returns text cursor coordinates (XX)
+      'X': async (args) => {
+        const [xs, ys] = this.mouseTextVars(args);
+        return xs;
       },
 
       // Mouse Y position (0000-0350)
-      'Y': async () => {
-        return this.bgi.mouseY.toString().padStart(4, '0');
+      // When passed 'TW' & inside a text window, returns text cursor coordinates (YY)
+      'Y': async (args) => {
+        const [xs, ys] = this.mouseTextVars(args);
+        return ys;
       },
 
       // Mouse X:Y position (e.g. "0297:0321")
-      'XY': async () => {
-        const xs = this.bgi.mouseX.toString().padStart(4, '0');
-        const ys = this.bgi.mouseY.toString().padStart(4, '0');
+      // When passed 'TW' & inside a text window, returns text cursor coordinates (XX:YY)
+      'XY': async (args) => {
+        const [xs, ys] = this.mouseTextVars(args);
         return `${xs}:${ys}`;
       },
 
       // Mouse X, Y & button status (e.g. "0123:0297:110")
-      'XYM': async () => {
-        const xs = this.bgi.mouseX.toString().padStart(4, '0');
-        const ys = this.bgi.mouseY.toString().padStart(4, '0');
+      // When passed 'TW' & inside a text window, returns text cursor coordinates (XX:YY:LMR)
+      'XYM': async (args) => {
+        const [xs, ys] = this.mouseTextVars(args);
         const ms = this.bgi.mouseM.toString(2).padStart(3, '0')
         return `${xs}:${ys}:${ms}`;
       },
@@ -3154,7 +3269,7 @@ class RIPterm {
       // Save all screen attributes
       'SAVEALL': async () => {
         this.log('rip', "save all screen attributes");
-        //await this.textVar['STW']([]);
+        await this.textVar['STW']([]);
         //await this.textVar['SCB']([]);
         await this.textVar['SMF']([]);
         await this.textVar['SAVE']([]);
@@ -3164,7 +3279,7 @@ class RIPterm {
       // Restore all screen attributes
       'RESTOREALL': async () => {
         this.log('rip', "restore all screen attributes");
-        //await this.textVar['RTW']([]);
+        await this.textVar['RTW']([]);
         //await this.textVar['RCB']([]);
         await this.textVar['RMF']([]);
         await this.textVar['RESTORE']([]);
@@ -3232,23 +3347,165 @@ class RIPterm {
 
       // --- Text Window ---
 
-      // $ETW$ (erase text window)
-      // $DTW$ (disable text window)
-      // $STW$ (save text window info)
-      // $RTW$ (restore text window info)
-      // $TWIN$ YES (text window status)
-      // $TWFONT$ 0 (active text font 0-5)
-      // $TWH$ 25 (text window height)
-      // $TWW$ 80 (text window width)
-      // $TWX0$ 0 (Text Window Upper Left X Coordinate)
-      // $TWY0$ 40 (Text Window Upper Left Y Coordinate)
-      // $TWX1$ 80 (Text Window Lower Right X Coordinate)
-      // $TWY1$ 43 (Text Window Lower Right Y Coordinate)
-      // $CURX$ 2 (Text Cursor X Coordinate)
-      // $CURY$ 5 (Text Cursor Y Coordinate)
-      // $CON$ (Enable the Text Cursor)
-      // $COFF$ (Disable the Text Cursor)
-      // $CURSOR$ YES (Text Cursor Status)
+      // Erase Text Window
+      'ETW': async () => {
+        this.log('rip', "erase text window");
+        if (this.onTextWindow) { this.onTextWindow(this.textWindow, { clear: true }) }
+        return '';
+      },
+
+      // Disable Text Window
+      'DTW': async () => {
+        this.log('rip', "disable text window");
+        this.textWindow.enabled = false;
+        if (this.onTextWindow) { this.onTextWindow(this.textWindow) }
+        return '';
+      },
+
+      // Activate Text Window [RIPv2]
+      // (only current window, ignores args)
+      'ATW': async () => {
+        this.log('rip', "enable text window");
+        this.textWindow.enabled = true;
+        if (this.onTextWindow) { this.onTextWindow(this.textWindow) }
+        return '';
+      },
+
+      // Save Text Window Info
+      'STW': async () => {
+        this.log('rip', "save text window info");
+        // text window dimensions & system font
+        const tw = this.textWindow;
+        // cursor location & on/off status ($CURX$ $CURY$ $CURSOR$)
+        const cursor = (this.onTextCursor) ? this.onTextCursor({}) : {};
+        // TODO: ANSI attributes (from ANSIterm)
+        // SKIP: vertical scrolling margins (??)
+        this.savedTextInfo.base = structuredClone({ tw, cursor });
+        const o = (this.savedTextInfo.base) ? JSON.stringify(this.savedTextInfo.base).replaceAll('"', '').replaceAll(',', ', ') : 'null';
+        this.log('rip', `${o}`); // DEBUG
+        return '';
+      },
+
+      // Restore Text Window Info
+      'RTW': async () => {
+        if (this.savedTextInfo.base) {
+          this.log('rip', "restore text window info");
+          const o = (this.savedTextInfo.base) ? JSON.stringify(this.savedTextInfo.base).replaceAll('"', '').replaceAll(',', ', ') : 'null';
+          this.log('rip', `${o}`); // DEBUG
+          const { tw, cursor } = this.savedTextInfo.base;
+          // text window dimensions & system font
+          if (tw) { this.textWindow = structuredClone(tw) }
+          if (tw && this.onTextWindow) { this.onTextWindow(tw) }
+          // cursor location & on/off status ($CURX$ $CURY$ $CURSOR$)
+          if (cursor && this.onTextCursor) { this.onTextCursor(cursor) }
+          // TODO: ANSI attributes (from ANSIterm)
+          // SKIP: vertical scrolling margins (??)
+        }
+        else {
+          this.log('rip', "restore text window info (nothing stored)");
+        }
+        return '';
+      },
+
+      // Text Window Status ("YES" or "NO")
+      'TWIN': async () => {
+        return (this.textWindow.enabled) ? "YES" : "NO";
+      },
+
+      // Active Text Font (0-5)
+      // This Text Variable returns which of the five Text Window Fonts is
+      // active, or 0 (zero) if there is no Text Window.
+      //
+      // Take the font size values from RIP_TEXT_WINDOW and add 1:
+      //    0 ... No Text Window          3 ... 80x25 font
+      //    1 ... 80x43 font              4 ... 91x25 MicroANSI font
+      //    2 ... 91x43 MicroANSI font    5 ... 40x25 font
+      //
+      'TWFONT': async () => {
+        if (this.textWindow.enabled && ('fontnum' in this.textWindow)) {
+          return `${this.textWindow.fontnum + 1}`;
+        }
+        return '0';
+      },
+
+      // Text Window Height (0-43)
+      'TWH': async () => {
+        if (this.textWindow.enabled && ('textH' in this.textWindow)) {
+          return `${this.textWindow.textH}`;
+        }
+        return '0';
+      },
+
+      // Text Window Width (0-91)
+      'TWW': async () => {
+        if (this.textWindow.enabled && ('textW' in this.textWindow)) {
+          return `${this.textWindow.textW}`;
+        }
+        return '0';
+      },
+
+      // Text Window Upper Left or Lower Right X Coordinate (0-91)
+      // $TWX0$ $TWX1$
+      'TWX': async (args) => {
+        if (this.textWindow.enabled && ('textX' in this.textWindow) && ('textW' in this.textWindow)) {
+          if (args[0] === '0') { return `${this.textWindow.textX}` }
+          else if (args[0] === '1') { return `${this.textWindow.textX + this.textWindow.textW - 1}` }
+        }
+        return '0';
+      },
+
+      // Text Window Upper Left or Lower Right Y Coordinate (0-43)
+      // $TWY0$ $TWY1$
+      'TWY': async (args) => {
+        if (this.textWindow.enabled && ('textY' in this.textWindow) && ('textH' in this.textWindow)) {
+          if (args[0] === '0') { return `${this.textWindow.textY}` }
+          else if (args[0] === '1') { return `${this.textWindow.textY + this.textWindow.textH - 1}` }
+        }
+        return '0';
+      },
+
+      // Text Cursor X Coordinate (0-91)
+      'CURX': async () => {
+        if (this.textWindow.enabled && this.onTextCursor) {
+          const cursor = this.onTextCursor({});
+          const col = cursor.col || 1; // 1-based
+          return `${col - 1}`; // 0-based
+        }
+        return '0';
+      },
+
+      // Text Cursor Y Coordinate (0-43)
+      'CURY': async () => {
+        if (this.textWindow.enabled && this.onTextCursor) {
+          const cursor = this.onTextCursor({});
+          const row = cursor.row || 1; // 1-based
+          return `${row - 1}`; // 0-based
+        }
+        return '0';
+      },
+
+      // Enable the Text Cursor
+      'CON': async () => {
+        this.log('rip', "enable text cursor");
+        if (this.onTextCursor) { this.onTextCursor({ enabled: true }) }
+        return '';
+      },
+
+      // Disable the Text Cursor
+      'COFF': async () => {
+        this.log('rip', "disable text cursor");
+        if (this.onTextCursor) { this.onTextCursor({ enabled: false }) }
+        return '';
+      },
+
+      // Text Cursor Status ("YES" or "NO")
+      'CURSOR': async () => {
+        if (this.textWindow.enabled && this.onTextCursor) {
+          const cursor = this.onTextCursor({});
+          return (cursor.enabled) ? "YES" : "NO";
+        }
+        return "NO";
+      },
 
       // --- System functions ---
 

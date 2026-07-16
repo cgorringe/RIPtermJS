@@ -252,7 +252,7 @@ class BGI {
   initMouseHandlers () {
 
     // setup mousemove handler to update mouse positions whenever the mouse moves.
-    this.registermousehandler(BGI.WM_MOUSEMOVE, (x, y) => {
+    this.registermousehandler(BGI.WM_MOUSEMOVE, (x, y, m) => {
       this.mouseX = x;
       this.mouseY = y;
     });
@@ -265,12 +265,8 @@ class BGI {
     // update mouse button bitmap whenever mouse buttons are pressed or released.
     // 4=Left, 2=Middle, 1=Right
     this.mouseM = 0;
-    this.registermousehandler(BGI.WM_LBUTTONDOWN, (x, y) => { this.mouseM |= 4 });
-    this.registermousehandler(BGI.WM_LBUTTONUP,   (x, y) => { this.mouseM &= 3 });
-    this.registermousehandler(BGI.WM_MBUTTONDOWN, (x, y) => { this.mouseM |= 2 });
-    this.registermousehandler(BGI.WM_MBUTTONUP,   (x, y) => { this.mouseM &= 5 });
-    this.registermousehandler(BGI.WM_RBUTTONDOWN, (x, y) => { this.mouseM |= 1 });
-    this.registermousehandler(BGI.WM_RBUTTONUP,   (x, y) => { this.mouseM &= 6 });
+    this.registermousehandler(BGI.WM_ABUTTONDOWN, (x, y, m) => { this.mouseM = m });
+    this.registermousehandler(BGI.WM_ABUTTONUP,   (x, y, m) => { this.mouseM = m });
   }
 
   // Loads all the vector font .CHR files in BGI.fontFileList[]
@@ -2862,11 +2858,31 @@ class BGI {
   // provided Event e, returns translated mouse coords [x, y]
   // FIXME: may be off by 1 pixel?
   //
-  _mouseCoords (e) {
+  _mouseCoords (event) {
     // clientWidth or Height could be off if canvas padding not 0?
-    const x = Math.floor(e.offsetX * (e.target.width / e.target.clientWidth)) - 1;
-    const y = Math.floor(e.offsetY * (e.target.height / e.target.clientHeight)) - 1;
+    const x = Math.floor(event.offsetX * (event.target.width / event.target.clientWidth)) - 1;
+    const y = Math.floor(event.offsetY * (event.target.height / event.target.clientHeight)) - 1;
     return [x, y];
+  }
+
+  // Returns a bitfield for mouse buttons currently pressed.
+  // Uses this.mouseM
+  // 4=Left, 2=Middle, 1=Right
+  //
+  _mouseButtons (event) {
+    // pointerdown only fires on first button, while mousedown fires on multiple buttons pressed
+    let butts = this.mouseM;
+    if ((event.type === 'pointerdown') || (event.type === 'mousedown')) {
+      butts |= ((event.button === BGI.WM_LBUTTONDOWN.button) ? 4 : 0) // 100
+            | ((event.button === BGI.WM_MBUTTONDOWN.button) ? 2 : 0)  // 010
+            | ((event.button === BGI.WM_RBUTTONDOWN.button) ? 1 : 0); // 001
+    }
+    else if ((event.type === 'pointerup') || (event.type === 'mouseup')) {
+      butts &= ((event.button === BGI.WM_LBUTTONDOWN.button) ? 3 : 7) // 011
+            & ((event.button === BGI.WM_MBUTTONDOWN.button) ? 5 : 7)  // 101
+            & ((event.button === BGI.WM_RBUTTONDOWN.button) ? 6 : 7); // 110
+    }
+    return butts;
   }
 
   // 2nd arg is a callback function sent x,y mouse position,
@@ -2881,7 +2897,14 @@ class BGI {
       this.ctx.canvas.addEventListener(etype, (e) => {
         if ((e.button === ebutton) || (ebutton === -1)) {
           const [x, y] = this._mouseCoords(e);
-          callback(x, y);
+          const m = this._mouseButtons(e);
+          if (etype === BGI.WM_ABUTTONUP.type) {
+            // delay the callback on mouse up
+            setTimeout(() => { callback(x, y, m) }, 100); // TEST
+          }
+          else {
+            callback(x, y, m);
+          }
         }
       });
     }
@@ -2991,6 +3014,9 @@ class BGI {
   BGI.WM_RBUTTONDBLCLK = { type:'dblclick',  button:2 }; // right mouse button is double clicked
   BGI.WM_RBUTTONDOWN   = { type:'mousedown', button:2 }; // right mouse button is clicked down
   BGI.WM_RBUTTONUP     = { type:'mouseup',   button:2 }; // right mouse button is released up
+  BGI.WM_ABUTTONDBLCLK = { type:'dblclick',  button:-1}; // any mouse button is double clicked
+  BGI.WM_ABUTTONDOWN   = { type:'mousedown', button:-1}; // any mouse button is clicked down
+  BGI.WM_ABUTTONUP     = { type:'mouseup',   button:-1}; // any mouse button is released up
 
 
 ////////////////////////////////////////////////////////////////////////////////
