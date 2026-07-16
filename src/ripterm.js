@@ -3455,6 +3455,7 @@ class RIPterm {
       },
 
       // Text Window Upper Left or Lower Right Y Coordinate (0-43)
+      // $TWY0$ $TWY1$
       'TWY': async (args) => {
         if (this.textWindow.enabled && ('textY' in this.textWindow) && ('textH' in this.textWindow)) {
           if (args[0] === '0') { return `${this.textWindow.textY}` }
