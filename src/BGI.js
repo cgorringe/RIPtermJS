@@ -124,7 +124,7 @@ class BGI {
     // index is font size: 0=8x8, 1=7x8, 2=8x14, 3=7x14, 4=16x14.
     // value is an array of 256 elements for each ASCII char,
     // each element is an array of ints, each being a scanline of height values.
-    // e.g. this.bitfonts[0][65][2] is font size 0, ASCII char 65, 3rd scanline which returns an 8-bit int.
+    // e.g. this.bitfonts[0].data[65][2] is font size 0, ASCII char 65, 3rd scanline which returns an 8-bit int.
     this.bitfonts = [];
     this.stateStack = [];
     this.icons = {}; // key is uppercased file+ext, e.g. 'EXAMPLE.ICN', value is image obj used in putimage().
@@ -1101,7 +1101,9 @@ class BGI {
   // OFF pixels are black (0,0,0), else they are ON pixels.
   // filename = filename without path, including '.png' (e.g. '8x8.png')
   // will use this.fontsPath + '/' + filename for full path.
-  // Returns an array of 256 elements for each ASCII char,
+  //
+  // Returns an object: { filename, xsize, ysize, data }
+  //   data is an array of 256 elements for each ASCII char,
   //   each element is an array of ints, each being a scanline of height values.
   //   e.g. [65][2] is ASCII char 65, 3rd scanline which returns an 8-bit int.
   //
@@ -1162,7 +1164,7 @@ class BGI {
           }
           abitfont.push(bitchar);
         }
-        resolve(abitfont);
+        resolve({ filename, xsize, ysize, data: abitfont });
       }; // end onload
 
       img.onerror = (error) => {
@@ -1183,13 +1185,14 @@ class BGI {
   //
   drawPNGChar (value, fontnum, scale, dir, x0 = this.info.cp.x, y0 = this.info.cp.y) {
 
-    if (value < 0 || value > 255) { return; }
+    if (value < 0 || value > 255) { return }
     if (scale < 1) { scale = 1; }
-    let bitchar = this.bitfonts[fontnum][value]; // FIXME: may be undefined!
-    if (bitchar === undefined) { return; }
-
-    const ysize = bitchar.length;
-    const xsize = 8; // TODO: need to store sizes in lookup table!
+    const font = this.bitfonts[fontnum];
+    if (typeof font !== "object") { return }
+    const bitchar = font.data[value];
+    if (typeof bitchar !== "object") { return }
+    const ysize = font.ysize;
+    const xsize = font.xsize;
 
     // loop thru each scanline
     let scanline, bit, x1, y1;
@@ -1226,10 +1229,10 @@ class BGI {
     }
     // increment current position
     if (dir === BGI.HORIZ_DIR) {
-      this.info.cp.x += (xsize * scale);
+      this.info.cp.x = x0 + (xsize * scale);
     }
     else {
-      this.info.cp.y -= (xsize * scale);
+      this.info.cp.y = y0 - (xsize * scale);
     }
   }
 
