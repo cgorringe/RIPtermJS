@@ -447,12 +447,9 @@
 
   const ansiterm = new ANSIterm({
     bgi: ripterm.bgi,
-    log: (type, msg) => { ripterm.log(type, msg) }
+    log: ripterm.log
   });
-  ripterm.onTextWindow = ansiterm.onTextWindow;
-  ripterm.onTextCursor = ansiterm.onTextCursor;
-  ripterm.onOutputText = ansiterm.onOutputText;
-
+  ripterm.initAnsiTerm(ansiterm);
 
   function openRIP() {
     const select = document.getElementById('rip-files');

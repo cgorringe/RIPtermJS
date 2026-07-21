@@ -23,7 +23,7 @@ class ANSIterm {
 
     // log callback function
     if (args && ('log' in args)) {
-      this.logFunc = args.log;
+      this.onLog = args.log;
     }
 
     if (args && ('bgi' in args)) {
@@ -50,16 +50,12 @@ class ANSIterm {
     this.textWindow = { x: 0, y: 0, width: 0, height: 0, wordWrap: false, fontnum: 0, 
       textX: 0, textY: 0, textW: 0, textH: 0, fontW: 8, fontH: 8, enabled: false };
 
-    // bind to this object (TEST)
-    this.onTextCursor = this.onTextCursor.bind(this);
-    this.onTextWindow = this.onTextWindow.bind(this);
-    this.onOutputText = this.onOutputText.bind(this);
   }
 
   // sends msg to provided log function, else send to console if none provided.
   log (type, msg) {
-    if (typeof this.logFunc === "function") {
-      this.logFunc(type, msg);
+    if (typeof this.onLog === "function") {
+      this.onLog(type, msg);
     }
     else {
       if (type === 'err') {
@@ -72,9 +68,13 @@ class ANSIterm {
   }
 
   ////////////////////////////////////////////////////////////////////////////////
-  // Callback Methods
 
-  onTextCursor (cursor) {
+  // Set and Retrive the text cursor and update the visible cursor.
+  // cursor is an object with zero or more keys to set:
+  // { row, col, enabled } where row & col are 1-based.
+  // An object with all keys are returned with the currently set values.
+  //
+  textCursor (cursor) {
 
     if (typeof cursor === "object") {
       if ('row' in cursor) { this.cp.row = cursor.row }
@@ -87,11 +87,11 @@ class ANSIterm {
     return this.cp;
   }
 
-  onTextWindow (textWindow, options) {
+  setTextWindow (tw, options) {
 
     // assign or overwrite with passed-in textWindow
-    if (typeof textWindow === "object") {
-      Object.entries(textWindow).forEach( ([k, v]) => { this.textWindow[k] = v } );
+    if (typeof tw === "object") {
+      Object.entries(tw).forEach( ([k, v]) => { this.textWindow[k] = v } );
     }
 
     if (typeof options === "object") {
@@ -103,12 +103,10 @@ class ANSIterm {
 
   }
 
-  // onOutputBytes(bytes)
-
   // DRAFT FUNCTION in progress
-  onOutputText (text) {
+  outputText (text) {
 
-    //this.log('ans', "onOutputText()"); // DEBUG
+    //this.log('ans', "outputText()"); // DEBUG
 
     if (typeof text !== "string") { return }
     const tw = this.textWindow;
@@ -127,8 +125,8 @@ class ANSIterm {
     text.split('').forEach(c => {
 
       const cvalue = c.charCodeAt(0) & 0xFF; // to strip out 2nd byte
-      const x = tw.x + (this.cp.col * tw.fontW);
-      const y = tw.y + (this.cp.row * tw.fontH);
+      const x = tw.x + ((this.cp.col - 1) * tw.fontW);
+      const y = tw.y + ((this.cp.row - 1) * tw.fontH);
 
       // handle control chars and printable chars
       if (cvalue === 13) { // CR

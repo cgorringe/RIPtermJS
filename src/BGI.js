@@ -132,7 +132,7 @@ class BGI {
 
     // log callback function
     if ('log' in args) {
-      this.logFunc = args.log;
+      this.onLog = args.log;
     }
 
     // need to pass this in to find font files
@@ -335,8 +335,8 @@ class BGI {
 
   // sends msg to provided log function, else send to console if none provided.
   log (type, msg) {
-    if (typeof this.logFunc === 'function') {
-      this.logFunc(type, msg);
+    if (typeof this.onLog === 'function') {
+      this.onLog(type, msg);
     }
     else {
       if (type === 'err') {

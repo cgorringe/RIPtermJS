@@ -54,16 +54,19 @@ class RIPterm {
 
   // Character cell pixel dimensions for each size value (per RIP spec)
   static get FONT_DIMS () { return [
-    { w: 8,  h: 8  },  // 0: 8×8
-    { w: 7,  h: 8  },  // 1: 7×8
-    { w: 8,  h: 14 },  // 2: 8×14
-    { w: 7,  h: 14 },  // 3: 7×14
-    { w: 16, h: 14 },  // 4: 16×14
+    { w: 8,  h: 8  },  // 0: 8x8
+    { w: 7,  h: 8  },  // 1: 7x8
+    { w: 8,  h: 14 },  // 2: 8x14
+    { w: 7,  h: 14 },  // 3: 7x14
+    { w: 16, h: 14 },  // 4: 16x14
   ]; }
 
   ////////////////////////////////////////////////////////////////////////////////
 
   constructor (opts) {
+
+    // do first
+    this.log = this.log.bind(this);
 
     if (opts && ('canvasId' in opts)) {
 
@@ -199,6 +202,14 @@ class RIPterm {
   // call this after new RIPterm() to load all the fonts.
   async initFonts () {
     await this.bgi.initFonts();
+  }
+
+  // call this after new ANSIterm() to use it.
+  initAnsiTerm (term) {
+    // term.onLog = (type, msg) => { this.log(type, msg) } // REMOVE
+    this.onTextWindow = (tw, options) => { term.setTextWindow(tw, options) }
+    this.onTextCursor = (cursor) => { return term.textCursor(cursor) }
+    this.onOutputText = (text) => { term.outputText(text) }
   }
 
   // initialize audio.
@@ -2061,6 +2072,14 @@ class RIPterm {
 
             outer.textWindow = twindow;
             outer.log('rip', `TEXT_WINDOW x=${px} y=${py} w=${pw} h=${ph} size=${this.size} wrap=${wordWrap} font=${font.w}x${font.h}`);
+
+            // DEBUG
+            const ax0 = px-1, ay0 = py-1, ax1 = px+pw, ay1 = py+ph;
+            const bx0 = Number(ax0).toString(36).toUpperCase();
+            const by0 = Number(ay0).toString(36).toUpperCase();
+            const bx1 = Number(ax1).toString(36).toUpperCase();
+            const by1 = Number(ay1).toString(36).toUpperCase();
+            outer.log('rip', `outline: x0=${ax0}(${bx0}) y0=${ay0}(${by0}) x1=${ax1}(${bx1}) y1=${ay1}(${by1})`);
           };
         }
         return o;
