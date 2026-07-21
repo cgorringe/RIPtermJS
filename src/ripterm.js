@@ -791,7 +791,11 @@ class RIPterm {
         ripArgsBuf.length = 0;
         ansiBuf.push(byte);
         if ((byte === 33) || (byte === 1) || (byte === 2)) { state = ST_BANG; } // '!', ^A, ^B
-        else if ((byte === 13) || (byte === 10)) { } // CR or LF
+        else if (byte === 13) { } // CR
+        else if (byte === 10) {  // LF
+          // split calls on newline
+          await sendToANSI(ansiBuf);
+        }
         else { state = ST_ANSI; }
         break;
 
@@ -965,7 +969,7 @@ class RIPterm {
 
     const text = this.udTextDecoder.decode(bytes);
     const otext = this.controlCharsToSymbols(text);
-    this.log('ans', `${otext}`); // DEBUG
+    this.log('ans', `<< ${otext}`); // DEBUG
 
     if (this.onOutputBytes) { this.onOutputBytes(bytes) }
     if (this.onOutputText) { this.onOutputText(text) }
