@@ -163,11 +163,17 @@ class ANSIterm {
     if (typeof tw === "object") {
       Object.entries(tw).forEach( ([k, v]) => { this.textWindow[k] = v } );
     }
+
     // perform options
     if (typeof options === "object") {
-      if (options.clear == true) {
-        // TODO: clear text window
-        this.log('ans', "erase text window (TODO)"); // DEBUG
+      if (options.clear) {
+        // clear text window to current graphics background color
+        this.log('ans', "erase text window"); // DEBUG
+        const x1 = tw.x, y1 = tw.y;
+        const x2 = tw.x + tw.width - 1;
+        const y2 = tw.y + tw.height - 1;
+        this.bgi._bar(x1, y1, x2, y2, this.bgi.info.bgcolor, BGI.COPY_PUT, BGI.SOLID_FILL);
+        this.bgi.refresh();
       }
     }
   }

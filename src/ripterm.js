@@ -2118,6 +2118,7 @@ class RIPterm {
         o.run = async function(ob = {}) {
           if (ob.hilite) { return }
           // don't reset colors & styles!
+          outer.bgi._resetViewport();
           outer.bgi.cleardevice();
           outer.clearAllButtons();
           outer.clipboard = {};
@@ -2128,7 +2129,6 @@ class RIPterm {
 
           // Emit event for external listeners
           if (outer.onTextWindow) { outer.onTextWindow(outer.textWindow, { clear: true }) }
-          //if (outer.onTextCursor) { outer.onTextCursor({ row: 1, col: 1, enabled: true }) }
           if (outer.onTextCursor) { outer.onTextCursor({ row: 1, col: 1 }) }
 
           // TODO: restore default palette
@@ -2137,13 +2137,17 @@ class RIPterm {
       },
 
       // RIP_ERASE_WINDOW (e)
-      // Clears Text Window to background color
+      // Clears Text Window to background color and cursor to upper-left corner.
       'e': (args) => {
         const outer = this;
         let o = { func: 'RIP_ERASE_WINDOW' };
         o.run = async function(ob = {}) {
           if (ob.hilite) { return }
-          if (outer.onTextWindow) { outer.onTextWindow(outer.textWindow, { clear: true }) }
+          if (outer.textWindow.enabled) {
+            // clear only if text window is active
+            if (outer.onTextWindow) { outer.onTextWindow(outer.textWindow, { clear: true }) }
+            if (outer.onTextCursor) { outer.onTextCursor({ row: 1, col: 1 }) }
+          }
         };
         return o;
       },
@@ -3314,7 +3318,11 @@ class RIPterm {
       // Erase Text Window
       'ETW': async () => {
         this.log('rip', "erase text window");
-        if (this.onTextWindow) { this.onTextWindow(this.textWindow, { clear: true }) }
+        if (this.textWindow.enabled) {
+          // clear only if text window is active
+          if (this.onTextWindow) { this.onTextWindow(this.textWindow, { clear: true }) }
+          if (this.onTextCursor) { this.onTextCursor({ row: 1, col: 1 }) }
+        }
         return '';
       },
 
