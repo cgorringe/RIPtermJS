@@ -3317,7 +3317,6 @@ class RIPterm {
 
       // Erase Text Window
       'ETW': async () => {
-        this.log('rip', "erase text window");
         if (this.textWindow.enabled) {
           // clear only if text window is active
           if (this.onTextWindow) { this.onTextWindow(this.textWindow, { clear: true }) }

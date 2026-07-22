@@ -141,8 +141,8 @@ class ANSIterm {
     if (tw.enabled) {
       const x1 = tw.x + ((cursor.col - 1) * tw.fontW);
       const y1 = tw.y + ((cursor.row - 1) * tw.fontH);
-      const x2 = x1 + tw.fontW;
-      const y2 = y1 + tw.fontH;
+      const x2 = x1 + tw.fontW - 1;
+      const y2 = y1 + tw.fontH - 1;
       this.bgi._bar(x1, y1, x2, y2, this.cursorColor, BGI.XOR_PUT, BGI.SOLID_FILL);
     }
   }
@@ -227,19 +227,41 @@ class ANSIterm {
       }
 
       // word wrap
-      if (tw.wordWrap && (this.cp.col >= tw.textW)) {
+      if (tw.wordWrap && (this.cp.col > tw.textW)) {
         this.cp.col = 1;
         this.cp.row += 1;
       }
 
       // scroll up
-      if (this.cp.row >= tw.textH) {
-        // TODO
+      if (this.cp.row > tw.textH) {
+        this.scrollUp(tw);
+        this.cp.row = tw.textH;
       }
 
     });
 
     this.bgi.setcolor(tempColor); // restore fgColor
+    this.bgi.refresh();
+  }
+
+  // Scrolls up text window by 1 text line & clears last line using graphics bgcolor.
+  // (see RIP_COPY_REGION in ripterm.)
+  // TODO: should rewrite function in BGI to make more efficient.
+  //
+  scrollUp (tw) {
+
+    const x1 = tw.x;
+    const y1 = tw.y + tw.fontH;
+    const x2 = tw.x + tw.width - 1;
+    const y2 = tw.y + tw.height - 1;
+
+    // copy and move region
+    // TODO: currently uses viewport, which should be ignored.
+    const img = this.bgi._getimage(x1, y1, x2, y2);
+    this.bgi._putimage(x1, tw.y, img, BGI.COPY_PUT, {});
+
+    // clear last line
+    this.bgi._bar(x1, y2 - tw.fontH, x2, y2, this.bgi.info.bgcolor, BGI.COPY_PUT, BGI.SOLID_FILL);
     this.bgi.refresh();
   }
 
