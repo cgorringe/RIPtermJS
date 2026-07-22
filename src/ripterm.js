@@ -343,6 +343,7 @@ class RIPterm {
 
   reset () {
     this.log('trm', 'reset()');
+    if (this.onTextCursor) { this.onTextCursor({ enabled: false }) }
     this.isRunning = false;
     this.ripStopped = true;
     this.bgi.graphdefaults();
@@ -889,6 +890,7 @@ class RIPterm {
         const { value, done } = await reader.read();
         if (done) {
           this.log('trm', 'Stream complete');
+          // TODO: should this.isRunning be set to false? (need to check)
           return true;
         }
         else if (value) {
@@ -2126,7 +2128,8 @@ class RIPterm {
 
           // Emit event for external listeners
           if (outer.onTextWindow) { outer.onTextWindow(outer.textWindow, { clear: true }) }
-          if (outer.onTextCursor) { outer.onTextCursor({ row: 1, col: 1, enabled: true }) }
+          //if (outer.onTextCursor) { outer.onTextCursor({ row: 1, col: 1, enabled: true }) }
+          if (outer.onTextCursor) { outer.onTextCursor({ row: 1, col: 1 }) }
 
           // TODO: restore default palette
         };
@@ -2763,6 +2766,8 @@ class RIPterm {
         o.run = async function(ob = {}) {
           if (ob.hilite) { return }
           outer.activateMouseEvents(true);
+          // TODO: not sure if this is the only or best place to enable the cursor
+          if (outer.onTextCursor) { outer.onTextCursor({ enabled: true }) }
         };
         return o;
       }
@@ -3315,7 +3320,7 @@ class RIPterm {
 
       // Disable Text Window
       'DTW': async () => {
-        this.log('rip', "disable text window");
+        this.log('rip', "deactivate text window");
         this.textWindow.enabled = false;
         if (this.onTextWindow) { this.onTextWindow(this.textWindow) }
         return '';
@@ -3324,7 +3329,7 @@ class RIPterm {
       // Activate Text Window [RIPv2]
       // (only current window, ignores args)
       'ATW': async () => {
-        this.log('rip', "enable text window");
+        this.log('rip', "activate text window");
         this.textWindow.enabled = true;
         if (this.onTextWindow) { this.onTextWindow(this.textWindow) }
         return '';
@@ -3445,14 +3450,14 @@ class RIPterm {
 
       // Enable the Text Cursor
       'CON': async () => {
-        this.log('rip', "enable text cursor");
+        this.log('rip', "cursor on"); // DEBUG
         if (this.onTextCursor) { this.onTextCursor({ enabled: true }) }
         return '';
       },
 
       // Disable the Text Cursor
       'COFF': async () => {
-        this.log('rip', "disable text cursor");
+        this.log('rip', "cursor off"); // DEBUG
         if (this.onTextCursor) { this.onTextCursor({ enabled: false }) }
         return '';
       },
