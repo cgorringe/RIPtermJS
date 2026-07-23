@@ -103,6 +103,7 @@ class RIPterm {
       this.ripStream;       // v4 stream (throttled)
       this.inStream;        // v4 stream
       this.ripStopped = true;
+      this.ripEnabled = true; // set to false to send all text to ANSI term
       this.outCommands = '';
       this.startTime = 0;
       this.cmdi = 0;        // command counter
@@ -740,6 +741,7 @@ class RIPterm {
     // states
     const ST_START=1, ST_ANSI=2, ST_RIPCMD=3, ST_RIPARG=4;
     const ST_BANG=5, ST_BSLASH=6, ST_CR=7, ST_RIPBANG=8;
+    const ST_ANSI_ESC=9, ST_ANSI_CSI=10, ST_ANSI_RIP1=11, ST_ANSI_RIP2=12, ST_ANSI_MUSIC=13;
 
     // global vars
     const outer = this;
@@ -792,7 +794,8 @@ class RIPterm {
         ripCmdBuf.length = 0;
         ripArgsBuf.length = 0;
         ansiBuf.push(byte);
-        if ((byte === 33) || (byte === 1) || (byte === 2)) { state = ST_BANG; } // '!', ^A, ^B
+        if (((byte === 33) || (byte === 1) || (byte === 2)) && outer.ripEnabled) { state = ST_BANG; } // '!', ^A, ^B
+        else if (byte === 27) { state = ST_ANSI_ESC; } // ESC
         else if (byte === 13) { } // CR
         else if (byte === 10) {  // LF
           // split calls on newline
@@ -802,15 +805,11 @@ class RIPterm {
         break;
 
       case ST_CR:
-        if (byte === 10) { } // LF
-        else if ((byte === 33) || (byte === 1) || (byte === 2)) { // '!', ^A, ^B
-          ansiBuf.push(byte);
-          state = ST_BANG;
-        }
-        else {
-          ansiBuf.push(byte);
-          state = ST_ANSI;
-        }
+        if (byte === 10) { break; } // LF
+        else if (((byte === 33) || (byte === 1) || (byte === 2)) && outer.ripEnabled) { state = ST_BANG; } // '!', ^A, ^B
+        else if (byte === 27) { state = ST_ANSI_ESC; } // ESC
+        else { state = ST_ANSI; }
+        ansiBuf.push(byte);
         break;
 
       case ST_BANG:
@@ -840,15 +839,91 @@ class RIPterm {
 
       case ST_ANSI:
         if ((byte === 13) || (byte === 10)) { state = ST_START; } // CR or LF
-        else if ((byte === 1) || (byte === 2)) { state = ST_BANG; } // ^A or ^B
+        else if (((byte === 1) || (byte === 2)) && outer.ripEnabled) { state = ST_BANG; } // ^A or ^B
         else if (byte === 27) {
           // send buffer at start of each ESC sequence
           await sendToANSI(ansiBuf);
+          state = ST_ANSI_ESC;
         }
         else if (ansiBuf.length > outer.opts.ansiBuffer) {
           // send when buffer gets too long
           await sendToANSI(ansiBuf);
-          // TODO: FIXME: 20 is too small for 11FV.RIP due to long escape sequences!
+        }
+        ansiBuf.push(byte);
+        break;
+
+      case ST_ANSI_ESC:
+        if ((byte === 13) || (byte === 10)) { state = ST_START; } // CR or LF
+        else if (byte === 91) { state = ST_ANSI_CSI; } // ESC-[
+        else { state = ST_ANSI; }
+        ansiBuf.push(byte);
+        break;
+
+      case ST_ANSI_CSI:
+        if ((byte === 13) || (byte === 10)) { state = ST_START; } // CR or LF
+        else if (byte === 33) { // !
+          // query RIPscrip version "ESC[!" or "ESC[0!"
+          const ripver = await outer.doTextVar('RIPVER');
+          outer.sendHostCommand(ripver);
+          //const buf = ripver.split('').map((c) => c.charCodeAt(0) & 0xFF); // REMOVE
+          //await sendToANSI(buf); // REMOVE
+          ansiBuf.length = 0;
+          state = ST_ANSI;
+          break;
+        }
+        else if (byte === 48) { state = ST_ANSI_CSI;   } // 0
+        else if (byte === 49) { state = ST_ANSI_RIP1;  } // 1
+        else if (byte === 50) { state = ST_ANSI_RIP2;  } // 2
+        else if (byte === 77) { state = ST_ANSI_MUSIC; } // M
+        else { state = ST_ANSI; }
+        ansiBuf.push(byte);
+        break;
+
+      case ST_ANSI_RIP1:
+        if ((byte === 13) || (byte === 10)) { // CR or LF
+          ansiBuf.push(byte);
+          state = ST_START;
+        }
+        else if (byte === 33) { // !
+          // disable RIPscrip "ESC[1!"
+          outer.log('rip', "RIPscrip disabled");
+          outer.ripEnabled = false;
+          ansiBuf.length = 0;
+          state = ST_ANSI;
+        }
+        else {
+          ansiBuf.push(byte);
+          state = ST_ANSI;
+        }
+        break;
+
+      case ST_ANSI_RIP2:
+        if ((byte === 13) || (byte === 10)) { // CR or LF
+          ansiBuf.push(byte);
+          state = ST_START;
+        }
+        else if (byte === 33) { // !
+          // enable RIPscrip "ESC[2!"
+          outer.log('rip', "RIPscrip enabled");
+          outer.ripEnabled = true;
+          ansiBuf.length = 0;
+          state = ST_ANSI;
+        }
+        else {
+          ansiBuf.push(byte);
+          state = ST_ANSI;
+        }
+        break;
+
+      case ST_ANSI_MUSIC:
+        // Reason for this state is to avoid the buffer length check in ST_ANSI,
+        // since music strings can be quite long.
+        if ((byte === 13) || (byte === 10)) { state = ST_START; } // CR or LF
+        else if (byte === 0x0E) { state = ST_ANSI;  } // shift out (end of music string)
+        else if (byte === 27) { // ESC
+          // shouldn't get here, but just in case
+          await sendToANSI(ansiBuf);
+          state = ST_ANSI_ESC;
         }
         ansiBuf.push(byte);
         break;
