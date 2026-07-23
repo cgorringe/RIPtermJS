@@ -75,6 +75,7 @@ class RIPterm {
         'modemSpeed' : 0,        // simulate modem speed in bps (0 = no delay)
         'timeInterval' : 1,      // time between running commands (in miliseconds)
         'refreshInterval' : 100, // time between display refreshes (in miliseconds)
+        'ansiBuffer' : 20,       // number of bytes to send to the ANSI terminal at a time.
         'pauseOn' : [],          // debug: pauses on RIP command, e.g. ['F'] will pause on Flood Fill.
         'diffFGcolor' : '#C86',  // forground color for diff pixels that don't match.
         'diffBGcolor' : '#222',  // background color for diff pixels that match.
@@ -838,10 +839,18 @@ class RIPterm {
         break;
 
       case ST_ANSI:
-        ansiBuf.push(byte);
         if ((byte === 13) || (byte === 10)) { state = ST_START; } // CR or LF
         else if ((byte === 1) || (byte === 2)) { state = ST_BANG; } // ^A or ^B
-        else { }
+        else if (byte === 27) {
+          // send buffer at start of each ESC sequence
+          await sendToANSI(ansiBuf);
+        }
+        else if (ansiBuf.length > outer.opts.ansiBuffer) {
+          // send when buffer gets too long
+          await sendToANSI(ansiBuf);
+          // TODO: FIXME: 20 is too small for 11FV.RIP due to long escape sequences!
+        }
+        ansiBuf.push(byte);
         break;
 
       case ST_RIPCMD:
@@ -2085,7 +2094,7 @@ class RIPterm {
             const by0 = Number(ay0).toString(36).toUpperCase();
             const bx1 = Number(ax1).toString(36).toUpperCase();
             const by1 = Number(ay1).toString(36).toUpperCase();
-            outer.log('rip', `outline: x0=${ax0}(${bx0}) y0=${ay0}(${by0}) x1=${ax1}(${bx1}) y1=${ay1}(${by1})`);
+            outer.log('rip', `TEXT_WINDOW outline: x0=${ax0}(${bx0}) y0=${ay0}(${by0}) x1=${ax1}(${bx1}) y1=${ay1}(${by1})`);
           };
         }
         return o;
@@ -2145,6 +2154,7 @@ class RIPterm {
           if (ob.hilite) { return }
           if (outer.textWindow.enabled) {
             // clear only if text window is active
+            //outer.log('rip', "erase text window");
             if (outer.onTextWindow) { outer.onTextWindow(outer.textWindow, { clear: true }) }
             if (outer.onTextCursor) { outer.onTextCursor({ row: 1, col: 1 }) }
           }
@@ -3317,6 +3327,7 @@ class RIPterm {
 
       // Erase Text Window
       'ETW': async () => {
+        //this.log('rip', "erase text window");
         if (this.textWindow.enabled) {
           // clear only if text window is active
           if (this.onTextWindow) { this.onTextWindow(this.textWindow, { clear: true }) }

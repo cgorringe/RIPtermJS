@@ -28,7 +28,6 @@ class ANSIterm {
 
     if (args && ('bgi' in args)) {
       this.bgi = args.bgi;
-      // this.bgi.refresh(); // TO MOVE
     }
     else {
       this.log('err', "ANSIterm() missing bgi!");
@@ -109,7 +108,7 @@ class ANSIterm {
     if (this.cursorOn) {
       this.drawCursorXOR(cursor);
       this.cursorOn = false;
-      this.bgi.refresh();
+      this.bgi.update();
     }
     // TODO: Is there a race condition between cleared cursor and call to toggleCursor()?
     // I haven't seen any cases occurring if this were a bug.
@@ -122,7 +121,7 @@ class ANSIterm {
     if (this.cp.enabled || this.cursorOn) {
       this.drawCursorXOR(this.cp);
       this.cursorOn = !this.cursorOn;
-      this.bgi.refresh();
+      this.bgi.update();
     }
     // stop blinking
     if (this.blinkTimer) {
@@ -173,7 +172,7 @@ class ANSIterm {
         const x2 = tw.x + tw.width - 1;
         const y2 = tw.y + tw.height - 1;
         this.bgi._bar(x1, y1, x2, y2, this.bgi.info.bgcolor, BGI.COPY_PUT, BGI.SOLID_FILL);
-        this.bgi.refresh();
+        this.bgi.update();
       }
     }
   }
@@ -230,18 +229,20 @@ class ANSIterm {
       if (tw.wordWrap && (this.cp.col > tw.textW)) {
         this.cp.col = 1;
         this.cp.row += 1;
+        this.bgi.update();
       }
 
       // scroll up
       if (this.cp.row > tw.textH) {
-        this.scrollUp(tw);
         this.cp.row = tw.textH;
+        this.scrollUp(tw);
+        this.bgi.update();
       }
 
     });
 
     this.bgi.setcolor(tempColor); // restore fgColor
-    this.bgi.refresh();
+    this.bgi.update();
   }
 
   // Scrolls up text window by 1 text line & clears last line using graphics bgcolor.
@@ -262,7 +263,6 @@ class ANSIterm {
 
     // clear last line
     this.bgi._bar(x1, y2 - tw.fontH, x2, y2, this.bgi.info.bgcolor, BGI.COPY_PUT, BGI.SOLID_FILL);
-    this.bgi.refresh();
   }
 
 }
