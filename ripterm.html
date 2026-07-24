@@ -423,6 +423,7 @@
 <script src="src/BGIpotrace.js"></script>
 <script src="src/BGIsvg.js"></script>
 <script src="src/ripterm.js"></script>
+<script src="src/ansiterm.js"></script>
 <script>
   // testBGI({ canvasId: 'rip-canvas' }); // TEST
   let playShown = true;
@@ -443,6 +444,12 @@
     logQuiet: true
   });
   ripterm.initFonts();
+
+  const ansiterm = new ANSIterm({
+    bgi: ripterm.bgi,
+    log: ripterm.log
+  });
+  ripterm.initAnsiTerm(ansiterm);
 
   function openRIP() {
     const select = document.getElementById('rip-files');

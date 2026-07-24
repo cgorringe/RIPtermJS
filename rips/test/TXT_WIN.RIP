@@ -1,8 +1,23 @@
 !|*
 !|Y00000100
 !|10000$RIPVER$
-!|c03|R0G5CHC94
-!|w020O251410
+!|12000txt $XYM$$BLIP$
+!|c03
+!|! font 0: 8x8
+!|!R0F5BHC94
+!|!w020O251410
+!|! font 1: 7x8
+!|!R0D5BHB94
+!|!w020O2G1411
+!|! font 2: 8x14
+!|R0F5FHC9C
+!|w020E250N12
+!|! font 3: 7x14
+!|!R0D5FHB9C
+!|!w020E2G0N13
+!|! font 4: 16x14
+!|!R0F5FHC9C
+!|!w010E120N14
 !|!
 !|1B00000201EQ030E000F080500000B07000000
 !|1U0A0A2T0T0000<>ETW<>$ETW$
@@ -31,17 +46,38 @@
 !|1U9A3ABT3T0000<>CON<>$CON$
 !|1U9A4ABT4T0000<>COFF<>$COFF$
 !|!
+[1!
 !|1UCA0AET0T0000<><>
 !|1UCA1AET1T0000<><>
 !|1UCA2AET2T0000<><>
 !|1UCA3AET3T0000<><>
 !|1UCA4AET4T0000<><>
 !|!
+[2!
 !|1UFA0AHK0T0000<><>
 !|1UFA1AHK1T0000<><>
 !|1UFA2AHK2T0000<><>
 !|1UFA3AHK3T0000<><>
 !|1UFA4AHK4T0000<><>
 !|!
-Text to display in the text window.
 !|#|#|#
+Text to display in the text window.
+This is the 2nd line.
+
+Line #4
+Line #5
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+
+Recusandae hic reiciendis facilis facilis. Libero nisi autem et vel est. Vel minus quia voluptas quisquam nostrum quaerat quaerat.
+
+Suscipit aut veniam fugit itaque qui. Vel non culpa molestias provident et occaecati amet molestiae. Suscipit dolorum sed non.
+
+In sequi veritatis qui minima. Perspiciatis iste et consequatur ullam. Repudiandae aut velit deleniti consequatur voluptatem. Ea error est veniam exercitationem consequatur tempore. Corrupti earum et suscipit.
+
+Omnis rerum temporibus laudantium corrupti porro rerum ducimus architecto. Ab cum recusandae voluptatem molestiae pariatur nam rem facere. Itaque et iusto quam id sit tempora commodi vero.
+
+Rerum mollitia ullam harum cumque. Voluptas est et et autem. Aut velit repellendus minus repudiandae dolor libero. Quia eum incidunt doloribus est qui ad repellat qui. Illo dignissimos repellat dolore pariatur error officiis atque.
+
+RIPVER #1: [!
+RIPVER #2: [0!

@@ -54,16 +54,19 @@ class RIPterm {
 
   // Character cell pixel dimensions for each size value (per RIP spec)
   static get FONT_DIMS () { return [
-    { w: 8,  h: 8  },  // 0: 8×8
-    { w: 7,  h: 8  },  // 1: 7×8
-    { w: 8,  h: 14 },  // 2: 8×14
-    { w: 7,  h: 14 },  // 3: 7×14
-    { w: 16, h: 14 },  // 4: 16×14
+    { w: 8,  h: 8  },  // 0: 8x8
+    { w: 7,  h: 8  },  // 1: 7x8
+    { w: 8,  h: 14 },  // 2: 8x14
+    { w: 7,  h: 14 },  // 3: 7x14
+    { w: 16, h: 14 },  // 4: 16x14
   ]; }
 
   ////////////////////////////////////////////////////////////////////////////////
 
   constructor (opts) {
+
+    // do first
+    this.log = this.log.bind(this);
 
     if (opts && ('canvasId' in opts)) {
 
@@ -72,6 +75,7 @@ class RIPterm {
         'modemSpeed' : 0,        // simulate modem speed in bps (0 = no delay)
         'timeInterval' : 1,      // time between running commands (in miliseconds)
         'refreshInterval' : 100, // time between display refreshes (in miliseconds)
+        'ansiBuffer' : 20,       // number of bytes to send to the ANSI terminal at a time.
         'pauseOn' : [],          // debug: pauses on RIP command, e.g. ['F'] will pause on Flood Fill.
         'diffFGcolor' : '#C86',  // forground color for diff pixels that don't match.
         'diffBGcolor' : '#222',  // background color for diff pixels that match.
@@ -99,6 +103,7 @@ class RIPterm {
       this.ripStream;       // v4 stream (throttled)
       this.inStream;        // v4 stream
       this.ripStopped = true;
+      this.ripEnabled = true; // set to false to send all text to ANSI term
       this.outCommands = '';
       this.startTime = 0;
       this.cmdi = 0;        // command counter
@@ -199,6 +204,14 @@ class RIPterm {
   // call this after new RIPterm() to load all the fonts.
   async initFonts () {
     await this.bgi.initFonts();
+  }
+
+  // call this after new ANSIterm() to use it.
+  initAnsiTerm (term) {
+    // term.onLog = (type, msg) => { this.log(type, msg) } // REMOVE
+    this.onTextWindow = (tw, options) => { term.setTextWindow(tw, options) }
+    this.onTextCursor = (cursor) => { return term.textCursor(cursor) }
+    this.onOutputText = (text) => { term.outputText(text) }
   }
 
   // initialize audio.
@@ -332,6 +345,7 @@ class RIPterm {
 
   reset () {
     this.log('trm', 'reset()');
+    if (this.onTextCursor) { this.onTextCursor({ enabled: false }) }
     this.isRunning = false;
     this.ripStopped = true;
     this.bgi.graphdefaults();
@@ -727,6 +741,7 @@ class RIPterm {
     // states
     const ST_START=1, ST_ANSI=2, ST_RIPCMD=3, ST_RIPARG=4;
     const ST_BANG=5, ST_BSLASH=6, ST_CR=7, ST_RIPBANG=8;
+    const ST_ANSI_ESC=9, ST_ANSI_CSI=10, ST_ANSI_RIP1=11, ST_ANSI_RIP2=12, ST_ANSI_MUSIC=13;
 
     // global vars
     const outer = this;
@@ -779,21 +794,22 @@ class RIPterm {
         ripCmdBuf.length = 0;
         ripArgsBuf.length = 0;
         ansiBuf.push(byte);
-        if ((byte === 33) || (byte === 1) || (byte === 2)) { state = ST_BANG; } // '!', ^A, ^B
-        else if ((byte === 13) || (byte === 10)) { } // CR or LF
+        if (((byte === 33) || (byte === 1) || (byte === 2)) && outer.ripEnabled) { state = ST_BANG; } // '!', ^A, ^B
+        else if (byte === 27) { state = ST_ANSI_ESC; } // ESC
+        else if (byte === 13) { } // CR
+        else if (byte === 10) {  // LF
+          // split calls on newline
+          await sendToANSI(ansiBuf);
+        }
         else { state = ST_ANSI; }
         break;
 
       case ST_CR:
-        if (byte === 10) { } // LF
-        else if ((byte === 33) || (byte === 1) || (byte === 2)) { // '!', ^A, ^B
-          ansiBuf.push(byte);
-          state = ST_BANG;
-        }
-        else {
-          ansiBuf.push(byte);
-          state = ST_ANSI;
-        }
+        if (byte === 10) { break; } // LF
+        else if (((byte === 33) || (byte === 1) || (byte === 2)) && outer.ripEnabled) { state = ST_BANG; } // '!', ^A, ^B
+        else if (byte === 27) { state = ST_ANSI_ESC; } // ESC
+        else { state = ST_ANSI; }
+        ansiBuf.push(byte);
         break;
 
       case ST_BANG:
@@ -822,10 +838,94 @@ class RIPterm {
         break;
 
       case ST_ANSI:
-        ansiBuf.push(byte);
         if ((byte === 13) || (byte === 10)) { state = ST_START; } // CR or LF
-        else if ((byte === 1) || (byte === 2)) { state = ST_BANG; } // ^A or ^B
-        else { }
+        else if (((byte === 1) || (byte === 2)) && outer.ripEnabled) { state = ST_BANG; } // ^A or ^B
+        else if (byte === 27) {
+          // send buffer at start of each ESC sequence
+          await sendToANSI(ansiBuf);
+          state = ST_ANSI_ESC;
+        }
+        else if (ansiBuf.length > outer.opts.ansiBuffer) {
+          // send when buffer gets too long
+          await sendToANSI(ansiBuf);
+        }
+        ansiBuf.push(byte);
+        break;
+
+      case ST_ANSI_ESC:
+        if ((byte === 13) || (byte === 10)) { state = ST_START; } // CR or LF
+        else if (byte === 91) { state = ST_ANSI_CSI; } // ESC-[
+        else { state = ST_ANSI; }
+        ansiBuf.push(byte);
+        break;
+
+      case ST_ANSI_CSI:
+        if ((byte === 13) || (byte === 10)) { state = ST_START; } // CR or LF
+        else if (byte === 33) { // !
+          // query RIPscrip version "ESC[!" or "ESC[0!"
+          const ripver = await outer.doTextVar('RIPVER');
+          outer.sendHostCommand(ripver);
+          //const buf = ripver.split('').map((c) => c.charCodeAt(0) & 0xFF); // REMOVE
+          //await sendToANSI(buf); // REMOVE
+          ansiBuf.length = 0;
+          state = ST_ANSI;
+          break;
+        }
+        else if (byte === 48) { state = ST_ANSI_CSI;   } // 0
+        else if (byte === 49) { state = ST_ANSI_RIP1;  } // 1
+        else if (byte === 50) { state = ST_ANSI_RIP2;  } // 2
+        else if (byte === 77) { state = ST_ANSI_MUSIC; } // M
+        else { state = ST_ANSI; }
+        ansiBuf.push(byte);
+        break;
+
+      case ST_ANSI_RIP1:
+        if ((byte === 13) || (byte === 10)) { // CR or LF
+          ansiBuf.push(byte);
+          state = ST_START;
+        }
+        else if (byte === 33) { // !
+          // disable RIPscrip "ESC[1!"
+          outer.log('rip', "RIPscrip disabled");
+          outer.ripEnabled = false;
+          ansiBuf.length = 0;
+          state = ST_ANSI;
+        }
+        else {
+          ansiBuf.push(byte);
+          state = ST_ANSI;
+        }
+        break;
+
+      case ST_ANSI_RIP2:
+        if ((byte === 13) || (byte === 10)) { // CR or LF
+          ansiBuf.push(byte);
+          state = ST_START;
+        }
+        else if (byte === 33) { // !
+          // enable RIPscrip "ESC[2!"
+          outer.log('rip', "RIPscrip enabled");
+          outer.ripEnabled = true;
+          ansiBuf.length = 0;
+          state = ST_ANSI;
+        }
+        else {
+          ansiBuf.push(byte);
+          state = ST_ANSI;
+        }
+        break;
+
+      case ST_ANSI_MUSIC:
+        // Reason for this state is to avoid the buffer length check in ST_ANSI,
+        // since music strings can be quite long.
+        if ((byte === 13) || (byte === 10)) { state = ST_START; } // CR or LF
+        else if (byte === 0x0E) { state = ST_ANSI;  } // shift out (end of music string)
+        else if (byte === 27) { // ESC
+          // shouldn't get here, but just in case
+          await sendToANSI(ansiBuf);
+          state = ST_ANSI_ESC;
+        }
+        ansiBuf.push(byte);
         break;
 
       case ST_RIPCMD:
@@ -874,6 +974,7 @@ class RIPterm {
         const { value, done } = await reader.read();
         if (done) {
           this.log('trm', 'Stream complete');
+          // TODO: should this.isRunning be set to false? (need to check)
           return true;
         }
         else if (value) {
@@ -954,7 +1055,7 @@ class RIPterm {
 
     const text = this.udTextDecoder.decode(bytes);
     const otext = this.controlCharsToSymbols(text);
-    this.log('ans', `${otext}`); // DEBUG
+    this.log('ans', `<< ${otext}`); // DEBUG
 
     if (this.onOutputBytes) { this.onOutputBytes(bytes) }
     if (this.onOutputText) { this.onOutputText(text) }
@@ -2061,6 +2162,14 @@ class RIPterm {
 
             outer.textWindow = twindow;
             outer.log('rip', `TEXT_WINDOW x=${px} y=${py} w=${pw} h=${ph} size=${this.size} wrap=${wordWrap} font=${font.w}x${font.h}`);
+
+            // DEBUG
+            const ax0 = px-1, ay0 = py-1, ax1 = px+pw, ay1 = py+ph;
+            const bx0 = Number(ax0).toString(36).toUpperCase();
+            const by0 = Number(ay0).toString(36).toUpperCase();
+            const bx1 = Number(ax1).toString(36).toUpperCase();
+            const by1 = Number(ay1).toString(36).toUpperCase();
+            outer.log('rip', `TEXT_WINDOW outline: x0=${ax0}(${bx0}) y0=${ay0}(${by0}) x1=${ax1}(${bx1}) y1=${ay1}(${by1})`);
           };
         }
         return o;
@@ -2093,6 +2202,7 @@ class RIPterm {
         o.run = async function(ob = {}) {
           if (ob.hilite) { return }
           // don't reset colors & styles!
+          outer.bgi._resetViewport();
           outer.bgi.cleardevice();
           outer.clearAllButtons();
           outer.clipboard = {};
@@ -2103,7 +2213,7 @@ class RIPterm {
 
           // Emit event for external listeners
           if (outer.onTextWindow) { outer.onTextWindow(outer.textWindow, { clear: true }) }
-          if (outer.onTextCursor) { outer.onTextCursor({ row: 1, col: 1, enabled: true }) }
+          if (outer.onTextCursor) { outer.onTextCursor({ row: 1, col: 1 }) }
 
           // TODO: restore default palette
         };
@@ -2111,13 +2221,18 @@ class RIPterm {
       },
 
       // RIP_ERASE_WINDOW (e)
-      // Clears Text Window to background color
+      // Clears Text Window to background color and cursor to upper-left corner.
       'e': (args) => {
         const outer = this;
         let o = { func: 'RIP_ERASE_WINDOW' };
         o.run = async function(ob = {}) {
           if (ob.hilite) { return }
-          if (outer.onTextWindow) { outer.onTextWindow(outer.textWindow, { clear: true }) }
+          if (outer.textWindow.enabled) {
+            // clear only if text window is active
+            //outer.log('rip', "erase text window");
+            if (outer.onTextWindow) { outer.onTextWindow(outer.textWindow, { clear: true }) }
+            if (outer.onTextCursor) { outer.onTextCursor({ row: 1, col: 1 }) }
+          }
         };
         return o;
       },
@@ -2740,6 +2855,8 @@ class RIPterm {
         o.run = async function(ob = {}) {
           if (ob.hilite) { return }
           outer.activateMouseEvents(true);
+          // TODO: not sure if this is the only or best place to enable the cursor
+          if (outer.onTextCursor) { outer.onTextCursor({ enabled: true }) }
         };
         return o;
       }
@@ -3285,14 +3402,18 @@ class RIPterm {
 
       // Erase Text Window
       'ETW': async () => {
-        this.log('rip', "erase text window");
-        if (this.onTextWindow) { this.onTextWindow(this.textWindow, { clear: true }) }
+        //this.log('rip', "erase text window");
+        if (this.textWindow.enabled) {
+          // clear only if text window is active
+          if (this.onTextWindow) { this.onTextWindow(this.textWindow, { clear: true }) }
+          if (this.onTextCursor) { this.onTextCursor({ row: 1, col: 1 }) }
+        }
         return '';
       },
 
       // Disable Text Window
       'DTW': async () => {
-        this.log('rip', "disable text window");
+        this.log('rip', "deactivate text window");
         this.textWindow.enabled = false;
         if (this.onTextWindow) { this.onTextWindow(this.textWindow) }
         return '';
@@ -3301,7 +3422,7 @@ class RIPterm {
       // Activate Text Window [RIPv2]
       // (only current window, ignores args)
       'ATW': async () => {
-        this.log('rip', "enable text window");
+        this.log('rip', "activate text window");
         this.textWindow.enabled = true;
         if (this.onTextWindow) { this.onTextWindow(this.textWindow) }
         return '';
@@ -3422,14 +3543,14 @@ class RIPterm {
 
       // Enable the Text Cursor
       'CON': async () => {
-        this.log('rip', "enable text cursor");
+        this.log('rip', "cursor on"); // DEBUG
         if (this.onTextCursor) { this.onTextCursor({ enabled: true }) }
         return '';
       },
 
       // Disable the Text Cursor
       'COFF': async () => {
-        this.log('rip', "disable text cursor");
+        this.log('rip', "cursor off"); // DEBUG
         if (this.onTextCursor) { this.onTextCursor({ enabled: false }) }
         return '';
       },
