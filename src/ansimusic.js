@@ -152,15 +152,13 @@ class ANSImusic {
     65406, 130810, 261620, 523250, 1046500, 2093000, 4186000
   */
 
-// @param {number}
-
   /**
    * Plays a sequence of notes based on the play string.
    * @param {notes} string - conforms to BASIC PLAY formatting.
    * @param {bool} fg - 'true' for foreground play, which waits until notes finish playing.
    *        'false' to play in the background, which runs statements following 'await' immediately
    *        after notes begin playing. Can also be specified using 'MF' or 'MB' placed at start of 
-   *        play string.
+   *        play string. (Background play NOT YET IMPLEMENTED)
    */
   async play (notes, fg = true) {
 
@@ -181,10 +179,11 @@ class ANSImusic {
       console.log(note); // DEBUG
 
       // capture group 4 (dots)
-      const dotExtend = (note[4].length > 0) ? Math.pow(1.5, note[4].length) : 1.0; // 3/2 per dot
+      const dotNum = Math.max(0, Math.min(note[4].length, 4)); // clip dots allowed (0-4)
+      const dotExtend = (note[4].length > 0) ? Math.pow(1.5, dotNum) : 1.0; // 3/2 per dot
 
       // capture group 3 (number)
-      const num = parseInt(note[3], 10) || 0;
+      const num = parseInt(note[3], 10) || 0; // always a number
 
       // capture group 2 (sharp or flat)
       const semiOffset = ((note[2] === '#') || (note[2] === '+')) ? 1 : ((note[2] === '-') ? -1 : 0)
@@ -193,7 +192,7 @@ class ANSImusic {
       let noteBase, noteDen, sound_ms, rest_ms, freq;
       switch (note[1]) {
         case 'L': // note length
-          if (!Number.isNaN(num)) { this.noteDemon = Math.max(1, Math.min(num, 64)); }
+          if (num > 0) { this.lengthDen = Math.max(1, Math.min(num, 64)); }
           break;
 
         case 'MB': // play in background (TODO)
@@ -228,17 +227,17 @@ class ANSImusic {
           break;
 
         case 'O': // octave
-          if (!Number.isNaN(num)) { this.octave = Math.max(0, Math.min(num, 6)); }
+          this.octave = Math.max(0, Math.min(num, 6));
           break;
 
         case 'P': // pause (rest)
-          noteDen = num || this.lengthDen;
+          noteDen = (num > 0) ? Math.max(1, Math.min(num, 64)) : this.lengthDen;
           [sound_ms, rest_ms] = this.noteDuration(noteDen);
           await this.sound(0, (sound_ms + rest_ms) * dotExtend);
           break;
 
         case 'T': // tempo
-          if (!Number.isNaN(num)) { this.tempo = Math.max(32, Math.min(num, 255)); }
+          this.tempo = Math.max(32, Math.min(num, 255));
           break;
 
         case '>': // increment octave
@@ -252,7 +251,7 @@ class ANSImusic {
         default: // play note A-G
           if (note[1] in baseNotes) {
             noteBase = baseNotes[note[1]] + semiOffset;
-            noteDen = num || this.lengthDen;
+            noteDen = (num > 0) ? Math.max(1, Math.min(num, 64)) : this.lengthDen;
             [sound_ms, rest_ms] = this.noteDuration(noteDen);
             freq = this.noteFreq(noteBase, this.octave);
             // play the note in foreground, followed by a rest
