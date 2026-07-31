@@ -21,6 +21,19 @@ class ANSIterm {
 
   constructor (args) {
 
+    // init default options
+    this.opts = {
+      'musicOn'       : true,   // set true to play ANSI music.
+      'audioOn'       : true,   // set true to play BEL (ASCII 0x07), false disables ALL audio.
+      'audioVolume'   : 0.25,   // set audio volume (0.0-1.0), 0 = pause instead of audio.
+      'fgColor'       : 15,     // default white
+      'bgColor'       : 0,      // default black
+      'cursorColor'   : 15,     // default white
+    };
+
+    // assign or overwrite opts with passed-in options
+    Object.entries(args).forEach( ([k, v]) => { this.opts[k] = v } );
+
     // log callback function
     if (args && ('log' in args)) {
       this.onLog = args.log;
@@ -30,32 +43,18 @@ class ANSIterm {
       this.log('err', 'BGI() missing! Need to load BGI.js!');
     }
 
-    if (args && ('bgi' in args)) {
+    if (args && ('bgi' in args) && (args.bgi instanceof BGI)) {
       this.bgi = args.bgi;
     }
     else {
       this.log('err', "ANSIterm() missing bgi!");
     }
 
-    // ANSI music player
-    // called once from any user interaction (audio fix for Safari)
-    this.audio = null;
-    document.addEventListener('click', (e) => { this.initAudio() }, { once: true });
-
-    /*
-      // init default options
-      this.opts = {
-      };
-
-      // assign or overwrite opts with passed-in options
-      Object.entries(args).forEach( ([k, v]) => { this.opts[k] = v } );
-    */
-
     // init vars
     this.udTextDecoder = new TextDecoder("x-user-defined");
-    this.fgColor = BGI.WHITE; // 15
-    this.bgColor = BGI.BLACK; // 0
-    this.cursorColor = BGI.WHITE;
+    this.fgColor = this.opts.fgColor;
+    this.bgColor = this.opts.bgColor;
+    this.cursorColor = this.opts.cursorColor;
     this.textWindow = { x: 0, y: 0, width: 0, height: 0, wordWrap: false, fontnum: 0, 
       textX: 0, textY: 0, textW: 0, textH: 0, fontW: 8, fontH: 8, enabled: false };
 
@@ -64,6 +63,15 @@ class ANSIterm {
     this.cursorOn = false;
     this.blinkTimer = null;
     this.blinkInterval = 500; // in milliseconds
+
+    // ANSI music player
+    this.audio = null;
+    this.audioOn = this.opts.audioOn;
+    this.musicOn = this.opts.musicOn;
+    if (this.audioOn) {
+      // called once from any user interaction (audio fix for Safari)
+      document.addEventListener('click', (e) => { this.initAudio() }, { once: true });
+    }
 
   } // end constructor
 
@@ -87,6 +95,7 @@ class ANSIterm {
    * Call this once within a click handler to work in Safari.
    */
   initAudio (aud) {
+    if (this.audioOn === false) { return false; }
     if (typeof ANSImusic === 'undefined') {
       this.audio = null;
       this.log('err', 'ANSImusic() missing! Need to load ansimusic.js!');
@@ -102,8 +111,9 @@ class ANSIterm {
       }
       else {
         this.audio = new ANSImusic();
+        this.audio.volume = this.opts.audioVolume;
         if (this.audio.init()) {
-          this.log('trm', 'ANSIterm audio initialized');
+          this.log('trm', `ANSIterm audio initialized (volume: ${this.audio.volume})`);
         }
         else {
           this.log('err', 'ANSIterm audio failed to initialize!');
@@ -244,10 +254,10 @@ class ANSIterm {
 
     // converts buf array to string to play in ANSI music player.
     async function sendToMusic (buf) {
-      if (buf && (buf.length > 0)) {
+      if (buf && (buf.length > 0) && (outer.musicOn)) {
         const mtext = outer.udTextDecoder.decode(new Uint8Array(buf));
         outer.log('ans', `play: ${mtext}`); // DEBUG
-        if (outer.audio) { await outer.audio.play(mtext); }
+        await outer.audio?.play?.(mtext);
       }
     }
 
@@ -269,7 +279,7 @@ class ANSIterm {
         else if (byte === 0x0C) { }                    // FF (TODO: ignore?)
         else if (byte === 0x0D) { outer.cp.col = 1;  } // CR
         else if (byte === 0x1B) { state = ST_ESC; }    // ESC
-        else if (byte === 0x07) { if (outer.audio) { await outer.audio.beep(); }} // BEL
+        else if ((byte === 0x07) && (outer.audioOn)) { await outer.audio?.beep?.(); } // BEL
         else {
           if ((x < tw_width) && (y < tw_height)) {
 

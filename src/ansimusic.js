@@ -71,10 +71,9 @@ class ANSImusic {
    * @param {number} freq - 0 means to pause or rest.
    * @param {number} volume - (optional) value representing 0 to 100% (0.0 - 1.0)
    */
-  async sound (freq, duration, volume = 0.25) {
-    // TODO: should use this.volume value as default, with passed value to override.
+  async sound (freq, duration, volume = this.volume) {
 
-    if (this.actx && (freq > 0)) {
+    if (this.actx && (freq > 0) && (volume > 0)) {
       const osc = this.actx.createOscillator();
       const gainNode = this.actx.createGain();
       const t0 = this.actx.currentTime;

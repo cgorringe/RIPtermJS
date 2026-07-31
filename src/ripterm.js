@@ -70,28 +70,31 @@ class RIPterm {
 
     if (opts && ('canvasId' in opts)) {
 
-      // init default options
+      // default options
       this.opts = {
-        'modemSpeed' : 0,        // simulate modem speed in bps (0 = no delay)
-        'timeInterval' : 1,      // time between running commands (in miliseconds)
-        'refreshInterval' : 100, // time between display refreshes (in miliseconds)
-        'ansiBuffer' : 20,       // number of bytes to send to the ANSI terminal at a time.
-        'pauseOn' : [],          // debug: pauses on RIP command, e.g. ['F'] will pause on Flood Fill.
-        'diffFGcolor' : '#C86',  // forground color for diff pixels that don't match.
-        'diffBGcolor' : '#222',  // background color for diff pixels that match.
-        'svgPrefix' : 'rip',     // used to prefix internal SVG ids
-        'logQuiet' : false,      // set to true to stop logging to console
-        'fontsPath' : 'fonts',
-        'iconsPath' : 'icons',
-        'origButtons' : true,    // set true to use original selected button style
-        'svgShowIcons' : true,
-        'svgEmbedIcons' : true,  // true: embed icons, false: use relative URL to .png
-        'svgGetImage' : true,    // adds RIP_GET_IMAGE & RIP_PUT_IMAGE to SVG.
-
-        // these options copied from prior version are not implemented yet.
-        'floodFill' : true,
-        'debugVerbose' : false,  // verbose flag
-        'debugFillBuf' : false,  // display flood-fill buffer in canvas instead of normal drawings.
+        'modemSpeed'    : 0,      // simulate modem speed in bps (0 = no delay)
+        'refreshInterval' : 100,  // time between display refreshes (in miliseconds)
+        'fontsPath'     : "fonts",
+        'iconsPath'     : "icons",
+        'logQuiet'      : false,  // set true to stop logging to console except for error logs.
+        'origButtons'   : true,   // set true for original selected button style, false for alternate.
+      // ANSI terminal
+        'ansiBuffer'    : 20,     // number of bytes to send to the ANSI terminal at a time.
+        'audioOn'       : true,   // set true to play audio variables (e.g. $BEEP$) and BEL (ASCII 0x07)
+        'audioVolume'   : 0.25,   // set audio volume (0.0-1.0)
+      // SVG
+        'svgPrefix'     : "rip",  // used to prefix internal SVG ids
+        'svgShowIcons'  : true,
+        'svgEmbedIcons' : true,   // true: embed icons, false: use relative URL to .png
+        'svgGetImage'   : true,   // adds RIP_GET_IMAGE & RIP_PUT_IMAGE to SVG.
+      // debug
+        'diffFGcolor'   : "#C86", // forground color for diff pixels that don't match.
+        'diffBGcolor'   : "#222", // background color for diff pixels that match.
+        'pauseOn'       : [],     // debug: pauses on RIP command, e.g. ['F'] will pause on Flood Fill.
+      // not implemented
+        'floodFill'     : true,
+        'debugVerbose'  : false,  // verbose flag
+        'debugFillBuf'  : false,  // display flood-fill buffer in canvas instead of normal drawings.
       };
 
       // assign or overwrite opts with passed-in options
@@ -198,7 +201,9 @@ class RIPterm {
     // ANSI music player
     // called once from any user interaction (audio fix for Safari)
     this.audio = null;
-    document.addEventListener('click', (e) => { this.initAudio() }, { once: true });
+    if (this.opts.audioOn) {
+      document.addEventListener('click', (e) => { this.initAudio() }, { once: true });
+    }
 
   } // end constructor
 
@@ -222,6 +227,7 @@ class RIPterm {
    * Call this once within a click handler to work in Safari.
    */
   initAudio (aud) {
+    if (this.opts.audioOn === false) { return false; }
     if (typeof ANSImusic === 'undefined') {
       this.audio = null;
       this.log('err', 'ANSImusic() missing! Need to load ansimusic.js!');
@@ -237,8 +243,9 @@ class RIPterm {
       }
       else {
         this.audio = new ANSImusic();
+        this.audio.volume = this.opts.audioVolume;
         if (this.audio.init()) {
-          this.log('trm', 'RIPterm audio initialized');
+          this.log('trm', `RIPterm audio initialized (volume: ${this.audio.volume})`);
         }
         else {
           this.log('err', 'RIPterm audio failed to initialize!');
@@ -3170,8 +3177,8 @@ class RIPterm {
         if ((count > 0) && (count < 100)) {
           this.log('rip', `ALARM count: ${count}`); // DEBUG
           for (let i=0; i < count; i+=1) {
-            await this.audio.sound(320, 200);
-            await this.audio.sound(160, 425);
+            await this.audio?.sound?.(320, 200);
+            await this.audio?.sound?.(160, 425);
           }
         }
         return '';
@@ -3183,8 +3190,8 @@ class RIPterm {
         const len  = args[1] ? Number(args[1]) : 75;  // ms
         if ((freq > 0) && (len > 0) && (freq < 65535) && (len < 10000)) {
           this.log('rip', `BEEP freq: ${freq}, len: ${len}`); // DEBUG
-          await this.audio.sound(freq, len);
-          await this.audio.sound(0, 75);
+          await this.audio?.sound?.(freq, len);
+          await this.audio?.sound?.(0, 75);
         }
         return '';
       },
@@ -3195,8 +3202,8 @@ class RIPterm {
         const len  = args[1] ? Number(args[1]) : 25; // ms
         if ((freq > 0) && (len > 0) && (freq < 65535) && (len < 10000)) {
           this.log('rip', `BLIP freq: ${freq}, len: ${len}`); // DEBUG
-          await this.audio.sound(freq, len);
-          await this.audio.sound(0, 10);
+          await this.audio?.sound?.(freq, len);
+          await this.audio?.sound?.(0, 10);
         }
         return '';
       },
@@ -3210,7 +3217,7 @@ class RIPterm {
           const outer = this;
           for (let i=0; i < count; i+=1) {
             for (let f of freqs) {
-              await this.audio.sound(f, 10);
+              await this.audio?.sound?.(f, 10);
             }
           }
         }
@@ -3226,7 +3233,7 @@ class RIPterm {
         if ((start > stop) && (inc > 0) && (start < 65535) && (inc < 65535) && (time < 65535)) {
           this.log('rip', `PHASER start: ${start}, stop: ${stop}, inc: ${inc}, time: ${time}`); // DEBUG
           for (let f=start; f >= stop; f-=inc) {
-            await this.audio.sound(f, time);
+            await this.audio?.sound?.(f, time);
           }
         }
         return '';
@@ -3241,7 +3248,7 @@ class RIPterm {
         if ((start < stop) && (inc > 0) && (stop < 65535) && (inc < 65535) && (time < 65535)) {
           this.log('rip', `REVPHASER start: ${start}, stop: ${stop}, inc: ${inc}, time: ${time}`); // DEBUG
           for (let f=start; f <= stop; f+=inc) {
-            await this.audio.sound(f, time);
+            await this.audio?.sound?.(f, time);
           }
         }
         return '';
@@ -3253,7 +3260,7 @@ class RIPterm {
         const len  = args[1] ? Number(args[1]) : 75;  // in ms
         if ((freq > 0) && (len > 0) && (freq < 65535) && (len < 10000)) {
           this.log('rip', `T freq: ${freq}, len: ${len}`); // DEBUG
-          await this.audio.sound(freq, len);
+          await this.audio?.sound?.(freq, len);
         }
         return '';
       },
