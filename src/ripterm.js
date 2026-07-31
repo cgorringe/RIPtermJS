@@ -81,7 +81,7 @@ class RIPterm {
       // ANSI terminal
         'ansiBuffer'    : 20,     // number of bytes to send to the ANSI terminal at a time.
         'audioOn'       : true,   // set true to play audio variables (e.g. $BEEP$) and BEL (ASCII 0x07)
-        'audioVolume'   : 0.25,   // set audio volume (0.0-1.0)
+        'audioVolume'   : 0.50,   // set audio volume (0.0-1.0)
       // SVG
         'svgPrefix'     : "rip",  // used to prefix internal SVG ids
         'svgShowIcons'  : true,

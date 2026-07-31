@@ -25,7 +25,7 @@ class ANSIterm {
     this.opts = {
       'musicOn'       : true,   // set true to play ANSI music.
       'audioOn'       : true,   // set true to play BEL (ASCII 0x07), false disables ALL audio.
-      'audioVolume'   : 0.25,   // set audio volume (0.0-1.0), 0 = pause instead of audio.
+      'audioVolume'   : 0.50,   // set audio volume (0.0-1.0), 0 = pause instead of audio.
       'fgColor'       : 15,     // default white
       'bgColor'       : 0,      // default black
       'cursorColor'   : 15,     // default white

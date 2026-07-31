@@ -78,11 +78,11 @@ class ANSImusic {
       const osc = this.actx.createOscillator();
       const gainNode = this.actx.createGain();
       const t0 = this.actx.currentTime;
-      osc.type = 'sine';
+      osc.type = 'square';
       osc.frequency.setValueAtTime(freq, t0);
       osc.connect(gainNode);
       gainNode.connect(this.actx.destination);
-      gainNode.gain.setValueAtTime(volume, t0);
+      gainNode.gain.setValueAtTime(volume * 0.20, t0);
       osc.start(t0);
       osc.stop(t0 + duration/1000);
       return new Promise(res => setTimeout(res, duration));
