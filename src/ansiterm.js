@@ -1,6 +1,6 @@
 /**
  * ANSIterm - Version 0.4
- * Copyright (c) 2011-2026 Carl Gorringe
+ * Copyright (c) 2026 Carl Gorringe
  * https://carl.gorringe.org
  * https://github.com/cgorringe/RIPtermJS
  * 
@@ -26,12 +26,21 @@ class ANSIterm {
       this.onLog = args.log;
     }
 
+    if (typeof BGI === 'undefined') {
+      this.log('err', 'BGI() missing! Need to load BGI.js!');
+    }
+
     if (args && ('bgi' in args)) {
       this.bgi = args.bgi;
     }
     else {
       this.log('err', "ANSIterm() missing bgi!");
     }
+
+    // ANSI music player
+    // called once from any user interaction (audio fix for Safari)
+    this.audio = null;
+    document.addEventListener('click', (e) => { this.initAudio() }, { once: true });
 
     /*
       // init default options
@@ -43,6 +52,7 @@ class ANSIterm {
     */
 
     // init vars
+    this.udTextDecoder = new TextDecoder("x-user-defined");
     this.fgColor = BGI.WHITE; // 15
     this.bgColor = BGI.BLACK; // 0
     this.cursorColor = BGI.WHITE;
@@ -54,7 +64,8 @@ class ANSIterm {
     this.cursorOn = false;
     this.blinkTimer = null;
     this.blinkInterval = 500; // in milliseconds
-  }
+
+  } // end constructor
 
   // sends msg to provided log function, else send to console if none provided.
   log (type, msg) {
@@ -71,6 +82,37 @@ class ANSIterm {
     }
   }
 
+  /**
+   * Initialize audio.
+   * Call this once within a click handler to work in Safari.
+   */
+  initAudio (aud) {
+    if (typeof ANSImusic === 'undefined') {
+      this.audio = null;
+      this.log('err', 'ANSImusic() missing! Need to load ansimusic.js!');
+      return false;
+    }
+    else {
+      if (aud && (aud instanceof ANSImusic)) { this.audio = aud; }
+      if (this.audio instanceof ANSImusic) {
+        if (this.audio.init() === false) {
+          this.log('err', 'ANSIterm audio failed to initialize!');
+          return false;
+        }
+      }
+      else {
+        this.audio = new ANSImusic();
+        if (this.audio.init()) {
+          this.log('trm', 'ANSIterm audio initialized');
+        }
+        else {
+          this.log('err', 'ANSIterm audio failed to initialize!');
+          return false;
+        }
+      }
+    }
+    return true;
+  }
 
   ////////////////////////////////////////////////////////////////////////////////
   // Cursor methods
@@ -171,7 +213,8 @@ class ANSIterm {
         const x1 = tw.x, y1 = tw.y;
         const x2 = tw.x + tw.width - 1;
         const y2 = tw.y + tw.height - 1;
-        this.bgi._bar(x1, y1, x2, y2, this.bgi.info.bgcolor, BGI.COPY_PUT, BGI.SOLID_FILL);
+        const bgc = this.bgi.getbkcolor();
+        this.bgi._bar(x1, y1, x2, y2, bgc, BGI.COPY_PUT, BGI.SOLID_FILL);
         this.bgi.update();
       }
     }
@@ -181,7 +224,7 @@ class ANSIterm {
   // Displays text in the text window, including parsing ANSI escape sequences.
   // text is a JS UTF-16 String.
   //
-  outputText (text) {
+  async outputText (text) {
 
     //this.log('ans', "outputText()"); // DEBUG
     if (typeof text !== "string") { return }
@@ -190,40 +233,112 @@ class ANSIterm {
     if (!tw.enabled) { return }
     this.hideCursor();
 
+    // vars
+    let x, y;
+    const outer = this;
     const tw_width = tw.x + tw.width;
     const tw_height = tw.y + tw.height;
     const tempColor = this.bgi.getcolor();
     this.bgi.setcolor(this.fgColor);
+    //this.log('ans', `tw_width:${tw_width} tw_height:${tw_height}`); // DEBUG: REMOVE
 
-    // TODO: draw a bgcolor rectangle prior to drawing text (ignoring viewport)
+    // converts buf array to string to play in ANSI music player.
+    async function sendToMusic (buf) {
+      if (buf && (buf.length > 0)) {
+        const mtext = outer.udTextDecoder.decode(new Uint8Array(buf));
+        outer.log('ans', `play: ${mtext}`); // DEBUG
+        if (outer.audio) { await outer.audio.play(mtext); }
+      }
+    }
+
+    // states
+    const ST_TEXT=1, ST_ESC=2, ST_CSI=3, ST_MUSIC=4;
+    let state = ST_TEXT;
+    let ansiBuf = [];
+
+    // ASCII values:
+    // 10=LF, 13=CR, 27=ESC, 91=[, 124=|
+
+    // ANSI text state machine
+    async function nextByte (byte) {
+
+      switch (state) {
+      case ST_TEXT:
+        // TODO: finish
+        if      (byte === 0x0A) { outer.cp.row += 1; } // LF
+        else if (byte === 0x0C) { }                    // FF (TODO: ignore?)
+        else if (byte === 0x0D) { outer.cp.col = 1;  } // CR
+        else if (byte === 0x1B) { state = ST_ESC; }    // ESC
+        else if (byte === 0x07) { if (outer.audio) { await outer.audio.beep(); }} // BEL
+        else {
+          if ((x < tw_width) && (y < tw_height)) {
+
+            // TODO: draw a bgcolor rectangle prior to drawing text (ignoring viewport)
+            // FIXME: this will update bgi's internal info.cp values, which may need to be restored.
+            // FIXME: draws using graphics viewport (which shouldn't be done)
+            // FIXME: draws using bgi fgColor and write modes.
+
+            outer.bgi.drawPNGChar(byte, tw.fontnum, 1, BGI.HORIZ_DIR, x, y);
+            //outer.log('ans', `byte:${byte} fontnum:${tw.fontnum} x:${x} y:${y}`); // DEBUG
+          }
+          outer.cp.col += 1;
+        }
+        ansiBuf.length = 0;
+        break;
+
+      case ST_ESC:
+        // TODO: finish
+        if      (byte === 0x0A) { outer.cp.row += 1; } // LF
+        else if (byte === 0x0D) { outer.cp.col = 1;  } // CR
+        else if (byte === 0x1B) { ansiBuf.length = 0; state = ST_ESC; } // ESC
+        else if (byte === 0x5B) { ansiBuf.push(byte); state = ST_CSI; } // [
+        else { ansiBuf.push(byte); }
+        break;
+
+      case ST_CSI:
+        // TODO: finish
+        if      (byte === 0x0A) { outer.cp.row += 1; state = ST_TEXT; } // LF
+        else if (byte === 0x0D) { outer.cp.col = 1; state = ST_TEXT;  } // CR
+        else if (byte === 0x1B) { ansiBuf.length = 0; state = ST_ESC; } // ESC
+        else if ((byte === 0x4D) || (byte === 0x6D)) { // M or m
+          // ANSI Music (include 'M' byte prefix)
+          ansiBuf.length = 0;
+          ansiBuf.push(byte);
+          state = ST_MUSIC;
+        }
+        else if ((byte === 0x7C) || (byte === 0x4E) || (byte === 0x6E)) { // | or N or n
+          // ANSI Music (less common)
+          ansiBuf.length = 0;
+          state = ST_MUSIC;
+        }
+        else { ansiBuf.push(byte); }
+        break;
+
+      case ST_MUSIC:
+        if      (byte === 0x0A) { outer.cp.row += 1; state = ST_TEXT; } // LF
+        else if (byte === 0x0D) { outer.cp.col = 1; state = ST_TEXT;  } // CR
+        else if (byte === 0x1B) { ansiBuf.length = 0; state = ST_ESC; } // ESC
+        else if (byte === 0x0E) { // SO
+          // end of music
+          await sendToMusic(ansiBuf);
+          ansiBuf.length = 0;
+          state = ST_TEXT;
+        }
+        else { ansiBuf.push(byte); }
+        break;
+
+      }
+    }
 
     // loop thru each character in text string
-    text.split('').forEach(c => {
+    const chars = text.split('');
+    for (let c of chars) {
 
       const cvalue = c.charCodeAt(0) & 0xFF; // to strip out 2nd byte
-      const x = tw.x + ((this.cp.col - 1) * tw.fontW);
-      const y = tw.y + ((this.cp.row - 1) * tw.fontH);
+      x = tw.x + ((this.cp.col - 1) * tw.fontW);
+      y = tw.y + ((this.cp.row - 1) * tw.fontH);
 
-      // handle control chars and printable chars
-      if (cvalue === 13) { // CR
-        this.cp.col = 1;
-      }
-      else if (cvalue === 10) { // LF
-        this.cp.row += 1;
-      }
-      else {
-        // draw char only if inside text window
-        //this.log(`ans`, `cvalue: ${cvalue}, x: ${x}, y: ${y}`); // DEBUG
-        if ((x < tw_width) && (y < tw_height)) {
-
-          // FIXME: this will update bgi's internal info.cp values, which may need to be restored.
-          // FIXME: draws using graphics viewport (which shouldn't be done)
-          // FIXME: draws using bgi fgColor and write modes.
-
-          this.bgi.drawPNGChar(cvalue, tw.fontnum, 1, BGI.HORIZ_DIR, x, y);
-        }
-        this.cp.col += 1;
-      }
+      await nextByte(cvalue);
 
       // word wrap
       if (tw.wordWrap && (this.cp.col > tw.textW)) {
@@ -239,8 +354,9 @@ class ANSIterm {
         this.bgi.update();
       }
 
-    });
+    } // next c
 
+    //this.log('ans', "next"); // DEBUG: REMOVE
     this.bgi.setcolor(tempColor); // restore fgColor
     this.bgi.update();
   }
@@ -262,7 +378,8 @@ class ANSIterm {
     this.bgi._putimage(x1, tw.y, img, BGI.COPY_PUT, {});
 
     // clear last line
-    this.bgi._bar(x1, y2 - tw.fontH, x2, y2, this.bgi.info.bgcolor, BGI.COPY_PUT, BGI.SOLID_FILL);
+    const bgc = this.bgi.getbkcolor();
+    this.bgi._bar(x1, y2 - tw.fontH, x2, y2, bgc, BGI.COPY_PUT, BGI.SOLID_FILL);
   }
 
 }

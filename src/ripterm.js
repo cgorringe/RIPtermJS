@@ -189,74 +189,64 @@ class RIPterm {
         this.setupCmdHover();
         this.setupCoordsMouseEvents();
         //this.setupMouseTestHandler(); // DEBUG testing mouse coords in bgi
-
-        // called once from any user interaction (audio fix for Safari)
-        this.initAudio = this.initAudio.bind(this);
-        document.addEventListener('click', this.initAudio, { once: true });
       }
     }
     else {
       console.error('RIPterm() missing canvasId!');
     }
 
-  }
+    // ANSI music player
+    // called once from any user interaction (audio fix for Safari)
+    this.audio = null;
+    document.addEventListener('click', (e) => { this.initAudio() }, { once: true });
+
+  } // end constructor
 
   // call this after new RIPterm() to load all the fonts.
   async initFonts () {
     await this.bgi.initFonts();
   }
 
-  // call this after new ANSIterm() to use it.
+  // Use this helper function to set up callbacks to an ANSIterm instance.
+  // Otherwise assign these callbacks elsewhere to an alternate terminal's functions.
+  //
   initAnsiTerm (term) {
-    // term.onLog = (type, msg) => { this.log(type, msg) } // REMOVE
     this.onTextWindow = (tw, options) => { term.setTextWindow(tw, options) }
     this.onTextCursor = (cursor) => { return term.textCursor(cursor) }
-    this.onOutputText = (text) => { term.outputText(text) }
+    this.onOutputText = async (text) => { await term.outputText(text) }
+    this.onInitAudio = (audio) => { term.initAudio(audio) }
   }
 
-  // initialize audio.
-  // call this once within a click handler to work in Safari.
-  //
-  initAudio () {
-
-    // init audio context only once
-    if (!this.actx) {
-      const AC = window.AudioContext || window.webkitAudioContext;
-      if (!AC) {
-        this.log('err', 'Audio failed to initialize');
-        this.playSound = async (freq, ms) => {
-          // delay or rest
-          return new Promise(res => setTimeout(res, ms));
-        };
-        return false;
-      }
-      this.actx = new AC();
-      this.log('trm', 'Audio initialized'); // DEBUG
+  /**
+   * Initialize audio.
+   * Call this once within a click handler to work in Safari.
+   */
+  initAudio (aud) {
+    if (typeof ANSImusic === 'undefined') {
+      this.audio = null;
+      this.log('err', 'ANSImusic() missing! Need to load ansimusic.js!');
+      return false;
     }
-
-    // Define play sound function. (freq=0 means delay)
-    const outer = this;
-    this.playSound = async (freq, ms, volume = 0.25) => {
-      if (freq > 0) {
-        const actx = outer.actx;
-        const osc = actx.createOscillator();
-        const gainNode = actx.createGain();
-        const t0 = actx.currentTime;
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(freq, t0);
-        osc.connect(gainNode);
-        gainNode.connect(actx.destination);
-        gainNode.gain.setValueAtTime(volume, t0);
-        osc.start(t0);
-        osc.stop(t0 + ms/1000);
-        return new Promise(res => setTimeout(res, ms));
+    else {
+      if (aud && (aud instanceof ANSImusic)) { this.audio = aud; }
+      if (this.audio instanceof ANSImusic) {
+        if (this.audio.init() === false) {
+          this.log('err', 'RIPterm audio failed to initialize!');
+          return false;
+        }
       }
       else {
-        // delay or rest
-        return new Promise(res => setTimeout(res, ms));
+        this.audio = new ANSImusic();
+        if (this.audio.init()) {
+          this.log('trm', 'RIPterm audio initialized');
+        }
+        else {
+          this.log('err', 'RIPterm audio failed to initialize!');
+          return false;
+        }
       }
-    };
-
+    }
+    if (this.onInitAudio) { this.onInitAudio(this.audio); }
     return true;
   }
 
@@ -865,8 +855,6 @@ class RIPterm {
           // query RIPscrip version "ESC[!" or "ESC[0!"
           const ripver = await outer.doTextVar('RIPVER');
           outer.sendHostCommand(ripver);
-          //const buf = ripver.split('').map((c) => c.charCodeAt(0) & 0xFF); // REMOVE
-          //await sendToANSI(buf); // REMOVE
           ansiBuf.length = 0;
           state = ST_ANSI;
           break;
@@ -874,7 +862,10 @@ class RIPterm {
         else if (byte === 48) { state = ST_ANSI_CSI;   } // 0
         else if (byte === 49) { state = ST_ANSI_RIP1;  } // 1
         else if (byte === 50) { state = ST_ANSI_RIP2;  } // 2
-        else if (byte === 77) { state = ST_ANSI_MUSIC; } // M
+        else if ((byte === 0x4D) || (byte === 0x6D) || (byte === 0x7C) || (byte === 0x4E) || (byte === 0x6E)) {
+          // M, m, |, N, n
+          state = ST_ANSI_MUSIC;
+        }
         else { state = ST_ANSI; }
         ansiBuf.push(byte);
         break;
@@ -1057,8 +1048,8 @@ class RIPterm {
     const otext = this.controlCharsToSymbols(text);
     this.log('ans', `<< ${otext}`); // DEBUG
 
-    if (this.onOutputBytes) { this.onOutputBytes(bytes) }
-    if (this.onOutputText) { this.onOutputText(text) }
+    if (this.onOutputBytes) { await this.onOutputBytes(bytes) }
+    if (this.onOutputText) { await this.onOutputText(text) }
   }
 
 
@@ -3179,8 +3170,8 @@ class RIPterm {
         if ((count > 0) && (count < 100)) {
           this.log('rip', `ALARM count: ${count}`); // DEBUG
           for (let i=0; i < count; i+=1) {
-            await this.playSound(320, 200);
-            await this.playSound(160, 425);
+            await this.audio.sound(320, 200);
+            await this.audio.sound(160, 425);
           }
         }
         return '';
@@ -3192,8 +3183,8 @@ class RIPterm {
         const len  = args[1] ? Number(args[1]) : 75;  // ms
         if ((freq > 0) && (len > 0) && (freq < 65535) && (len < 10000)) {
           this.log('rip', `BEEP freq: ${freq}, len: ${len}`); // DEBUG
-          await this.playSound(freq, len);
-          await this.playSound(0, 75);
+          await this.audio.sound(freq, len);
+          await this.audio.sound(0, 75);
         }
         return '';
       },
@@ -3204,8 +3195,8 @@ class RIPterm {
         const len  = args[1] ? Number(args[1]) : 25; // ms
         if ((freq > 0) && (len > 0) && (freq < 65535) && (len < 10000)) {
           this.log('rip', `BLIP freq: ${freq}, len: ${len}`); // DEBUG
-          await this.playSound(freq, len);
-          await this.playSound(0, 10);
+          await this.audio.sound(freq, len);
+          await this.audio.sound(0, 10);
         }
         return '';
       },
@@ -3219,7 +3210,7 @@ class RIPterm {
           const outer = this;
           for (let i=0; i < count; i+=1) {
             for (let f of freqs) {
-              await this.playSound(f, 10);
+              await this.audio.sound(f, 10);
             }
           }
         }
@@ -3235,7 +3226,7 @@ class RIPterm {
         if ((start > stop) && (inc > 0) && (start < 65535) && (inc < 65535) && (time < 65535)) {
           this.log('rip', `PHASER start: ${start}, stop: ${stop}, inc: ${inc}, time: ${time}`); // DEBUG
           for (let f=start; f >= stop; f-=inc) {
-            await this.playSound(f, time);
+            await this.audio.sound(f, time);
           }
         }
         return '';
@@ -3250,7 +3241,7 @@ class RIPterm {
         if ((start < stop) && (inc > 0) && (stop < 65535) && (inc < 65535) && (time < 65535)) {
           this.log('rip', `REVPHASER start: ${start}, stop: ${stop}, inc: ${inc}, time: ${time}`); // DEBUG
           for (let f=start; f <= stop; f+=inc) {
-            await this.playSound(f, time);
+            await this.audio.sound(f, time);
           }
         }
         return '';
@@ -3262,7 +3253,7 @@ class RIPterm {
         const len  = args[1] ? Number(args[1]) : 75;  // in ms
         if ((freq > 0) && (len > 0) && (freq < 65535) && (len < 10000)) {
           this.log('rip', `T freq: ${freq}, len: ${len}`); // DEBUG
-          await this.playSound(freq, len);
+          await this.audio.sound(freq, len);
         }
         return '';
       },
