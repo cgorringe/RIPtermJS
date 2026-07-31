@@ -38,6 +38,7 @@ class ANSImusic {
     this.lengthDen = 4;
     this.percentSound = 0.875; // 7/8 normal
     this.percentPause = 0.125; // 1/8 normal
+    this.isPlaying = false;
     this.bgBuffer = [];
   }
 
@@ -174,8 +175,9 @@ class ANSImusic {
 
     const baseNotes = { C:0, D:2, E:4, F:5, G:7, A:9, B:11 };
     let note;
+    this.isPlaying = true;
 
-    while ((note = re.exec(notes)) !== null) {
+    while ((note = re.exec(notes)) && this.isPlaying) {
       console.log(note); // DEBUG
 
       // capture group 4 (dots)
@@ -260,6 +262,7 @@ class ANSImusic {
           }
       }
     }
+    this.isPlaying = false;
   }
 
   // Waits until 'num' notes are played, then calls resolve().
@@ -268,9 +271,9 @@ class ANSImusic {
     // TODO
   }
 
-  // Stops any music still playing in the background.
-  async stop () {
-
+  // Stops any music still playing.
+  stop () {
+    this.isPlaying = false;
     // TODO
   }
 

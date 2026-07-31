@@ -323,6 +323,7 @@ class RIPterm {
   async pause () {
     this.log('trm', 'pause()');
     this.isRunning = false;
+    this.audio?.stop?.();
     if (this.commandsDiv) { this.commandsDiv.innerHTML = this.outCommands; }
   }
 
@@ -330,6 +331,7 @@ class RIPterm {
     this.log('trm', 'stop()');
     this.isRunning = false;
     this.ripStopped = true;
+    this.audio?.stop?.();
     if (this.startTime > 0) {
       const timeDiff = (Date.now() - this.startTime) / 1000;
       this.startTime = 0;
