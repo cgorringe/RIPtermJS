@@ -73,7 +73,7 @@ class RIPterm {
       // default options
       this.opts = {
         'modemSpeed'    : 0,      // simulate modem speed in bps (0 = no delay)
-        'refreshInterval' : 100,  // time between display refreshes (in miliseconds)
+        'refreshInterval' : 20,   // time between display refreshes (in miliseconds)
         'fontsPath'     : "fonts",
         'iconsPath'     : "icons",
         'logQuiet'      : false,  // set true to stop logging to console except for error logs.
