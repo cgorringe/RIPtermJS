@@ -285,7 +285,8 @@ class RIPterm {
       //const typeStrings = { 'term':'trm', 'rip':'rip', 'bgi':'bgi', 'svg':'svg', 'err':'!!!', 'font':'fnt' }
       //const out = typeStrings[type] || type;
       const out = type;
-      this.logDiv.innerHTML += `<span class="${this.logId}-${type}">${out}</span> ${msg}<br>`;
+      const msg2 = msg.replaceAll('>', "&gt;").replaceAll('<', "&lt;");
+      this.logDiv.innerHTML += `<span class="${this.logId}-${type}">${out}</span> ${msg2}<br>`;
       this.logDiv.scrollTop = this.logDiv.scrollHeight; // autoscrolls
     }
     if (type === 'err') {
