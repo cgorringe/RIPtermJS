@@ -40,6 +40,7 @@ class ANSImusic {
     this.percentPause = 0.125; // 1/8 normal
     this.isPlaying = false;
     this.bgBuffer = [];
+    this.noteCounter = 0;
   }
 
   /**
@@ -226,6 +227,7 @@ class ANSImusic {
           // play the note in foreground, followed by a rest
           await this.sound(freq, sound_ms * dotExtend);
           if (rest_ms > 0) { await this.sound(0, rest_ms * dotExtend); }
+          this.checkOnPlay();
           break;
 
         case 'O': // octave
@@ -259,22 +261,51 @@ class ANSImusic {
             // play the note in foreground, followed by a rest
             await this.sound(freq, sound_ms * dotExtend);
             if (rest_ms > 0) { await this.sound(0, rest_ms * dotExtend); }
+            this.checkOnPlay();
           }
       }
     }
     this.isPlaying = false;
   }
 
-  // Waits until 'num' notes are played, then calls resolve().
+  /**
+   * Waits until 'num' notes are played, then calls resolve().
+   * Set num=0 to deactivate any previous calls.
+   * There can only be one active onPlay event at a time.
+   * Calls override previous calls still waiting.
+   * NOT TESTED
+  */
   onPlay (num, resolve) {
-
-    // TODO
+    if (num <= 0) {
+      // reset
+      this.noteCounter = 0;
+      this.onPlayResolve = null;
+    }
+    else if (typeof resolve === "function") {
+      this.noteCounter = num;
+      this.onPlayResolve = resolve;
+    }
   }
 
-  // Stops any music still playing.
+  /**
+   * Private function to call after a note is played to handle when onPlay() is active.
+   * NOT TESTED
+  */
+  checkOnPlay () {
+    if (this.noteCounter > 0) {
+      this.noteCounter -= 1;
+      if ((this.noteCounter === 0) && (typeof this.onPlayResolve === "function")) {
+        this.onPlayResolve();
+        this.onPlayResolve = null;
+      }
+    }
+  }
+
+  /**
+   * Stops any music still playing.
+  */
   stop () {
     this.isPlaying = false;
-    // TODO
   }
 
 }
