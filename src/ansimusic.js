@@ -39,7 +39,8 @@ class ANSImusic {
     this.percentSound = 0.875; // 7/8 normal
     this.percentPause = 0.125; // 1/8 normal
     this.isPlaying = false;
-    this.bgBuffer = [];
+    this.isBackground = false;
+    this.queue = Promise.resolve();
     this.noteCounter = 0;
   }
 
@@ -86,6 +87,7 @@ class ANSImusic {
       gainNode.gain.setValueAtTime(volume * 0.20, t0);
       osc.start(t0);
       osc.stop(t0 + duration/1000);
+      this.checkOnPlay();
       return new Promise(res => setTimeout(res, duration));
     }
     else {
@@ -157,12 +159,11 @@ class ANSImusic {
   /**
    * Plays a sequence of notes based on the play string.
    * @param {notes} string - conforms to BASIC PLAY formatting.
-   * @param {bool} fg - 'true' for foreground play, which waits until notes finish playing.
-   *        'false' to play in the background, which runs statements following 'await' immediately
-   *        after notes begin playing. Can also be specified using 'MF' or 'MB' placed at start of 
-   *        play string. (Background play NOT YET IMPLEMENTED)
+   *        Include 'MF' or 'MB' in string to switch to foreground or background play.
+   *        'MF' awaits until all notes & rests are played.
+   *        'MB' adds notes & rests to a queue to continue playing while returning to caller.
    */
-  async play (notes, fg = true) {
+  async play (notes) {
 
     notes = notes.toUpperCase();
     console.log(`notes: ${notes}`); // DEBUG
@@ -198,10 +199,12 @@ class ANSImusic {
           if (num > 0) { this.lengthDen = Math.max(1, Math.min(num, 64)); }
           break;
 
-        case 'MB': // play in background (TODO)
+        case 'MB': // play in background
+          this.isBackground = true;
           break;
 
-        case 'MF': // play in foreground (TODO)
+        case 'MF': // play in foreground
+          this.isBackground = false;
           break;
 
         case 'ML': // legato (full)
@@ -224,10 +227,16 @@ class ANSImusic {
           noteDen = this.lengthDen;
           [sound_ms, rest_ms] = this.noteDuration(noteDen);
           freq = this.noteFreq(noteBase, 0); // doesn't use octave
-          // play the note in foreground, followed by a rest
-          await this.sound(freq, sound_ms * dotExtend);
-          if (rest_ms > 0) { await this.sound(0, rest_ms * dotExtend); }
-          this.checkOnPlay();
+          if (this.isBackground) {
+            // add note to background queue
+            this.queue = this.queue.then(() => this.sound(freq, sound_ms * dotExtend));
+            if (rest_ms > 0) { this.queue = this.queue.then(() => this.sound(0, rest_ms * dotExtend)); }
+          }
+          else {
+            // play note in foreground
+            await this.sound(freq, sound_ms * dotExtend);
+            if (rest_ms > 0) { await this.sound(0, rest_ms * dotExtend); }
+          }
           break;
 
         case 'O': // octave
@@ -237,7 +246,12 @@ class ANSImusic {
         case 'P': // pause (rest)
           noteDen = (num > 0) ? Math.max(1, Math.min(num, 64)) : this.lengthDen;
           [sound_ms, rest_ms] = this.noteDuration(noteDen);
-          await this.sound(0, (sound_ms + rest_ms) * dotExtend);
+          if (this.isBackground) {
+            this.queue = this.queue.then(() => this.sound(0, (sound_ms + rest_ms) * dotExtend));
+          }
+          else {
+            await this.sound(0, (sound_ms + rest_ms) * dotExtend);
+          }
           break;
 
         case 'T': // tempo
@@ -258,10 +272,16 @@ class ANSImusic {
             noteDen = (num > 0) ? Math.max(1, Math.min(num, 64)) : this.lengthDen;
             [sound_ms, rest_ms] = this.noteDuration(noteDen);
             freq = this.noteFreq(noteBase, this.octave);
-            // play the note in foreground, followed by a rest
-            await this.sound(freq, sound_ms * dotExtend);
-            if (rest_ms > 0) { await this.sound(0, rest_ms * dotExtend); }
-            this.checkOnPlay();
+            if (this.isBackground) {
+              // add note to background queue
+              this.queue = this.queue.then(() => this.sound(freq, sound_ms * dotExtend));
+              if (rest_ms > 0) { this.queue = this.queue.then(() => this.sound(0, rest_ms * dotExtend)); }
+            }
+            else {
+              // play note in foreground
+              await this.sound(freq, sound_ms * dotExtend);
+              if (rest_ms > 0) { await this.sound(0, rest_ms * dotExtend); }
+            }
           }
       }
     }
@@ -273,7 +293,6 @@ class ANSImusic {
    * Set num=0 to deactivate any previous calls.
    * There can only be one active onPlay event at a time.
    * Calls override previous calls still waiting.
-   * NOT TESTED
   */
   onPlay (num, resolve) {
     if (num <= 0) {
@@ -288,8 +307,7 @@ class ANSImusic {
   }
 
   /**
-   * Private function to call after a note is played to handle when onPlay() is active.
-   * NOT TESTED
+   * Called after every note played to handle while onPlay() is active.
   */
   checkOnPlay () {
     if (this.noteCounter > 0) {
@@ -306,6 +324,7 @@ class ANSImusic {
   */
   stop () {
     this.isPlaying = false;
+    this.onPlay(0);
   }
 
 }
