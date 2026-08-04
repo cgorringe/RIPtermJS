@@ -46,26 +46,23 @@
 !|1U9A3ABT3T0000<>CON<>$CON$
 !|1U9A4ABT4T0000<>COFF<>$COFF$
 !|!
-[1!
 !|1UCA0AET0T0000<><>
 !|1UCA1AET1T0000<><>
 !|1UCA2AET2T0000<><>
 !|1UCA3AET3T0000<><>
 !|1UCA4AET4T0000<><>
 !|!
-[2!
 !|1UFA0AHK0T0000<><>
 !|1UFA1AHK1T0000<><>
 !|1UFA2AHK2T0000<><>
 !|1UFA3AHK3T0000<><>
 !|1UFA4AHK4T0000<><>
-!|!
 !|#|#|#
 Text to display in the text window.
 This is the 2nd line.
 
-Line #4
-Line #5
+ANSI Music FG: [0;30m[MF T200 O3 L4 cdefgab O4 c2
+ANSI Music BG: [0;30m[MB T200 O3 L4 cdefgab O4 c2
 
 Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
 
@@ -79,5 +76,19 @@ Omnis rerum temporibus laudantium corrupti porro rerum ducimus architecto. Ab cu
 
 Rerum mollitia ullam harum cumque. Voluptas est et et autem. Aut velit repellendus minus repudiandae dolor libero. Quia eum incidunt doloribus est qui ad repellat qui. Illo dignissimos repellat dolore pariatur error officiis atque.
 
-RIPVER #1: [!
-RIPVER #2: [0!
+!|! Disable RIP
+Disable RIP: [1!
+!|c0E
+!|=00000001
+!|V4H5000A04848
+!|=00000003
+!|V4H5000A04040
+Enable RIP: [2!
+!|! Enable RIP
+
+RIPVER using [!: [!
+RIPVER using [0!: [0!
+
+BEEP: 
+
+EOF
