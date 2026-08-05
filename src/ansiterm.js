@@ -219,7 +219,7 @@ class ANSIterm {
     if (typeof options === "object") {
       if (options.clear) {
         // clear text window to current graphics background color
-        this.log('ans', "erase text window"); // DEBUG
+        //this.log('ans', "erase text window"); // DEBUG
         const x1 = tw.x, y1 = tw.y;
         const x2 = tw.x + tw.width - 1;
         const y2 = tw.y + tw.height - 1;
