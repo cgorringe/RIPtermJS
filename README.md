@@ -53,7 +53,7 @@ _RIPtermJS_ will correctly display most v1.54 RIP files in a canvas.
 - [ ] Text Windows & ANSI emulation (in progress)
   - [x] Window size & position
   - [ ] Scrolling (in progress)
-  - [ ] Text color & position
+  - [x] Text color & position
   - [x] Draw cursor
   - [x] 8x8, 8x14 fonts
   - [ ] 7x8, 7x14, 16x14 fonts (in progress)
