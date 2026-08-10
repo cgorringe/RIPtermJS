@@ -343,14 +343,13 @@ class RIPterm {
     if (this.commandsDiv) { this.commandsDiv.innerHTML = this.outCommands; }
   }
 
-  reset () {
+  async reset () {
     this.log('trm', 'reset()');
-    if (this.onTextCursor) { this.onTextCursor({ enabled: false }) }
+    await this.runRIPcmd('*', '');
+    //if (this.onTextCursor) { this.onTextCursor({ enabled: false }) }
     this.isRunning = false;
     this.ripStopped = true;
-    this.bgi.graphdefaults();
-    this.bgi.cleardevice();
-    this.clearAllButtons();
+    this.bgi.graphdefaults(); // resets viewport, palette (duplicates some of '*' cmd)
     this.clearDiff();
     if (this.refTimer) { window.clearTimeout(this.refTimer); this.refTimer = null; }
     this.refreshCanvas();
@@ -872,8 +871,8 @@ class RIPterm {
         else if (byte === 48) { state = ST_ANSI_CSI;   } // 0
         else if (byte === 49) { state = ST_ANSI_RIP1;  } // 1
         else if (byte === 50) { state = ST_ANSI_RIP2;  } // 2
-        else if ((byte === 0x4D) || (byte === 0x6D) || (byte === 0x7C) || (byte === 0x4E) || (byte === 0x6E)) {
-          // M, m, |, N, n
+        else if ((byte === 0x4D) || (byte === 0x7C) || (byte === 0x4E) || (byte === 0x6E)) {
+          // M, |, N, n
           state = ST_ANSI_MUSIC;
         }
         else { state = ST_ANSI; }
@@ -1056,7 +1055,7 @@ class RIPterm {
 
     const text = this.udTextDecoder.decode(bytes);
     const otext = this.controlCharsToSymbols(text);
-    this.log('ans', `<< ${otext}`); // DEBUG
+    //this.log('ans', `<< ${otext}`); // DEBUG
 
     if (this.onOutputBytes) { await this.onOutputBytes(bytes) }
     if (this.onOutputText) { await this.onOutputText(text) }

@@ -36,21 +36,32 @@ If you use this app on your website, we require that you give credit or acknowle
 
 **Version 0.4 Under Development**
 
-_RIPtermJS_ will correctly display a number of v1.54 RIP files in a canvas, including using Flood Fill with patterns.
+_RIPtermJS_ will correctly display most v1.54 RIP files in a canvas.
 
 **What's done and what's in progress:**
 
-- [x] Filled Circles, Ovals, &amp; Pie Slices (DONE)
-- [x] Drawing Text using .CHR fonts (DONE)
-- [x] Default Text Font (8x8 font DONE)
-- [x] Buttons &amp; Mouse regions (DONE)
-- [x] Loading &amp; drawing of Icons (DONE)
+- [x] Basic Shapes (lines, ellipses, arcs, rectangles, bezier curves)
+  - [ ] Fix filled circles, ovals, & pie slices
+  - [ ] Fix polylines slightly off
+- [x] Flood fill with patterns
+- [x] Drawing Text using .CHR fonts
+- [x] Default 8x8 Text Font
+- [x] Buttons & Mouse regions
+  - [ ] Fix button label position slightly off
+- [x] Loading & drawing of Icons
 - [ ] WebSockets to BBS on server (in progress)
-- [ ] Text Windows &amp; ANSI emulation
-- Host Commands / Variables
+- [ ] Text Windows & ANSI emulation (in progress)
+  - [x] Window size & position
+  - [ ] Scrolling (in progress)
+  - [x] Text color & position
+  - [x] Draw cursor
+  - [x] 8x8, 8x14 fonts
+  - [ ] 7x8, 7x14, 16x14 fonts (in progress)
+  - [x] ANSI Music & BEL
+- [ ] Host Commands & Variables
   - [ ] Pre-defined Text Variables (in progress)
   - [ ] User-defined Text Variables
-  - [x] Sound effects (e.g. `$BEEP$`) (DONE)
+  - [x] Audio effects
   - [x] Pop-up Pick Lists
   - [ ] Host Command Templates
   - [ ] Local File Playback

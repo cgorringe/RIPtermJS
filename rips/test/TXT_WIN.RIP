@@ -61,15 +61,16 @@
 Text to display in the text window.
 This is the 2nd line.
 
-ANSI Music FG: [0;30m[MF T200 O3 L4 cdefgab O4 c2
-ANSI Music BG: [0;30m[MB T200 O3 L4 cdefgab O4 c2
+ANSI Music FG: [MF T200 O3 L4 cdefgab O4 c2
 
 Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
 
+ANSI Music BG: [MB T200 O3 L4 cdefgab O4 c2
+[1;33m
 Recusandae hic reiciendis facilis facilis. Libero nisi autem et vel est. Vel minus quia voluptas quisquam nostrum quaerat quaerat.
-
+[1;36m
 Suscipit aut veniam fugit itaque qui. Vel non culpa molestias provident et occaecati amet molestiae. Suscipit dolorum sed non.
-
+[0m
 In sequi veritatis qui minima. Perspiciatis iste et consequatur ullam. Repudiandae aut velit deleniti consequatur voluptatem. Ea error est veniam exercitationem consequatur tempore. Corrupti earum et suscipit.
 
 Omnis rerum temporibus laudantium corrupti porro rerum ducimus architecto. Ab cum recusandae voluptatem molestiae pariatur nam rem facere. Itaque et iusto quam id sit tempora commodi vero.

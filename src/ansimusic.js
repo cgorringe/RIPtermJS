@@ -166,7 +166,7 @@ class ANSImusic {
   async play (notes) {
 
     notes = notes.toUpperCase();
-    console.log(`notes: ${notes}`); // DEBUG
+    //console.log(`notes: ${notes}`); // DEBUG
     if (!this.actx) {
       console.err("ANSImusic: play() not ready");
       return;
@@ -180,7 +180,7 @@ class ANSImusic {
     this.isPlaying = true;
 
     while ((note = re.exec(notes)) && this.isPlaying) {
-      console.log(note); // DEBUG
+      //console.log(note); // DEBUG
 
       // capture group 4 (dots)
       const dotNum = Math.max(0, Math.min(note[4].length, 4)); // clip dots allowed (0-4)
