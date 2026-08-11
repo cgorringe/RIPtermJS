@@ -2208,7 +2208,7 @@ class RIPterm {
           outer.clipboard = {};
 
           // Reset text window to full screen (80x43 text cells) and clear it.
-          outer.textWindow = { x: 0, y: 0, width: 640, height: 350, wordWrap: false, fontnum: 0,
+          outer.textWindow = { x: 0, y: 0, width: 640, height: 350, wordWrap: true, fontnum: 0,
                                textX: 0, textY: 0, textW: 80, textH: 43, fontW: 8, fontH: 8, enabled: true };
 
           // Emit event for external listeners

@@ -58,7 +58,7 @@ class ANSIterm {
     this.bgBold = 0;
     this.isBlinkToBright = false;
     this.cursorColor = this.opts.cursorColor;
-    this.textWindow = { x: 0, y: 0, width: 0, height: 0, wordWrap: false, fontnum: 0, 
+    this.textWindow = { x: 0, y: 0, width: 0, height: 0, wordWrap: true, fontnum: 0,
       textX: 0, textY: 0, textW: 0, textH: 0, fontW: 8, fontH: 8, enabled: false };
 
     // cursor related
