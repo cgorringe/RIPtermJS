@@ -63,6 +63,7 @@ class ANSIterm {
 
     // cursor related
     this.cp = { row: 1, col: 1, enabled: false };
+    this.cpSaved = structuredClone(this.cp);
     this.cursorOn = false;
     this.blinkTimer = null;
     this.blinkInterval = 500; // in milliseconds
@@ -522,6 +523,12 @@ class ANSIterm {
         }
         case 'n': // "6n" device status report (DSR)
           // TODO: Send cursor position as "ESC[n;mR" where n is row, m is column.
+          break;
+        case 's': // save cursor position
+          outer.cpSaved = structuredClone(outer.cp);
+          break;
+        case 'u': // restore cursor position
+          outer.cp = structuredClone(outer.cpSaved);
           break;
         default:
           outer.log('ans', `unknown CSI: ${text}`); // DEBUG
