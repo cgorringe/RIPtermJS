@@ -2842,10 +2842,11 @@ class RIPterm {
       },
 
       // RIP_COMMENT (!) v2.0
-      // (leave commented out so it shows red)
-      //'!': (args) => {
+      '!': (args) => {
         // do nothing
-      //},
+        let o = { func: 'RIP_COMMENT' };
+        return o;
+      },
 
       // RIP_NO_MORE (#)
       '#': (args) => {
