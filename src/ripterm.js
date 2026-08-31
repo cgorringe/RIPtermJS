@@ -741,7 +741,7 @@ class RIPterm {
     // states
     const ST_START=1, ST_ANSI=2, ST_RIPCMD=3, ST_RIPARG=4;
     const ST_BANG=5, ST_BSLASH=6, ST_CR=7, ST_RIPBANG=8;
-    const ST_ANSI_ESC=9, ST_ANSI_CSI=10, ST_ANSI_RIP1=11, ST_ANSI_RIP2=12, ST_ANSI_MUSIC=13;
+    const ST_ANSI_ESC=9, ST_ANSI_CSI=10, ST_ANSI_RIP1=11, ST_ANSI_RIP2=12;
 
     // global vars
     const outer = this;
@@ -872,10 +872,6 @@ class RIPterm {
         else if (byte === 48) { state = ST_ANSI_CSI;   } // 0
         else if (byte === 49) { state = ST_ANSI_RIP1;  } // 1
         else if (byte === 50) { state = ST_ANSI_RIP2;  } // 2
-        else if ((byte === 0x4D) || (byte === 0x7C) || (byte === 0x4E) || (byte === 0x6E)) {
-          // M, |, N, n
-          state = ST_ANSI_MUSIC;
-        }
         else { state = ST_ANSI; }
         ansiBuf.push(byte);
         break;
@@ -914,19 +910,6 @@ class RIPterm {
           ansiBuf.push(byte);
           state = ST_ANSI;
         }
-        break;
-
-      case ST_ANSI_MUSIC:
-        // Reason for this state is to avoid the buffer length check in ST_ANSI,
-        // since music strings can be quite long.
-        if ((byte === 13) || (byte === 10)) { state = ST_START; } // CR or LF
-        else if (byte === 0x0E) { state = ST_ANSI;  } // shift out (end of music string)
-        else if (byte === 27) { // ESC
-          // shouldn't get here, but just in case
-          await sendToANSI(ansiBuf);
-          state = ST_ANSI_ESC;
-        }
-        ansiBuf.push(byte);
         break;
 
       case ST_RIPCMD:
