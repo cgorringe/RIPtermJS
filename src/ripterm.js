@@ -219,6 +219,7 @@ class RIPterm {
     this.onTextWindow = (tw, options) => { term.setTextWindow(tw, options) }
     this.onTextCursor = (cursor) => { return term.textCursor(cursor) }
     this.onOutputText = async (text) => { await term.outputText(text) }
+    this.onOutputBytes = async (bytes) => { await term.outputBytes(bytes) }
     this.onInitAudio = (audio) => { term.initAudio(audio) }
   }
 
@@ -972,17 +973,19 @@ class RIPterm {
         // read next chunk of bytes
         // value is a Uint8Array or undefined
         const { value, done } = await reader.read();
-        if (done) {
-          this.log('trm', 'Stream complete');
-          // TODO: should this.isRunning be set to false? (need to check)
-          return true;
-        }
-        else if (value) {
+        if (value) {
           // parse all the new bytes read in
           const buffer = Array.from(value);
           for (let i=0; i < buffer.length; i++) {
             await nextByte(buffer[i]);
           }
+        }
+        if (done) {
+          // send last remaining bytes
+          await sendToANSI(ansiBuf);
+          this.log('trm', 'Stream complete');
+          // TODO: should this.isRunning be set to false? (need to check)
+          return true;
         }
       }
     }
@@ -1058,7 +1061,7 @@ class RIPterm {
     //this.log('ans', `<< ${otext}`); // DEBUG
 
     if (this.onOutputBytes) { await this.onOutputBytes(bytes) }
-    if (this.onOutputText) { await this.onOutputText(text) }
+    else if (this.onOutputText) { await this.onOutputText(text) }
   }
 
 
@@ -2212,7 +2215,7 @@ class RIPterm {
                                textX: 0, textY: 0, textW: 80, textH: 43, fontW: 8, fontH: 8, enabled: true };
 
           // Emit event for external listeners
-          if (outer.onTextWindow) { outer.onTextWindow(outer.textWindow, { clear: true }) }
+          if (outer.onTextWindow) { outer.onTextWindow(outer.textWindow, { clear: true, reset: true }) }
           if (outer.onTextCursor) { outer.onTextCursor({ row: 1, col: 1 }) }
 
           // TODO: restore default palette
