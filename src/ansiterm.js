@@ -16,7 +16,6 @@
 
 class ANSIterm {
 
-  ////////////////////////////////////////////////////////////////////////////////
   // Contructor & init methods
 
   constructor (args) {
@@ -52,11 +51,7 @@ class ANSIterm {
 
     // init vars
     this.udTextDecoder = new TextDecoder("x-user-defined");
-    this.fgColor = this.opts.fgColor;
-    this.bgColor = this.opts.bgColor;
-    this.fgBold = 0;
-    this.bgBold = 0;
-    this.isBlinkToBright = false;
+    this.resetVars();
     this.cursorColor = this.opts.cursorColor;
     this.textWindow = { x: 0, y: 0, width: 0, height: 0, wordWrap: true, fontnum: 0,
       textX: 0, textY: 0, textW: 0, textH: 0, fontW: 8, fontH: 8, enabled: false };
@@ -92,6 +87,20 @@ class ANSIterm {
         console.log(msg);
       }
     }
+  }
+
+
+  // vars to reset after 'reset' option passed to setTextWindow().
+  resetVars () {
+    this.state = 1; // ST_TEXT
+    this.ansiBuf = [];
+    this.fgColor = this.opts.fgColor;
+    this.bgColor = this.opts.bgColor;
+    this.fgBold = 0;
+    this.bgBold = 0;
+    this.isBlinkToBright = false;
+    this.sauce = {}; // SAUCE meta-data
+    this.comnt = ""; // SAUCE comments
   }
 
   /**
@@ -241,8 +250,13 @@ class ANSIterm {
         this.bgi._bar(x1, y1, x2, y2, bgc, BGI.COPY_PUT, BGI.SOLID_FILL);
         this.bgi.update();
       }
+      if (options.reset) {
+        this.resetVars();
+      }
     }
   }
+
+
 
   // Callback function for onOutputText(). [see usage notes]
   // Displays text in the text window, including parsing ANSI escape sequences.
@@ -250,10 +264,31 @@ class ANSIterm {
   //
   async outputText (text) {
 
-    //this.log('ans', "outputText()"); // DEBUG
-    if (typeof text !== "string") { return }
+    if (typeof text !== "string") {
+      console.log("outputText() text is not a string");
+      return;
+    }
+
+    // convert UTF-16 string to Uint8Array
+    const bytes = new Uint8Array(text.length);
+    for (let i = 0; i < text.length; i++) {
+      bytes[i] = text.charCodeAt(i) & 0xFF;
+    }
+
+    return this.outputBytes(bytes);
+  }
+
+  // Callback function for onOutputBytes(). [see usage notes]
+  // Displays text in the text window, including parsing ANSI escape sequences.
+  // bytes is an Uint8Array
+  //
+  async outputBytes (bytes) {
+
+    if ((bytes instanceof Uint8Array) !== true) {
+      console.log("outputBytes() bytes is not a Uint8Array");
+      return;
+    }
     const tw = this.textWindow;
-    //this.log('ans', `textWindow: ${JSON.stringify(tw)}`); // DEBUG
     if (!tw.enabled) { return }
     this.hideCursor();
 
@@ -275,20 +310,19 @@ class ANSIterm {
     }
 
     // states
-    const ST_TEXT=1, ST_ESC=2, ST_CSI=3, ST_MUSIC=4;
-    let state = ST_TEXT;
-    let ansiBuf = [];
+    const ST_TEXT=1, ST_ESC=2, ST_CSI=3, ST_MUSIC=4, ST_EOF=5, ST_SAUCE=6, ST_COMNT=7;
 
     // ANSI text state machine
     async function nextByte (byte) {
 
-      switch (state) {
+      switch (outer.state) {
       case ST_TEXT:
         // TODO: finish
-        if      (byte === 0x0A) { outer.cp.row += 1; } // LF
-        else if (byte === 0x0C) { }                    // FF (TODO: ignore?)
-        else if (byte === 0x0D) { outer.cp.col = 1;  } // CR
-        else if (byte === 0x1B) { state = ST_ESC; }    // ESC
+        if (byte === 0x1B) { outer.state = ST_ESC; }      // ESC
+        else if (byte === 0x0A) { outer.cp.row += 1; }    // LF
+        else if (byte === 0x0C) { }                       // FF (TODO: ignore?)
+        else if (byte === 0x0D) { outer.cp.col = 1;  }    // CR
+        else if (byte === 0x1A) { outer.state = ST_EOF; } // EOF
         else if ((byte === 0x07) && (outer.audioOn)) { await outer.audio?.beep?.(); } // BEL
         else {
           if ((x < tw_width) && (y < tw_height)) {
@@ -307,69 +341,119 @@ class ANSIterm {
           }
           outer.cp.col += 1;
         }
-        ansiBuf.length = 0;
+        outer.ansiBuf.length = 0;
         break;
 
       case ST_ESC:
         // TODO: finish
-        if      (byte === 0x0A) { outer.cp.row += 1; state = ST_TEXT; } // LF
-        else if (byte === 0x0D) { outer.cp.col = 1; state = ST_TEXT; } // CR
-        else if (byte === 0x1B) { ansiBuf.length = 0; } // ESC
-        else if (byte === 0x5B) { state = ST_CSI; } // [
-        else if ((byte >= 0x60) && (byte <= 0x7E)) { ansiBuf.length = 0; state = ST_TEXT; } // type Fs (skip)
-        else { ansiBuf.push(byte); }
+        if      (byte === 0x0A) { outer.cp.row += 1; outer.state = ST_TEXT; } // LF
+        else if (byte === 0x0D) { outer.cp.col = 1; outer.state = ST_TEXT; } // CR
+        else if (byte === 0x1B) { outer.ansiBuf.length = 0; }   // ESC
+        else if (byte === 0x5B) { outer.state = ST_CSI; } // [
+        else if ((byte >= 0x60) && (byte <= 0x7E)) { outer.ansiBuf.length = 0; outer.state = ST_TEXT; } // type Fs (skip)
+        else { outer.ansiBuf.push(byte); }
         break;
 
       case ST_CSI:
-        if      (byte === 0x0A) { outer.cp.row += 1; state = ST_TEXT; } // LF
-        else if (byte === 0x0D) { outer.cp.col = 1; state = ST_TEXT;  } // CR
-        else if (byte === 0x1B) { ansiBuf.length = 0; state = ST_ESC; } // ESC
+        if      (byte === 0x0A) { outer.cp.row += 1; outer.state = ST_TEXT; } // LF
+        else if (byte === 0x0D) { outer.cp.col = 1; outer.state = ST_TEXT;  } // CR
+        else if (byte === 0x1B) { outer.ansiBuf.length = 0; outer.state = ST_ESC; } // ESC
         else if (byte === 0x4D) { // M
           // ANSI Music (include 'M' byte prefix)
-          ansiBuf.length = 0;
-          ansiBuf.push(byte);
-          state = ST_MUSIC;
+          outer.ansiBuf.length = 0;
+          outer.ansiBuf.push(byte);
+          outer.state = ST_MUSIC;
         }
         else if ((byte === 0x7C) || (byte === 0x4E) || (byte === 0x6E)) { // | or N or n
           // ANSI Music (less common)
-          ansiBuf.length = 0;
-          state = ST_MUSIC;
+          outer.ansiBuf.length = 0;
+          outer.state = ST_MUSIC;
         }
         else if ((byte >= 0x40) && (byte <= 0x7E)) {
           // CSI Command
-          ansiBuf.push(byte);
-          runCSI(ansiBuf);
-          ansiBuf.length = 0;
-          state = ST_TEXT;
+          outer.ansiBuf.push(byte);
+          runCSI(outer.ansiBuf);
+          outer.ansiBuf.length = 0;
+          outer.state = ST_TEXT;
         }
-        else { ansiBuf.push(byte); }
+        else { outer.ansiBuf.push(byte); }
         break;
 
       case ST_MUSIC:
-        if      (byte === 0x0A) { outer.cp.row += 1; state = ST_TEXT; } // LF
-        else if (byte === 0x0D) { outer.cp.col = 1; state = ST_TEXT;  } // CR
-        else if (byte === 0x1B) { ansiBuf.length = 0; state = ST_ESC; } // ESC
+        if      (byte === 0x0A) { outer.cp.row += 1; outer.state = ST_TEXT; } // LF
+        else if (byte === 0x0D) { outer.cp.col = 1; outer.state = ST_TEXT;  } // CR
+        else if (byte === 0x1B) { outer.ansiBuf.length = 0; outer.state = ST_ESC; } // ESC
         else if (byte === 0x0E) { // SO
           // end of music
-          await sendToMusic(ansiBuf);
-          ansiBuf.length = 0;
-          state = ST_TEXT;
+          await sendToMusic(outer.ansiBuf);
+          outer.ansiBuf.length = 0;
+          outer.state = ST_TEXT;
         }
-        else { ansiBuf.push(byte); }
+        else { outer.ansiBuf.push(byte); }
         break;
 
+      case ST_EOF:
+        if (byte !== 0x00) { outer.ansiBuf.push(byte); } // skip NULs
+        if ((outer.ansiBuf.length === 5) && ("SAUCE" === outer.udTextDecoder.decode(new Uint8Array(outer.ansiBuf)))) {
+          // SAUCE record found
+          outer.state = ST_SAUCE;
+        }
+        else if ((outer.ansiBuf.length === 5) && ("COMNT" === outer.udTextDecoder.decode(new Uint8Array(outer.ansiBuf)))) {
+          // SAUCE COMNT record found
+          outer.ansiBuf.length = 0;
+          outer.state = ST_COMNT;
+        }
+        else if (outer.ansiBuf.length > 5) {
+          outer.state = ST_TEXT;
+        }
+        break;
+
+      case ST_SAUCE:
+        // A SAUCE Record is 128 bytes (including "SAUCE") after an EOF (0x1A),
+        // optionally preceded by Comment blocks after EOF. Usually just 1, but there may be more.
+
+        outer.ansiBuf.push(byte);
+        if (outer.ansiBuf.length >= 128) {
+          outer.sauce = outer.parseSAUCE(new Uint8Array(outer.ansiBuf));
+          const outSauce = JSON.stringify(outer.sauce).replaceAll('\\"', '\'').replaceAll('"', '').replaceAll(',', ', ');
+          outer.log('ans', `SAUCE: ${outSauce}`);
+          //if (outer.sauce.Comments) { outer.log('ans', `SAUCE comment: ${outer.comnt}`); }
+          outer.ansiBuf.length = 0;
+          outer.state = ST_TEXT;
+        }
+        break;
+
+      case ST_COMNT:
+        // A SAUCE Comment block begins with "COMNT" then 64 bytes for each line * number of lines
+        // stored in the "Comments" field of the SAUCE record, which unfortunately comes after.
+        // So this block is variable length up to 255 lines. (64 * 255 + 5 bytes)
+
+        outer.ansiBuf.push(byte);
+        if (outer.ansiBuf.length >= 64) {
+          // store & append comment block
+          const cmt1 = outer.comnt || "";
+          const cmt2 = outer.udTextDecoder.decode(new Uint8Array(outer.ansiBuf));
+          outer.comnt = cmt1 + cmt2;
+          outer.log('ans', `SAUCE COMNT: ${cmt2}`);
+          outer.ansiBuf.length = 0;
+        }
+        else if ((outer.ansiBuf.length === 5) && ("SAUCE" === outer.udTextDecoder.decode(new Uint8Array(outer.ansiBuf)))) {
+          // SAUCE record found
+          outer.state = ST_SAUCE;
+        }
+        break;
+
+      default:
       }
     }
 
     // Run CSI command
     function runCSI (buf) {
-      const text = outer.udTextDecoder.decode(new Uint8Array(buf));
-      //outer.log('ans', `CSI: ${text}`); // DEBUG
 
       // format: ESC-[ (0x30-0x3F)* (0x20-0x2F)* (0x40-0x7E)
-
-      const str = text.slice(0, -1);
-      const cmd = text.slice(-1);
+      const csiText = outer.udTextDecoder.decode(new Uint8Array(buf));
+      const str = csiText.slice(0, -1);
+      const cmd = csiText.slice(-1);
       // args usually numbers, but sometimes '?' so store args as strings
       const args = str.split(";");
       let n0, n1;
@@ -531,19 +615,17 @@ class ANSIterm {
           outer.cp = structuredClone(outer.cpSaved);
           break;
         default:
-          outer.log('ans', `unknown CSI: ${text}`); // DEBUG
+          outer.log('ans', `unknown CSI: ${csiText}`); // DEBUG
       }
     }
 
-    // loop thru each character in text string
-    const chars = text.split('');
-    for (let c of chars) {
+    // loop thru each byte
+    for (let b of bytes) {
 
-      const cvalue = c.charCodeAt(0) & 0xFF; // to strip out 2nd byte
+      // x & y used in nextByte()
       x = tw.x + ((this.cp.col - 1) * tw.fontW);
       y = tw.y + ((this.cp.row - 1) * tw.fontH);
-
-      await nextByte(cvalue);
+      await nextByte(b);
 
       // word wrap
       if (tw.wordWrap && (this.cp.col > tw.textW)) {
@@ -558,8 +640,7 @@ class ANSIterm {
         this.scrollUp(tw);
         this.bgi.update();
       }
-
-    } // next c
+    }
 
     this.bgi.setcolor(tempColor); // restore fgColor
     this.bgi.update();
@@ -585,6 +666,36 @@ class ANSIterm {
     // clear last line
     const bgc = this.bgi.getbkcolor();
     this.bgi._bar(x1, y2 - tw.fontH, x2, y2, bgc, BGI.COPY_PUT, BGI.SOLID_FILL);
+  }
+
+  // Parses a SAUCE record and returns an object with the parsed data.
+  // bytes is a Uint8Array
+  //
+  parseSAUCE (bytes) {
+
+    let ret = {};
+    const view = new DataView(bytes.buffer);
+
+    // strings are supposed to be space-padded, but some may be null-terminated.
+    ret.ID       = this.udTextDecoder.decode(bytes.slice( 0,  5)).trim(); //  5 chars
+    ret.Version  = this.udTextDecoder.decode(bytes.slice( 5,  7)).trim(); //  2 chars
+    ret.Title    = this.udTextDecoder.decode(bytes.slice( 7, 42)).trim(); // 35 chars
+    ret.Author   = this.udTextDecoder.decode(bytes.slice(42, 62)).trim(); // 20 chars
+    ret.Group    = this.udTextDecoder.decode(bytes.slice(62, 82)).trim(); // 20 chars
+    ret.Date     = this.udTextDecoder.decode(bytes.slice(82, 90)); // 8 chars "YYYYMMDD"
+    ret.FileSize = view.getUint32(90, true); // true = little-endian
+    ret.DataType = bytes[94];
+    ret.FileType = bytes[95];
+    ret.TInfo1   = view.getUint16(96, true);
+    ret.TInfo2   = view.getUint16(98, true);
+    ret.TInfo3   = view.getUint16(100, true);
+    ret.TInfo4   = view.getUint16(102, true);
+    ret.Comments = bytes[104];
+    ret.TFlags   = bytes[105];
+    // remove anything after a null in this Zstring
+    ret.TInfoS   = this.udTextDecoder.decode(bytes.slice(106, 128)).replace(/\0.*$/, '').trim(); // 22 chars
+
+    return ret;
   }
 
 }

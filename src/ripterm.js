@@ -219,6 +219,7 @@ class RIPterm {
     this.onTextWindow = (tw, options) => { term.setTextWindow(tw, options) }
     this.onTextCursor = (cursor) => { return term.textCursor(cursor) }
     this.onOutputText = async (text) => { await term.outputText(text) }
+    this.onOutputBytes = async (bytes) => { await term.outputBytes(bytes) }
     this.onInitAudio = (audio) => { term.initAudio(audio) }
   }
 
@@ -740,7 +741,7 @@ class RIPterm {
     // states
     const ST_START=1, ST_ANSI=2, ST_RIPCMD=3, ST_RIPARG=4;
     const ST_BANG=5, ST_BSLASH=6, ST_CR=7, ST_RIPBANG=8;
-    const ST_ANSI_ESC=9, ST_ANSI_CSI=10, ST_ANSI_RIP1=11, ST_ANSI_RIP2=12, ST_ANSI_MUSIC=13;
+    const ST_ANSI_ESC=9, ST_ANSI_CSI=10, ST_ANSI_RIP1=11, ST_ANSI_RIP2=12;
 
     // global vars
     const outer = this;
@@ -871,10 +872,6 @@ class RIPterm {
         else if (byte === 48) { state = ST_ANSI_CSI;   } // 0
         else if (byte === 49) { state = ST_ANSI_RIP1;  } // 1
         else if (byte === 50) { state = ST_ANSI_RIP2;  } // 2
-        else if ((byte === 0x4D) || (byte === 0x7C) || (byte === 0x4E) || (byte === 0x6E)) {
-          // M, |, N, n
-          state = ST_ANSI_MUSIC;
-        }
         else { state = ST_ANSI; }
         ansiBuf.push(byte);
         break;
@@ -913,19 +910,6 @@ class RIPterm {
           ansiBuf.push(byte);
           state = ST_ANSI;
         }
-        break;
-
-      case ST_ANSI_MUSIC:
-        // Reason for this state is to avoid the buffer length check in ST_ANSI,
-        // since music strings can be quite long.
-        if ((byte === 13) || (byte === 10)) { state = ST_START; } // CR or LF
-        else if (byte === 0x0E) { state = ST_ANSI;  } // shift out (end of music string)
-        else if (byte === 27) { // ESC
-          // shouldn't get here, but just in case
-          await sendToANSI(ansiBuf);
-          state = ST_ANSI_ESC;
-        }
-        ansiBuf.push(byte);
         break;
 
       case ST_RIPCMD:
@@ -972,17 +956,19 @@ class RIPterm {
         // read next chunk of bytes
         // value is a Uint8Array or undefined
         const { value, done } = await reader.read();
-        if (done) {
-          this.log('trm', 'Stream complete');
-          // TODO: should this.isRunning be set to false? (need to check)
-          return true;
-        }
-        else if (value) {
+        if (value) {
           // parse all the new bytes read in
           const buffer = Array.from(value);
           for (let i=0; i < buffer.length; i++) {
             await nextByte(buffer[i]);
           }
+        }
+        if (done) {
+          // send last remaining bytes
+          await sendToANSI(ansiBuf);
+          this.log('trm', 'Stream complete');
+          // TODO: should this.isRunning be set to false? (need to check)
+          return true;
         }
       }
     }
@@ -1058,7 +1044,7 @@ class RIPterm {
     //this.log('ans', `<< ${otext}`); // DEBUG
 
     if (this.onOutputBytes) { await this.onOutputBytes(bytes) }
-    if (this.onOutputText) { await this.onOutputText(text) }
+    else if (this.onOutputText) { await this.onOutputText(text) }
   }
 
 
@@ -2212,7 +2198,7 @@ class RIPterm {
                                textX: 0, textY: 0, textW: 80, textH: 43, fontW: 8, fontH: 8, enabled: true };
 
           // Emit event for external listeners
-          if (outer.onTextWindow) { outer.onTextWindow(outer.textWindow, { clear: true }) }
+          if (outer.onTextWindow) { outer.onTextWindow(outer.textWindow, { clear: true, reset: true }) }
           if (outer.onTextCursor) { outer.onTextCursor({ row: 1, col: 1 }) }
 
           // TODO: restore default palette
