@@ -177,7 +177,7 @@ class BGI {
       writeMode: 0, // 0=COPY, 1=XOR, 2=OR, 3=AND, 4=NOT
       font: { width: 0, height: 0 }, // ??
       fontMag: { x: 1.0, y: 1.0 }, // font magnification
-      text: { font: 0, direction: 0, charsize: 0, horiz: 0, vert: 0 },
+      text: { font: 0, direction: 0, charsize: 1, horiz: 0, vert: 0 },
     };
   }
 
@@ -2010,7 +2010,7 @@ class BGI {
     return 0; // ???
   }
 
-  // returns object: { font: 0, direction: 0, charsize: 0, horiz: 0, vert: 0 }
+  // returns object: { font: 0, direction: 0, charsize: 1, horiz: 0, vert: 0 }
   gettextsettings () {
     // OLD struct textsettingstype *texttypeinfo
     return JSON.parse(JSON.stringify(this.info.text)); // copy obj
@@ -2623,7 +2623,7 @@ class BGI {
     // SEE https://www.cs.colorado.edu/~main/bgi/doc/settextstyle.html
     this.info.text.font = font;
     this.info.text.direction = direction;
-    this.info.text.charsize = charsize;
+    this.info.text.charsize = Math.max(1, charsize);
   }
 
   // TODO
