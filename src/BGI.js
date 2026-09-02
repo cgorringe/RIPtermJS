@@ -2623,7 +2623,7 @@ class BGI {
     // SEE https://www.cs.colorado.edu/~main/bgi/doc/settextstyle.html
     this.info.text.font = font;
     this.info.text.direction = direction;
-    this.info.text.charsize = charsize;
+    this.info.text.charsize = Math.max(1, charsize);
   }
 
   // TODO
