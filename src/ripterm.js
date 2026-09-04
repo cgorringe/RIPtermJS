@@ -110,6 +110,7 @@ class RIPterm {
       this.outCommands = '';
       this.startTime = 0;
       this.cmdi = 0;        // command counter
+      this.diffCount = 0;
       this.refTimer = null; // refresh interval timer
       this.clipboard = {};  // { x:int, y:int, width:int, height:int, data:Uint8ClampedArray }
       this.buttonStyle = {};
@@ -126,6 +127,7 @@ class RIPterm {
       this.commandsDiv = ('commandsId' in opts) ? document.getElementById(opts.commandsId) : null;
       this.counterDiv = ('counterId' in opts) ? document.getElementById(opts.counterId) : null;
       this.coordsDiv = ('coordsId' in opts) ? document.getElementById(opts.coordsId) : null;
+      this.diffCountDiv = ('diffCountId' in opts) ? document.getElementById(opts.diffCountId) : null;
       this.hiliteCmdFlag = false;
       this.diffActive = false;
       if ('logId' in opts) {
@@ -359,6 +361,7 @@ class RIPterm {
     if (this.counterDiv) { this.counterDiv.innerHTML = ''; }
     this.outCommands = '';
     if (this.commandsDiv) { this.commandsDiv.innerHTML = ''; }
+    if (this.diffCountDiv) { this.diffCountDiv.innerHTML = ''; }
   }
 
   clear () {
@@ -409,6 +412,7 @@ class RIPterm {
     if (this.counterDiv) { this.counterDiv.innerHTML = this.cmdi.toLocaleString(); }
     this.bgi.refresh();
     if (this.diffActive) { this.refreshDiff(); }
+    if (this.diffCountDiv) { this.diffCountDiv.innerHTML = this.diffCount.toLocaleString(); }
     if (this.isRunning) {
       this.refTimer = window.setTimeout(() => { this.refreshCanvas() }, this.opts.refreshInterval);
     }
@@ -462,17 +466,14 @@ class RIPterm {
       let img = new Image();
       img.onload = () => {
         this.ctxSS.drawImage(img, 0, 0);
-        if (this.diffActive) {
-          this.refreshDiff();
-        } else {
-          this.clearDiff();
-        }
+        this.refreshCanvas();
       }
       img.src = url;
     }
   }
 
   clearDiff () {
+    this.diffCount = 0;
     if (this.ctxDiff) {
       this.ctxDiff.save();
       this.ctxDiff.fillStyle = this.opts.diffBGcolor;
@@ -505,6 +506,7 @@ class RIPterm {
       // compare image diffs
       const delta = 40; // accounts for changes in color gamma in source images
       const dlen = imgMain.data.length; // 4 ints in array per pixel
+      let count = 0;
       for (let i=0; i < dlen; i+=4) {
         if ( (Math.abs(imgMain.data[i+0] - imgSS.data[i+0]) < delta)   // R
           && (Math.abs(imgMain.data[i+1] - imgSS.data[i+1]) < delta)   // G
@@ -522,11 +524,13 @@ class RIPterm {
           imgDiff.data[i+1] = fgG;
           imgDiff.data[i+2] = fgB;
           imgDiff.data[i+3] = 255;
+          count += 1;
         }
       }
 
       // draw imgDiff to diff canvas
       this.ctxDiff.putImageData(imgDiff, 0, 0);
+      this.diffCount = count;
     }
   }
 

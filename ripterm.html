@@ -78,8 +78,18 @@
   }
 
   .rip-status-area {
-    padding: 0.5em 0 0 0;
+    display: flex;
+    margin-top: 0.5em;
     font-size: 10pt;
+    height: 1em;
+  }
+  .rip-status-area > span {
+    padding: 0 0.5em 0 0.5em;
+    width: 15%;
+  }
+  .rip-status-area > span:last-child {
+    width: 70%;
+    text-align: right;
   }
 
   #rip-files {
@@ -133,15 +143,6 @@
 
   .clear { clear: both; }
 
-  #rip-counter {
-    float: right;
-    padding-right: 8px;
-    /* font-size: 12pt; */
-    /* font-weight: bold; */
-    /* line-height: 30px; */
-    /* clear: both; */
-  }
-
   .debugOptions {
     padding-left: 0.5em;
     font-size: 12pt;
@@ -171,7 +172,7 @@
 </style>
 <div>
   <button onclick="ripterm.reset()">Reset</button>
-  <input type="file" id="rip-open-file" accept=".rip,.RIP" onchange="openRIP()" hidden />
+  <input type="file" id="rip-open-file" accept=".rip,.RIP,.ans,.ANS" onchange="openRIP()" hidden />
   <label for="rip-open-file" class="button">Upload...</label> or
 
   <select id="rip-files" onchange="selectRIP()">
@@ -309,8 +310,10 @@
 
   <div class="clear"></div>
 
-  <div class="rip-status-area">x,y (<span id="rip-coords"></span>)
-    <span id="rip-counter"></span>
+  <div class="rip-status-area">
+    <span>x,y: (<span id="rip-coords"></span>)</span>
+    <span>diff: <span id="rip-diff-count"></span></span>
+    <span><span id="rip-counter"></span></span>
   </div>
   <div class="clear"></div>
 
@@ -437,6 +440,7 @@
     canvasId: 'rip-canvas',
     ssId: 'rip-ss-canvas',
     diffId: 'rip-diff-canvas',
+    diffCountId: 'rip-diff-count',
     svgId: 'rip-svg',
     logId: 'rip-log',
     commandsId: 'rip-commands',
@@ -445,7 +449,7 @@
     refreshInterval: 20,
     fontsPath: 'fonts',
     iconsPath: 'icons',
-    logQuiet: true
+    //logQuiet: true
   });
   ripterm.initFonts();
 
