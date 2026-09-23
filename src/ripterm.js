@@ -73,7 +73,8 @@ class RIPterm {
       // default options
       this.opts = {
         'modemSpeed'    : 0,      // simulate modem speed in bps (0 = no delay)
-        'refreshInterval' : 20,   // time between display refreshes (in miliseconds)
+        'playLength'    : 0,      // play file over time in seconds (0 = use modemSpeed)
+        'refreshInterval' : 20,   // time between display refreshes (in milliseconds)
         'fontsPath'     : "fonts",
         'iconsPath'     : "icons",
         'logQuiet'      : false,  // set true to stop logging to console except for error logs.
@@ -571,9 +572,10 @@ class RIPterm {
     this.ripFile = file;
     this.ripURL = undefined;
     this.log('trm', `openFile: ${file.name}`);
-
+    const size = file.size;
+    this.log('trm', `size: ${size.toLocaleString()}`);
     const stream = file.stream();
-    await this.setupStream(stream);
+    await this.setupStream(stream, size);
   }
 
   async openURL (url) {
@@ -584,24 +586,64 @@ class RIPterm {
     this.ripFile = undefined;
     this.log('trm', `openURL: ${url}`);
 
-    const response = await fetch(url);
-    const stream = response.body;
-    await this.setupStream(stream);
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`Response status: ${response.status}`);
+      }
+      const stream = response.body;
+      const size = Number(response.headers.get("Content-Length"));
+      this.log('trm', `size: ${size.toLocaleString()}`);
+      await this.setupStream(stream, size);
+    }
+    catch (error) {
+      this.log('err', error.message);
+    }
   }
 
   // 'speed' can be an int or a string
+  // if string, may have 2 parts "auto <num>" where num is seconds to play entire file.
+  //
   async setModemSpeed (speed) {
 
-    const speedNum = parseInt(speed);
+    if (typeof speed === "string") {
+      const args = speed.split(" ");
+      if ((args.length > 1) && (args[0] === "auto")) {
+        const secs = Number(args[1]);
+        this.opts.playLength = secs;
+        this.log('trm', `Auto speed set to ${secs.toLocaleString()} secs`);
+        return;
+      }
+    }
+
+    // single arg as a number or string
+    const speedNum = Number(speed);
     this.log('trm', `Speed set to ${speedNum.toLocaleString()} bps`);
     this.opts.modemSpeed = speedNum;
+    this.opts.playLength = 0;
   }
 
   // Calculate buffer size based on modemSpeed & refreshInterval.
   // Size returned is number of bytes between refreshes.
   // If modemSpeed == 0 then returns 0.
   //
-  calculateStreamBufferSize (speed = this.opts.modemSpeed, interval = this.opts.refreshInterval) {
+  calculateStreamBufferSize (defaults = {}) {
+    const {
+      speed = this.opts.modemSpeed,           // in bits per second
+      interval = this.opts.refreshInterval,   // in milliseconds
+      length = this.opts.playLength,          // in seconds
+      filesize = 0
+    } = defaults;
+
+    let ret = 0;
+    if ((length > 0) && (filesize > 0)) {
+      // calculate based on file size, length, and interval
+      ret = Math.ceil((interval / 1000) * (filesize / length));
+    }
+    else {
+      // calculate based on modem speed and interval
+      ret = Math.ceil((interval / 1000) * (speed / 10));
+    }
 
     // Modem speed is in bits per second assuming 8N1 or 10 bits/byte.
     // speed / 10 => bytes per sec
@@ -621,8 +663,11 @@ class RIPterm {
     // (50 ms / 1000) * (14400 bps / 10) => 72 bytes
     // (50 ms / 1000) * (33600 bps / 10) => 168 bytes
     // (50 ms / 1000) * (56000 bps / 10) => 280 bytes
+    //
+    // Example #3: 50 ms refresh, filesize = 100,000, play for 5 seconds.
+    // (50 ms / 1000) * (100,000 / 5) => 1,000 bytes
 
-    return Math.ceil((interval / 1000) * (speed / 10));
+    return ret;
   }
 
   // copied from AI
@@ -708,11 +753,13 @@ class RIPterm {
   }
 
   // if stream is undefined, continue using this.inStream
-  async setupStream (stream) {
+  // if filesize > 0, auto calculate modem speed using this.opts.playLength
+  //
+  async setupStream (stream, filesize = 0) {
 
     stream = stream || this.inStream;
     if (typeof stream === "undefined") { return; }
-    const chunkSize = this.calculateStreamBufferSize();
+    const chunkSize = this.calculateStreamBufferSize({ filesize });
 
     if (stream) {
       this.inStream = stream;
