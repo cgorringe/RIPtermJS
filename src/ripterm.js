@@ -356,7 +356,7 @@ class RIPterm {
   async reset () {
     this.log('trm', 'reset()');
     await this.runRIPcmd('*', '');
-    //if (this.onTextCursor) { this.onTextCursor({ enabled: false }) }
+    if (this.onTextCursor) { this.onTextCursor({ enabled: false }) }
     this.isRunning = false;
     this.ripStopped = true;
     this.bgi.graphdefaults(); // resets viewport, palette (duplicates some of '*' cmd)
@@ -1025,6 +1025,7 @@ class RIPterm {
           await sendToANSI(ansiBuf);
           this.log('trm', 'Stream complete');
           // TODO: should this.isRunning be set to false? (need to check)
+          //if (this.onTextCursor && this.textWindow.enabled) { this.onTextCursor({ enabled: true }) } // TEST
           return true;
         }
       }
@@ -2900,7 +2901,7 @@ class RIPterm {
           if (ob.hilite) { return }
           outer.activateMouseEvents(true);
           // TODO: not sure if this is the only or best place to enable the cursor
-          if (outer.onTextCursor) { outer.onTextCursor({ enabled: true }) }
+          //if (outer.onTextCursor) { outer.onTextCursor({ enabled: true }) }
         };
         return o;
       }
