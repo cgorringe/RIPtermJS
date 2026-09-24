@@ -137,6 +137,13 @@ class ANSIterm {
     return true;
   }
 
+  // Set true to enable ANSI Music playing, false to disable.
+  setMusicOn (flag) {
+    this.log('trm', "Music " + (flag ? "ON" : "OFF"));
+    this.musicOn = flag;
+  }
+
+
   ////////////////////////////////////////////////////////////////////////////////
   // Cursor methods
 

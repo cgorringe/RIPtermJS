@@ -92,6 +92,14 @@
     text-align: right;
   }
 
+  .rip-options {
+    font-size: 13pt; /* 0.8em; */
+    line-height: 1.75em;
+  }
+  .rip-options input[type="checkbox"] {
+    margin:0 0.3em 0 1em;
+  }
+
   #rip-files {
     font-size: 12pt;
   }
@@ -177,6 +185,7 @@
 
   <select id="rip-files" onchange="selectRIP()">
     <option value="" selected>Select a RIP file...</option>
+    <hr>
     <option value="rips/set1/BEAR">Bear</option>
     <option value="rips/set1/BILL">Bill</option>
     <option value="rips/set1/BULLETIN">Bulletin</option>
@@ -251,6 +260,7 @@
     <option value="rips/set1/CITY">City</option>
     <option value="rips/set1/MOTION">Motion</option>
     <option value="rips/set1/FRACTMTN">Fractal Mountain</option>
+    <hr>
     <option value="rips/test/S_FILL">Test Fill Patterns (S)(s)</option>
     <option value="rips/test/F_FILL1">Test Flood Fill Leaks #1 (F)</option>
     <option value="rips/test/F_FILL2">Test Flood Fill Leaks #2 (F)</option>
@@ -268,6 +278,7 @@
     <option value="rips/test/TXT_WIN">Test Text Window</option>
     <option value="rips/ansi/GI-MODHE.ANS">ANSI Music (GI-MODHE.ANS)</option>
     <option value="rips/ansi/TEST.ANS">ANSI Test (TEST.ANS)</option>
+    <hr>
     <option value="rips/set2/K!LIGHT">K!LIGHT.RIP</option>
     <option value="rips/set2/KT-JJB">KT-JJB.RIP</option>
     <option value="rips/set2/OUT-AD">OUT-AD.RIP</option>
@@ -290,6 +301,11 @@
 
   <select id="rip-speed" onchange="selectSpeed()">
     <option value="0">Full Speed</option>
+    <option value="auto 2">Auto 2 sec</option>
+    <option value="auto 3">Auto 3 sec</option>
+    <option value="auto 5">Auto 5 sec</option>
+    <option value="auto 10">Auto 10 sec</option>
+    <hr>
     <option value="460800">460.8 kbps</option>
     <option value="230400">230.4 kbps</option>
     <option value="115200" selected>115.2 kbps</option>
@@ -300,10 +316,6 @@
     <option value="9600">9,600 bps</option>
     <option value="4800">4,800 bps</option>
     <option value="2400">2,400 bps</option>
-    <option value="auto 2">Auto 2 sec</option>
-    <option value="auto 3">Auto 3 sec</option>
-    <option value="auto 5">Auto 5 sec</option>
-    <option value="auto 10">Auto 10 sec</option>
   </select>
 
   <!-- <button onclick="ripterm.clear();">Clear</button> -->
@@ -328,8 +340,8 @@
         <canvas id="rip-canvas" class="rip-body rip-body-height" width="640" height="350"></canvas>
       </div>
       <div class="rip-caption-area">
-        <div class="rip-caption-left">
-          <h6><b>Canvas</b> - RIP rendering in a canvas.</h6>
+        <div class="rip-caption-left rip-options">
+          <b>Canvas</b> - RIP rendering in a canvas.
         </div>
         <div class="rip-caption-right">
           <a onclick="this.setAttribute('href',getCanvasPNG());" download="canvas.png" class="noline">
@@ -347,8 +359,8 @@
         </svg>
       </div>
       <div class="rip-caption-area">
-        <div class="rip-caption-left">
-          <h6><b>SVG</b> - Experimental RIP to SVG conversion.</h6>
+        <div class="rip-caption-left rip-options">
+          <b>SVG</b> - Experimental RIP to SVG conversion.
         </div>
         <div class="rip-caption-right">
           <a onclick="this.setAttribute('href',getSVG());" download="rip.svg" class="noline">
@@ -363,8 +375,8 @@
         <canvas id="rip-ss-canvas" class="rip-body rip-body-height" width="640" height="350"></canvas>
       </div>
       <div class="rip-caption-area">
-        <div class="rip-caption-left">
-          <h6><b>Original</b> - Screenshot from RIPterm v1.54 running in DOSbox. (if available)</h6>
+        <div class="rip-caption-left rip-options">
+          <b>Original</b> - Screenshot from RIPterm v1.54 running in DOSbox. (if available)
         </div>
         <div class="rip-caption-right">
         </div>
@@ -376,8 +388,8 @@
         <canvas id="rip-diff-canvas" class="rip-body rip-body-height" width="640" height="350"></canvas>
       </div>
       <div class="rip-caption-area">
-        <div class="rip-caption-left">
-          <h6><b>Diff</b> - Highlights where pixels differ between Canvas and Original screenshot.</h6>
+        <div class="rip-caption-left rip-options">
+          <b>Diff</b> - Highlights where pixels differ between Canvas and Original screenshot.
         </div>
         <div class="rip-caption-right">
           <a onclick="this.setAttribute('href',getDiffPNG());" download="diff.png" class="noline">
@@ -391,10 +403,10 @@
 
   <div id="rip-commands" class="rip-frame-height framed">
   </div>
-  <div>
+  <div class="rip-options">
     <label>
-      <h6><input type="checkbox" id="hilite-opt" onchange="toggleHilite()" style="margin-left:1em">
-        <span style="padding-left:0.3em">Highlight RIP</span></h6>
+      <input type="checkbox" id="hilite-opt" onchange="toggleHilite()">
+      <span>Highlight RIP</span>
     </label>
   </div>
   <div class="clear"></div>
@@ -421,8 +433,15 @@
     </div>
   </div>
   <div class="clear"></div>
+  <hr style="padding: 0">
 
-  <hr>
+  <div class="rip-options" style="margin-bottom: 1em; text-align: right">
+    <b>Settings:</b>
+    <label><input type="checkbox" id="audio-opt" onchange="toggleAudio()" checked><span>Audio</span></label>
+    <label><input type="checkbox" id="music-opt" onchange="toggleMusic()" checked><span>ANSI Music</span></label>
+  </div>
+  <div class="clear"></div>
+
   <h6><b>Debug Log</b></h6>
   <div id="rip-log" class="rip-frame framed">
   </div>
@@ -560,6 +579,16 @@
   function toggleHilite() {
     const cbox = document.getElementById('hilite-opt');
     ripterm.hiliteCmdFlag = cbox.checked;
+  }
+
+  function toggleAudio() {
+    const cbox = document.getElementById('audio-opt');
+    ripterm.setAudioOn(cbox.checked);
+  }
+
+  function toggleMusic() {
+    const cbox = document.getElementById('music-opt');
+    ansiterm.setMusicOn(cbox.checked);
   }
 
   function clearLog() {

@@ -42,6 +42,7 @@ class ANSImusic {
     this.isBackground = false;
     this.queue = Promise.resolve();
     this.noteCounter = 0;
+    this.enabled = true;
   }
 
   /**
@@ -76,6 +77,7 @@ class ANSImusic {
    */
   async sound (freq, duration, volume = this.volume) {
 
+    if (!this.enabled) { return }
     if (this.actx && (freq > 0) && (volume > 0)) {
       const osc = this.actx.createOscillator();
       const gainNode = this.actx.createGain();

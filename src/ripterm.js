@@ -261,6 +261,12 @@ class RIPterm {
     return true;
   }
 
+  setAudioOn (flag) {
+    this.log('trm', "Audio " + (flag ? "ON" : "OFF"));
+    if (this.audio) { this.audio.enabled = flag; }
+    this.opts.audioOn = flag;
+  }
+
   // create a table of Unicode control char symbols.
   initControlSymbols () {
     // for 0x00(NUL) thru 0x1F
@@ -573,7 +579,7 @@ class RIPterm {
     this.ripURL = undefined;
     this.log('trm', `openFile: ${file.name}`);
     const size = file.size;
-    this.log('trm', `size: ${size.toLocaleString()}`);
+    this.log('trm', `size: ${size.toLocaleString()} bytes`);
     const stream = file.stream();
     await this.setupStream(stream, size);
   }
@@ -593,7 +599,7 @@ class RIPterm {
       }
       const stream = response.body;
       const size = Number(response.headers.get("Content-Length"));
-      this.log('trm', `size: ${size.toLocaleString()}`);
+      this.log('trm', `size: ${size.toLocaleString()} bytes`);
       await this.setupStream(stream, size);
     }
     catch (error) {
