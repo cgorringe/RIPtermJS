@@ -21,6 +21,7 @@ If you use this app on your website, we require that you give credit or acknowle
 ### Known Websites that use RIPtermJS
 
 - [L.O.R.D. Town](https://lord.town) - A really fun implementation of _Legend of the Red Dragon!_
+- [Tentacle BBS](https://tentaclebbs.com) - A browser-based door game BBS; its RIP graphics are drawn with a modified RIPtermJS.
 
 
 ### Other Links
